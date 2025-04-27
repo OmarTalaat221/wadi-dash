@@ -1,0 +1,25 @@
+@use "sass:map" as map;
+@use "../base/_base.scss" as theme;
+
+.layout {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  // padding: 24px;
+  gap: 20px;
+  overflow: hidden;
+}
+
+.body-layout {
+  width: calc(98% - 272px);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  gap: 20px;
+  padding-bottom: 40px;
+}
+
+.content-layout {
+  width: 98.3%;
+}

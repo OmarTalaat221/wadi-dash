@@ -1,0 +1,29 @@
+@forward "base/_base.scss";
+@forward "layouts/header.scss";
+@forward "layouts/main-layout.scss";
+@forward "layouts/bread_crumbs.scss";
+@forward "layouts/aside.scss";
+@forward "pages/products_page.scss";
+@forward "components/table.scss";
+@forward "components/modal.scss";
+@use "sass:map" as map;
+@use "./base/_base.scss" as theme;
+
+* {
+  font-family: map.get(
+    map.get(map.get(theme.$theme, fonts), family),
+    main-font
+  );
+  //   font-weight: map.get(map.get(map.get(theme.$theme, fonts), bold), main-bold);
+}
+
+button,
+a {
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+body {
+  background: #f5f5f5;
+}
+

@@ -1,0 +1,17 @@
+@use "sass:map" as map;
+@use "../base/_base.scss" as theme;
+
+header {
+  width: 98%;
+  // margin: 0 auto;
+  padding: 20px 4px;
+  border-bottom: 1px dashed;
+  display: flex;
+  justify-content:space-between;
+  align-items: center;
+}
+
+
+header img{
+  cursor: pointer;
+}
