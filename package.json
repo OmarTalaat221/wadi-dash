@@ -16,8 +16,6 @@
     "@react-icons/all-files": "^4.1.0",
     "@tailwindcss/vite": "^4.1.4",
     "antd": "^5.24.7",
-    "flowbite": "^2.2.1",
-    "flowbite-react": "^0.7.2",
     "jodit-react": "^5.2.19",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
