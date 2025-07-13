@@ -1,0 +1,53 @@
+$theme: (
+  colors: (
+    main-color: #295557,
+    second-color: #e4642d,
+    third-color: #4fc9da,
+  ),
+  shadow: (
+    box-shadow: 0 4px 4px 0 rgba(0, 0, 0, 0.25),
+    inset-shadow: 0px 0px 10px 0px #295557 inset,
+    white-box-shadow: 0 4px 4px 0 #f4f7f8,
+  ),
+  icons: (
+    sidebar-icon-size: (
+      width: 20px,
+      height: 20px,
+    ),
+    buttons-icon-size: (
+      width: 16px,
+      height: 16px,
+    ),
+  ),
+  radius: (
+    main-radius: 4px,
+    button-radius: 8px,
+    link-radius: 13px,
+    layout-radius: 16px,
+  ),
+  transition: (
+    main-transition: (
+      0.5s ease-in-out,
+    ),
+  ),
+
+  fonts: (
+    family: (
+      main-font: (
+        "Golos Text",
+        sans-serif,
+      ),
+    ),
+    size: (
+      link-size: 16px,
+      heading-size: 24px,
+      title-size: 14px,
+      main-size: 16px,
+    ),
+    bold: (
+      heading-bold: 700,
+      title-bold: 900,
+      main-bold: 700,
+    ),
+  ),
+);

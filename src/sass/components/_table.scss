@@ -1,0 +1,25 @@
+.TableData table {
+  width: 100%;
+  text-align: start;
+}
+
+.TableData table th,
+.TableData table tr,
+.TableData table td {
+  text-align: start;
+}
+
+.TableData table th {
+  //   display: inline;
+  padding: 10px 6px;
+  padding-right: 19px;
+  white-space: nowrap;
+  border-top: 1px solid #80808057;
+}
+
+.TableData table td {
+  //   display: inline;
+  padding: 10px 6px;
+  border-top: 1px dashed #80808057;
+  border-bottom: 1px dashed #80808057;
+}

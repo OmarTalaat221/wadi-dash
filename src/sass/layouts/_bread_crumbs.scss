@@ -1,0 +1,22 @@
+@use "sass:map" as map;
+@use "../base/_base.scss" as theme;
+
+.Page_title_bread_crumbs {
+  width: 100%;
+  border-radius: map.get(map.get(theme.$theme, radius), button-radius);
+  // background-color: #ffffff;
+  padding:12px 9px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid map.get(map.get(theme.$theme, colors), main-color);
+}
+
+.Page_title_bread_crumbs h3 {
+  color: map.get(map.get(theme.$theme, colors), main-color);
+  font-weight: map.get(
+    map.get(map.get(theme.$theme, fonts), bold),
+    heading-bold
+  );
+  font-size: map.get(map.get(map.get(theme.$theme, fonts), size), title-size);
+}
