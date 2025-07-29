@@ -1,1 +1,313 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800;900&display=swap");
+
 @import "tailwindcss";
+
+/* Custom Tabs Styling */
+.custom-tabs .ant-tabs-nav {
+  margin-bottom: 0;
+}
+
+.custom-tabs .ant-tabs-tab {
+  padding: 12px 16px;
+  font-weight: 500;
+  border-radius: 8px 8px 0 0;
+  transition: all 0.3s ease;
+}
+
+.custom-tabs .ant-tabs-tab-active {
+  background-color: #f0f7ff;
+  border-bottom-color: #f0f7ff;
+}
+
+.custom-tabs .ant-tabs-tab:hover {
+  color: #1890ff;
+}
+
+.custom-tabs .ant-tabs-ink-bar {
+  background-color: #1890ff;
+  height: 3px;
+}
+
+/* Status Badge Styling */
+.ant-badge-status-dot {
+  width: 8px;
+  height: 8px;
+}
+
+.ant-badge-status-warning {
+  background-color: #faad14;
+}
+
+.ant-badge-status-success {
+  background-color: #52c41a;
+}
+
+.ant-badge-status-error {
+  background-color: #f5222d;
+}
+
+/* Pulse animation for top team members badge */
+.pulse-animation::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7);
+  animation: pulse 2s infinite;
+  z-index: -1;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7);
+  }
+
+  70% {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 10px rgba(255, 215, 0, 0);
+  }
+
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(255, 215, 0, 0);
+  }
+}
+
+/* Gallery Page Styles */
+.gallery-container {
+  padding: 2rem;
+}
+
+.gallery-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.gallery-header h1 {
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+.add-photo-btn {
+  background-color: #4a90e2;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  border: none;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.add-photo-btn:hover {
+  background-color: #357abf;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 2rem;
+}
+
+.gallery-item {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+  background-color: #fff;
+  transition: transform 0.2s ease;
+}
+
+.gallery-item:hover {
+  transform: translateY(-5px);
+}
+
+.gallery-image {
+  height: 200px;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  cursor: pointer;
+}
+
+.gallery-actions {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.gallery-image:hover .gallery-actions {
+  opacity: 1;
+}
+
+.gallery-actions button {
+  background-color: rgba(255, 255, 255, 0.85);
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.gallery-actions button:hover {
+  background-color: rgba(255, 255, 255, 1);
+}
+
+.gallery-item h3 {
+  padding: 1rem 1rem 0.5rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.gallery-item p {
+  padding: 0 1rem 1rem;
+  font-size: 0.9rem;
+  color: #666;
+  line-height: 1.4;
+}
+
+/* Photo Modal Styles */
+.photo-modal {
+  padding: 1.5rem;
+}
+
+.photo-modal h2 {
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.delete-confirmation {
+  text-align: center;
+}
+
+.delete-confirmation p {
+  margin-bottom: 1.5rem;
+  font-size: 1.1rem;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.modal-actions button:first-child {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.modal-actions button:first-child:hover {
+  background-color: #c0392b;
+}
+
+.photo-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  font-weight: 500;
+}
+
+.form-group input,
+.form-group textarea {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.form-group textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.image-preview {
+  margin-top: 1rem;
+  max-height: 200px;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.image-preview img {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.form-actions button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.form-actions button[type="submit"] {
+  background-color: #4a90e2;
+  color: white;
+}
+
+.form-actions button[type="submit"]:hover {
+  background-color: #357abf;
+}
+
+.form-actions button[type="button"] {
+  background-color: #e0e0e0;
+  color: #333;
+}
+
+.form-actions button[type="button"]:hover {
+  background-color: #ccc;
+}
+
+/* Preview Modal Styles */
+.preview-modal {
+  text-align: center;
+  padding: 1.5rem;
+}
+
+.preview-modal img {
+  width: 100%;
+  max-height: 60vh;
+  object-fit: contain;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.preview-modal h2 {
+  margin-bottom: 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.preview-modal p {
+  color: #666;
+  line-height: 1.5;
+}

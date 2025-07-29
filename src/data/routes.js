@@ -1,5 +1,9 @@
 import { PiBuildingApartment } from "react-icons/pi";
-import { IoCarSportOutline, IoChatbox, IoChatboxEllipsesOutline } from "react-icons/io5";
+import {
+  IoCarSportOutline,
+  IoChatbox,
+  IoChatboxEllipsesOutline,
+} from "react-icons/io5";
 import Banners from "../pages/banners";
 import Home from "../pages/home";
 import Login from "../pages/login";
@@ -17,11 +21,24 @@ import UpdateTransfer from "../pages/Transfer/innerPages/update";
 import CreateTransfer from "../pages/Transfer/innerPages/create";
 import Orders from "../pages/tours/innerPages/orders";
 import LiveSupport from "../pages/LiveSupport";
-import { FaBell, FaCheck, FaUsers } from "react-icons/fa";
+import {
+  FaBell,
+  FaCheck,
+  FaImages,
+  FaNewspaper,
+  FaQuestionCircle,
+  FaUserFriends,
+  FaUsers,
+} from "react-icons/fa";
 import TermsAndConditions from "../pages/TermsAndConditions";
 import Notifications from "../pages/Notifications";
 import Community from "../pages/Community";
 import UsersRequests from "../pages/UsersRequests";
+import Team from "../pages/Team";
+import Gallery from "../pages/gallery";
+import Newsletter from "../pages/newsletter";
+import Faqs from "../pages/Faqs";
+
 export const publicRoutes = [
   {
     title: "Dashboard",
@@ -122,22 +139,38 @@ export const publicRoutes = [
   },
 
   {
+    title: "Gallery",
+    icon: FaImages,
+    hidden: false,
+    route: "/gallery",
+    element: Gallery,
+  },
+
+  {
+    title: "FAQs",
+    icon: FaQuestionCircle,
+    hidden: false,
+    route: "/faqs",
+    element: Faqs,
+  },
+
+  {
     title: "Live Support",
-    icon:  IoChatboxEllipsesOutline ,
+    icon: IoChatboxEllipsesOutline,
     hidden: false,
     route: "/live-support",
     element: LiveSupport,
   },
   {
     title: "Terms & Conditions",
-    icon:  FaCheck ,
+    icon: FaCheck,
     hidden: false,
     route: "/terms-and-conditions",
     element: TermsAndConditions,
   },
   {
     title: "Notifications",
-    icon:  FaBell ,
+    icon: FaBell,
     hidden: false,
     route: "/notifications",
     element: Notifications,
@@ -145,22 +178,35 @@ export const publicRoutes = [
 
   {
     title: "Community",
-    icon:  FaUsers ,
+    icon: FaUsers,
     hidden: false,
     route: "/community",
     element: Community,
   },
-  
+
   {
-    title: "users requests",
-    icon:  FaUsers,
+    title: "Users Requests",
+    icon: FaUsers,
     hidden: false,
     route: "/users-requests",
     element: UsersRequests,
   },
-  
 
+  {
+    title: "Team",
+    icon: FaUserFriends,
+    hidden: false,
+    route: "/team",
+    element: Team,
+  },
 
+  {
+    title: "Newsletter",
+    icon: FaNewspaper,
+    hidden: false,
+    route: "/newsletter",
+    element: Newsletter,
+  },
 
   // {
   //   title: "Website Information",

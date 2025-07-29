@@ -3,6 +3,7 @@ export const posts = [
     id: 1,
     pageName: "Mohammed El-sayed",
     isSponsored: true,
+    status: "pending", // Added status field
     profileImage:
       "https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=100&h=100&fit=crop&crop=face",
     content:
@@ -78,6 +79,7 @@ export const posts = [
     id: 2,
     pageName: "National Geographic",
     isSponsored: false,
+    status: "accepted", // Added status field
     profileImage:
       "https://images.unsplash.com/photo-1446776877081-d282a0f896e2?w=100&h=100&fit=crop",
     content: "Discover the hidden wonders of the Amazon rainforest",
@@ -153,6 +155,7 @@ export const posts = [
     id: 3,
     pageName: "Mohammed El-sayed",
     isSponsored: true,
+    status: "rejected", // Added status field
     profileImage:
       "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=100&h=100&fit=crop",
     content: "The ultimate comfort food recipe that will change your life!",
@@ -228,6 +231,7 @@ export const posts = [
     id: 4,
     pageName: "NASA",
     isSponsored: false,
+    status: "accepted", // Added status field
     profileImage:
       "https://images.unsplash.com/photo-1446776656982-73cd2c4a6119?w=100&h=100&fit=crop",
     content: "Stunning new images from the James Webb Space Telescope",
@@ -303,6 +307,7 @@ export const posts = [
     id: 5,
     pageName: "Travel + Leisure",
     isSponsored: true,
+    status: "pending", // Added status field
     profileImage:
       "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=100&h=100&fit=crop",
     content: "10 hidden gems in Europe you need to visit this summer",

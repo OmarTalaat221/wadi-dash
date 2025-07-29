@@ -36,6 +36,16 @@ aside ul {
   display: flex;
   flex-direction: column;
   // gap: 10px;
+  overflow: auto;
+}
+
+aside ul::-webkit-scrollbar {
+  display: none;
+}
+
+aside ul {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 a.sidebar-link.active {
