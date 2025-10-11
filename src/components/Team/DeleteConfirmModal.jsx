@@ -1,15 +1,23 @@
+// components/Team/DeleteConfirmModal.js
 import React from "react";
 import { Modal, Button } from "antd";
 import { ExclamationCircleFilled } from "@ant-design/icons";
 
-const DeleteConfirmModal = ({ open, setOpen, onConfirm, memberName }) => {
+const DeleteConfirmModal = ({
+  open,
+  setOpen,
+  onConfirm,
+  memberName,
+  deleting = false,
+}) => {
   const handleCancel = () => {
-    setOpen(false);
+    if (!deleting) {
+      setOpen(false);
+    }
   };
 
   const handleConfirm = () => {
     onConfirm();
-    handleCancel();
   };
 
   return (
@@ -20,6 +28,7 @@ const DeleteConfirmModal = ({ open, setOpen, onConfirm, memberName }) => {
       footer={null}
       centered
       className="delete-confirm-modal"
+      maskClosable={!deleting}
     >
       <div className="py-4">
         <div className="flex items-center justify-center mb-4">
@@ -35,7 +44,11 @@ const DeleteConfirmModal = ({ open, setOpen, onConfirm, memberName }) => {
         </p>
 
         <div className="flex justify-center space-x-3">
-          <Button onClick={handleCancel} className="px-4 py-2">
+          <Button
+            onClick={handleCancel}
+            className="px-4 py-2"
+            disabled={deleting}
+          >
             Cancel
           </Button>
           <Button
@@ -43,6 +56,7 @@ const DeleteConfirmModal = ({ open, setOpen, onConfirm, memberName }) => {
             danger
             onClick={handleConfirm}
             className="px-4 py-2"
+            loading={deleting}
           >
             Delete
           </Button>

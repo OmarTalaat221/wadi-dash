@@ -3,7 +3,7 @@ import { FaEye } from "react-icons/fa";
 import { FiPlus } from "react-icons/fi";
 import { MdDelete } from "react-icons/md";
 
-const AccomImages = ({ rowData, setRowData }) => {
+const TransferImages = ({ rowData, setRowData }) => {
   const imageInputRef = useRef(null);
   const imageRefs = useRef([]);
 
@@ -114,4 +114,4 @@ const AccomImages = ({ rowData, setRowData }) => {
   );
 };
 
-export default AccomImages;
+export default TransferImages;

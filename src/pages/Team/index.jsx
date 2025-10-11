@@ -1,33 +1,105 @@
+// pages/admin/team/index.js
 import React, { useState, useEffect } from "react";
-import { Button, Tabs, Badge, Input, Empty, message } from "antd";
-import { PlusOutlined, SearchOutlined, StarFilled } from "@ant-design/icons";
-import { teamMembers as initialTeamMembers } from "../../data/teamMembers";
+import { Button, Tabs, Badge, Input, Empty, message, Spin } from "antd";
+import {
+  PlusOutlined,
+  SearchOutlined,
+  ReloadOutlined,
+} from "@ant-design/icons";
 import TeamMemberCard from "../../components/Team/TeamMemberCard";
-import MemberDetailsModal from "../../components/Team/MemberDetailsModal";
 import AddEditMemberModal from "../../components/Team/AddEditMemberModal";
 import DeleteConfirmModal from "../../components/Team/DeleteConfirmModal";
 import BreadCrumbs from "../../components/bread-crumbs";
+import axios from "axios";
+import { base_url } from "../../utils/base_url";
 
 const { TabPane } = Tabs;
 const MAX_TOP_MEMBERS = 4;
 
 const Team = () => {
-  const [teamMembers, setTeamMembers] = useState(initialTeamMembers);
-  const [filteredMembers, setFilteredMembers] = useState(initialTeamMembers);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [filteredMembers, setFilteredMembers] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
-  const [selectedMember, setSelectedMember] = useState(null);
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [memberToEdit, setMemberToEdit] = useState(null);
   const [memberToDelete, setMemberToDelete] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [toggling, setToggling] = useState(null);
 
-  // Count members by status
-  const topMembersCount = teamMembers.filter(
+  // Helper function to parse bestPlaces
+  const parseBestPlaces = (bestPlacesString) => {
+    if (!bestPlacesString) return [];
+
+    try {
+      return JSON.parse(bestPlacesString);
+    } catch (error) {
+      return bestPlacesString
+        .split(",")
+        .map((place) => place.trim())
+        .filter((place) => place.length > 0);
+    }
+  };
+
+  // Fetch team members from API
+  const fetchTeamMembers = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(
+        `${base_url}/admin/team/select_member.php`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.data && response.data.status === "success") {
+        const transformedMembers = response.data.message.map((member) => ({
+          id: member.id,
+          name: member.name,
+          position: member.role,
+          isTopMember: member.is_top === "1",
+          profileImage: member.image,
+          shortDescription: member.description,
+          funFact: member.funFact,
+          favoriteQuote: member.favoriteQuote,
+          favoriteMemory: member.favoriteMemory,
+          bestPlaces: parseBestPlaces(member.bestPlaces), // Use helper function
+          ig_link: member.ig_link,
+          facebook_link: member.facebook_link,
+          hidden: member.hidden === "1",
+          is_top: member.is_top,
+        }));
+
+        setTeamMembers(transformedMembers);
+      } else {
+        message.error("Failed to fetch team members");
+      }
+    } catch (error) {
+      console.error("Error fetching team members:", error);
+      message.error(
+        error.response?.data?.message ||
+          "Failed to load team members. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load team members on component mount
+  useEffect(() => {
+    fetchTeamMembers();
+  }, []);
+
+  // Count members by status (only count visible members for badges)
+  const visibleMembers = teamMembers.filter((member) => !member.hidden);
+  const topMembersCount = visibleMembers.filter(
     (member) => member.isTopMember
   ).length;
-  const regularMembersCount = teamMembers.filter(
+  const regularMembersCount = visibleMembers.filter(
     (member) => !member.isTopMember
   ).length;
 
@@ -57,11 +129,6 @@ const Team = () => {
   }, [teamMembers, activeTab, searchQuery]);
 
   // Handle member actions
-  const handleViewMember = (member) => {
-    setSelectedMember(member);
-    setIsDetailsModalOpen(true);
-  };
-
   const handleAddMember = () => {
     setMemberToEdit(null);
     setIsAddEditModalOpen(true);
@@ -77,18 +144,48 @@ const Team = () => {
     setIsDeleteModalOpen(true);
   };
 
-  const handleSaveMember = (memberData) => {
+  const handleToggleMember = async (member) => {
+    setToggling(member.id);
+    try {
+      const response = await axios.post(
+        `${base_url}/admin/team/toggle_member.php`,
+        {
+          id: parseInt(member.id),
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.data && response.data.status === "success") {
+        const action = member.hidden ? "shown" : "hidden";
+        message.success(`Team member ${action} successfully!`);
+        await fetchTeamMembers();
+      } else {
+        throw new Error(response.data?.message || "Failed to toggle member");
+      }
+    } catch (error) {
+      console.error("Error toggling member:", error);
+      message.error(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to toggle member visibility. Please try again."
+      );
+    } finally {
+      setToggling(null);
+    }
+  };
+
+  const handleSaveMember = async (memberData) => {
     // Check if trying to add a new top member when already at max
     if (memberData.isTopMember) {
-      // If editing an existing top member, it doesn't count toward the limit
       const isExistingTopMember = memberToEdit?.isTopMember;
-
-      // Calculate how many top members we would have after this change
       const topMembersAfterChange = isExistingTopMember
-        ? topMembersCount // No change in count if updating existing top member
-        : topMembersCount + 1; // Adding one more top member
+        ? topMembersCount
+        : topMembersCount + 1;
 
-      // Check if we would exceed the limit
       if (!isExistingTopMember && topMembersAfterChange > MAX_TOP_MEMBERS) {
         message.error(
           `You can only have a maximum of ${MAX_TOP_MEMBERS} top team members.`
@@ -97,31 +194,122 @@ const Team = () => {
       }
     }
 
-    if (memberToEdit) {
-      // Update existing member
-      setTeamMembers(
-        teamMembers.map((member) =>
-          member.id === memberData.id ? memberData : member
-        )
-      );
-    } else {
-      // Add new member
-      setTeamMembers([...teamMembers, memberData]);
-    }
+    setSaving(true);
 
-    // Show success message
-    message.success(
-      `Team member successfully ${memberToEdit ? "updated" : "added"}!`
-    );
+    try {
+      // Prepare data for API - convert array back to comma-separated string
+      const apiData = {
+        name: memberData.name,
+        image: memberData.profileImage,
+        description: memberData.shortDescription,
+        funFact: memberData.funFact,
+        favoriteQuote: memberData.favoriteQuote,
+        role: memberData.position,
+        ig_link: memberData.ig_link || "https://www.instagram.com/",
+        facebook_link: memberData.facebook_link || "https://www.facebook.com/",
+        hidden: "0",
+        is_top: memberData.isTopMember ? "1" : "0",
+        favoriteMemory: memberData.favoriteMemory,
+        bestPlaces: Array.isArray(memberData.bestPlaces)
+          ? memberData.bestPlaces.join(",")
+          : memberData.bestPlaces || "",
+      };
+
+      let response;
+
+      if (memberToEdit) {
+        // Update existing member
+        response = await axios.post(
+          `${base_url}/admin/team/edit_member.php`,
+          {
+            id: parseInt(memberToEdit.id),
+            ...apiData,
+          },
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+      } else {
+        // Add new member
+        response = await axios.post(
+          `${base_url}/admin/team/add_member.php`,
+          apiData,
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+      }
+
+      if (response.data && response.data.status === "success") {
+        message.success(
+          `Team member successfully ${memberToEdit ? "updated" : "added"}!`
+        );
+        await fetchTeamMembers();
+        setIsAddEditModalOpen(false);
+      } else {
+        throw new Error(
+          response.data?.message ||
+            `Failed to ${memberToEdit ? "update" : "add"} member`
+        );
+      }
+    } catch (error) {
+      console.error("Error saving member:", error);
+      message.error(
+        error.response?.data?.message ||
+          error.message ||
+          `Failed to ${
+            memberToEdit ? "update" : "add"
+          } team member. Please try again.`
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleConfirmDelete = () => {
-    if (memberToDelete) {
-      setTeamMembers(
-        teamMembers.filter((member) => member.id !== memberToDelete.id)
+  const handleConfirmDelete = async () => {
+    if (!memberToDelete) return;
+
+    setSaving(true);
+    try {
+      const response = await axios.post(
+        `${base_url}/admin/team/delete_member.php`,
+        {
+          id: parseInt(memberToDelete.id),
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
       );
-      setMemberToDelete(null);
+
+      if (response.data && response.data.status === "success") {
+        message.success("Team member successfully deleted!");
+        await fetchTeamMembers();
+        setIsDeleteModalOpen(false);
+        setMemberToDelete(null);
+      } else {
+        throw new Error(response.data?.message || "Failed to delete member");
+      }
+    } catch (error) {
+      console.error("Error deleting member:", error);
+      message.error(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to delete team member. Please try again."
+      );
+    } finally {
+      setSaving(false);
     }
+  };
+
+  const handleRefresh = () => {
+    setSearchQuery("");
+    fetchTeamMembers();
   };
 
   return (
@@ -129,14 +317,23 @@ const Team = () => {
       <BreadCrumbs
         title={"Dashboard / Team"}
         children={
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAddMember}
-            className="bg-blue-600"
-          >
-            Add Team Member
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={handleRefresh}
+              loading={loading}
+            >
+              Refresh
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleAddMember}
+              className="bg-blue-600"
+            >
+              Add Team Member
+            </Button>
+          </div>
         }
       />
 
@@ -148,7 +345,7 @@ const Team = () => {
                 <span>
                   All Members{" "}
                   <Badge
-                    count={teamMembers.length}
+                    count={visibleMembers.length}
                     style={{ backgroundColor: "#1890ff" }}
                   />
                 </span>
@@ -187,51 +384,59 @@ const Team = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full md:w-64"
+            allowClear
           />
         </div>
       </div>
 
-      {filteredMembers.length > 0 ? (
+      {loading ? (
+        <div className="flex justify-center items-center py-12">
+          <Spin size="large" tip="Loading team members..." />
+        </div>
+      ) : filteredMembers.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredMembers.map((member) => (
-            <div
+            <TeamMemberCard
               key={member.id}
-              onClick={() => handleViewMember(member)}
-              className="cursor-pointer"
-            >
-              <TeamMemberCard
-                member={member}
-                onView={handleViewMember}
-                onEdit={handleEditMember}
-                onDelete={handleDeleteMember}
-              />
-            </div>
+              member={member}
+              onEdit={handleEditMember}
+              onDelete={handleDeleteMember}
+              onToggle={handleToggleMember}
+              isToggling={toggling === member.id}
+            />
           ))}
         </div>
       ) : (
         <Empty
           description={
             <span className="text-gray-500">
-              No team members found.{" "}
-              {searchQuery && "Try a different search term."}
+              {searchQuery
+                ? "No team members found. Try a different search term."
+                : "No team members available. Click 'Add Team Member' to create one."}
             </span>
           }
           className="my-12"
-        />
+        >
+          {!searchQuery && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleAddMember}
+              className="bg-blue-600"
+            >
+              Add Your First Team Member
+            </Button>
+          )}
+        </Empty>
       )}
 
       {/* Modals */}
-      <MemberDetailsModal
-        open={isDetailsModalOpen}
-        setOpen={setIsDetailsModalOpen}
-        selectedMember={selectedMember}
-      />
-
       <AddEditMemberModal
         open={isAddEditModalOpen}
         setOpen={setIsAddEditModalOpen}
         initialData={memberToEdit}
         onSave={handleSaveMember}
+        saving={saving}
       />
 
       <DeleteConfirmModal
@@ -239,6 +444,7 @@ const Team = () => {
         setOpen={setIsDeleteModalOpen}
         onConfirm={handleConfirmDelete}
         memberName={memberToDelete?.name}
+        deleting={saving}
       />
     </div>
   );

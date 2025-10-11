@@ -1,107 +1,98 @@
-import React, { useState } from "react";
-import { Badge, Tooltip, Tag } from "antd";
-import { FaStar, FaEllipsisH } from "react-icons/fa";
+// components/Team/TeamMemberCard.js
+import React from "react";
+import { Card, Tag, Tooltip, Popconfirm } from "antd";
+import {
+  EditOutlined,
+  DeleteOutlined,
+  EyeOutlined,
+  EyeInvisibleOutlined,
+} from "@ant-design/icons";
 
-const TeamMemberCard = ({ member, onEdit, onDelete, onView }) => {
-  const [imgSrc, setImgSrc] = useState(member.profileImage);
-  const fallbackImage =
-    "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y3ZjdmNyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOTk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+SW1hZ2UgTm90IEZvdW5kPC90ZXh0Pjwvc3ZnPg==";
-
-  const handleImageError = () => {
-    setImgSrc(fallbackImage);
+const TeamMemberCard = ({ member, onEdit, onDelete, onToggle, isToggling }) => {
+  const getVisibilityInfo = () => {
+    return {
+      color: member.hidden ? "red" : "green",
+      text: member.hidden ? "Hidden" : "Visible",
+      icon: member.hidden ? EyeInvisibleOutlined : EyeOutlined,
+      actionText: member.hidden ? "show" : "hide",
+    };
   };
 
+  const visibilityInfo = getVisibilityInfo();
+  const VisibilityIcon = visibilityInfo.icon;
+
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 hover:shadow-xl">
-      {/* Top Member Badge */}
-      {member.isTopMember && (
-        <div className="absolute top-3 left-3 z-10">
-          <Badge
-            count={<FaStar className="text-yellow-400" />}
-            className="pulse-animation"
-            style={{ backgroundColor: "rgba(255, 255, 255, 0.9)" }}
-          />
-        </div>
-      )}
-
-      {/* Image */}
-      <div className="relative h-64">
-        <img
-          src={imgSrc}
-          alt={member.name}
-          className="w-full h-full object-contain"
-          onError={handleImageError}
-        />
-
-        {/* Actions Menu */}
-        <div className="absolute top-3 right-3">
-          <Tooltip title="Actions">
-            <div
-              className="bg-white rounded-full p-2 shadow-md cursor-pointer"
-              onClick={(e) => {
-                e.stopPropagation();
-                const menu = document.getElementById(`menu-${member.id}`);
-                menu.classList.toggle("hidden");
+    <div
+      className={`transition-opacity duration-300 ${
+        member.hidden ? "opacity-50" : "opacity-100"
+      }`}
+    >
+      <Card
+        hoverable
+        cover={
+          <div className="relative h-48 overflow-hidden">
+            <img
+              alt={member.name}
+              src={member.profileImage}
+              className="w-full h-full object-contain"
+              onError={(e) => {
+                e.target.src = "/placeholder-team.png";
               }}
-            >
-              <FaEllipsisH className="text-gray-600" />
-            </div>
-          </Tooltip>
-
-          <div
-            id={`menu-${member.id}`}
-            className="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-20"
-          >
-            <div className="py-1">
-              <button
-                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onView(member);
-                }}
-              >
-                View Details
-              </button>
-              <button
-                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(member);
-                }}
-              >
-                Edit
-              </button>
-              <button
-                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(member);
-                }}
-              >
-                Delete
-              </button>
+            />
+            <div className="absolute top-2 right-2 flex gap-1">
+              {member.isTopMember && (
+                <Tag color="gold" className="flex items-center">
+                  <span className="mr-1">⭐</span>
+                  Top Member
+                </Tag>
+              )}
+              <Tag color={visibilityInfo.color} className="flex items-center">
+                {visibilityInfo.text}
+              </Tag>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="p-5">
-        <h3 className="text-xl font-bold text-gray-900 mb-1">{member.name}</h3>
-        <p className="text-indigo-600 font-medium mb-3">{member.position}</p>
-        <p className="text-gray-600 mb-4 line-clamp-2">
-          {member.shortDescription}
-        </p>
-
-        {/* Best Places */}
-        <div className="flex flex-wrap gap-2 mt-3">
-          {member.bestPlaces.map((place, index) => (
-            <Tag key={index} color="blue" className="rounded-full px-3 py-1">
-              {place}
-            </Tag>
-          ))}
-        </div>
-      </div>
+        }
+        actions={[
+          <Tooltip title="Edit Member" key="edit">
+            <EditOutlined onClick={() => onEdit(member)} />
+          </Tooltip>,
+          <Popconfirm
+            key="toggle"
+            title={`${visibilityInfo.actionText} this team member?`}
+            description={`Are you sure you want to ${visibilityInfo.actionText} "${member.name}"?`}
+            onConfirm={() => onToggle(member)}
+            okText="Yes"
+            cancelText="No"
+            disabled={isToggling}
+          >
+            <Tooltip title={`${visibilityInfo.actionText} Member`}>
+              <VisibilityIcon
+                style={{
+                  color: isToggling ? "#1890ff" : undefined,
+                  cursor: isToggling ? "wait" : "pointer",
+                }}
+              />
+            </Tooltip>
+          </Popconfirm>,
+          <Tooltip title="Delete Member" key="delete">
+            <DeleteOutlined onClick={() => onDelete(member)} />
+          </Tooltip>,
+        ]}
+      >
+        <Card.Meta
+          title={<span className="text-lg font-semibold">{member.name}</span>}
+          description={
+            <div>
+              <p className="text-blue-600 font-medium mb-2">
+                {member.position}
+              </p>
+              <p className="text-gray-600 text-sm line-clamp-2">
+                {member.shortDescription}
+              </p>
+            </div>
+          }
+        />
+      </Card>
     </div>
   );
 };

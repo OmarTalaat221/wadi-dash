@@ -24,9 +24,11 @@ import LiveSupport from "../pages/LiveSupport";
 import {
   FaBell,
   FaCheck,
+  FaClipboardCheck,
   FaImages,
   FaNewspaper,
   FaQuestionCircle,
+  FaRunning,
   FaUserFriends,
   FaUsers,
 } from "react-icons/fa";
@@ -38,6 +40,14 @@ import Team from "../pages/Team";
 import Gallery from "../pages/gallery";
 import Newsletter from "../pages/newsletter";
 import Faqs from "../pages/Faqs";
+import Requests from "../pages/Requests";
+import { FaMessage } from "react-icons/fa6";
+import UserProblems from "../pages/UserProblems";
+import { MdQuestionMark } from "react-icons/md";
+import SiteInfo from "../pages/SiteInfo";
+import Activities from "../pages/activities";
+import CreateActivity from "../pages/activities/innerPages/create";
+import UpdateActivity from "../pages/activities/innerPages/update";
 
 export const publicRoutes = [
   {
@@ -137,6 +147,37 @@ export const publicRoutes = [
       },
     ],
   },
+  {
+    title: "Activities",
+    icon: FaRunning,
+    hidden: false,
+    route: "/activities",
+    element: Activities,
+    subLinks: [
+      {
+        title: "Create",
+        icon: "/plus.png",
+        hidden: false,
+        route: "create",
+        element: CreateActivity,
+      },
+      {
+        title: "Update",
+        icon: "/edit.png",
+        hidden: true,
+        route: "update/:product_id",
+        element: UpdateActivity,
+      },
+    ],
+  },
+
+  {
+    title: "Requests",
+    icon: FaClipboardCheck,
+    hidden: false,
+    route: "/requests",
+    element: Requests,
+  },
 
   {
     title: "Gallery",
@@ -191,6 +232,13 @@ export const publicRoutes = [
     route: "/users-requests",
     element: UsersRequests,
   },
+  {
+    title: "Users Messages",
+    icon: FaMessage,
+    hidden: false,
+    route: "/users-messages",
+    element: UserProblems,
+  },
 
   {
     title: "Team",
@@ -206,6 +254,14 @@ export const publicRoutes = [
     hidden: false,
     route: "/newsletter",
     element: Newsletter,
+  },
+
+  {
+    title: "Site Info",
+    icon: MdQuestionMark,
+    hidden: false,
+    route: "/site-info",
+    element: SiteInfo,
   },
 
   // {

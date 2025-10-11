@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -16,6 +16,8 @@
     "@react-icons/all-files": "^4.1.0",
     "@tailwindcss/vite": "^4.1.4",
     "antd": "^5.26.6",
+    "axios": "^1.12.2",
+    "dayjs": "^1.11.18",
     "framer-motion": "^12.23.3",
     "jodit-react": "^5.2.19",
     "react": "^18.2.0",

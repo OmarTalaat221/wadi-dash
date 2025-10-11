@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { Button, Card, Col, Row } from "antd";
 import DataTable from "../../layout/DataTable";
-import UserTripDetails from './components/userTripDetails';
+import UserTripDetails from "./components/userTripDetails";
 
 const UsersRequests = () => {
   const loading = false;
-  const [rowData , setRowData] = useState(null);
+  const [rowData, setRowData] = useState(null);
 
   const headers = [
     {
@@ -40,8 +40,8 @@ const UsersRequests = () => {
       dataIndex: "currentBalance",
       render: (text) => (
         <p className="text-gray-500  text-base">
-          From <span className="text-black font-bold text-xl">$500</span>{" "}
-          To <span className="text-green-400 font-bold text-2xl">$530</span>
+          From <span className="text-black font-bold text-xl">$500</span> To{" "}
+          <span className="text-green-400 font-bold text-2xl">$530</span>
         </p>
       ),
     },
@@ -61,7 +61,6 @@ const UsersRequests = () => {
       render: (text) => (
         <div>
           <Button
-
             className="bg-primary text-white"
             type="primary"
             onClick={() => {
