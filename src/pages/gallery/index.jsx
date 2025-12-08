@@ -11,6 +11,8 @@ import {
   Spin,
   Tag,
   Tooltip,
+  Input,
+  Form,
 } from "antd";
 import {
   PlusOutlined,
@@ -35,6 +37,9 @@ const Gallery = () => {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [toggling, setToggling] = useState(null);
+
+  // Form for adding photos with title
+  const [form] = Form.useForm();
 
   // Fetch gallery images
   const fetchGallery = async () => {
@@ -72,6 +77,7 @@ const Gallery = () => {
 
   const handleAddPhoto = () => {
     setFileList([]);
+    form.resetFields();
     setModalOpen(true);
   };
 
@@ -147,9 +153,14 @@ const Gallery = () => {
     setPreviewModalOpen(true);
   };
 
-  const handleUploadPhoto = async () => {
+  const handleUploadPhoto = async (values) => {
     if (fileList.length === 0) {
       message.error("Please select an image to upload");
+      return;
+    }
+
+    if (!values.title || values.title.trim() === "") {
+      message.error("Please enter a title for the photo");
       return;
     }
 
@@ -166,11 +177,12 @@ const Gallery = () => {
         throw new Error("No image URL returned from upload");
       }
 
-      // Step 2: Add image URL to gallery database
+      // Step 2: Add image URL to gallery database with title
       const response = await axios.post(
         `${base_url}/admin/gallary/add_gallary.php`,
         {
           image: imageUrl,
+          title: values.title.trim(),
         },
         {
           headers: {
@@ -184,6 +196,7 @@ const Gallery = () => {
         await fetchGallery(); // Refresh gallery
         setModalOpen(false);
         setFileList([]);
+        form.resetFields();
       } else {
         throw new Error(
           response.data?.message || "Failed to add photo to gallery"
@@ -205,6 +218,7 @@ const Gallery = () => {
   const handleCancel = () => {
     setModalOpen(false);
     setFileList([]);
+    form.resetFields();
   };
 
   const uploadProps = {
@@ -219,7 +233,6 @@ const Gallery = () => {
         return false;
       }
 
-      // Validate file size (e.g., < 10MB)
       const isLt10M = file.size / 1024 / 1024 < 10;
       if (!isLt10M) {
         message.error("Image must be smaller than 10MB!");
@@ -340,6 +353,13 @@ const Gallery = () => {
                 ]}
               >
                 <Card.Meta
+                  title={
+                    <Tooltip title={photo.title || "No title"}>
+                      <div className="text-sm font-medium text-gray-900 truncate text-center">
+                        {photo.title || "Untitled"}
+                      </div>
+                    </Tooltip>
+                  }
                   description={
                     <div className="text-center">
                       <p className="text-xs text-gray-500 mb-1">
@@ -360,32 +380,41 @@ const Gallery = () => {
         title="Add New Photo"
         open={modalOpen}
         onCancel={handleCancel}
-        footer={[
-          <Button key="cancel" onClick={handleCancel} disabled={uploading}>
-            Cancel
-          </Button>,
-          <Button
-            key="upload"
-            type="primary"
-            onClick={handleUploadPhoto}
-            loading={uploading}
-            disabled={fileList.length === 0}
-          >
-            Upload Photo
-          </Button>,
-        ]}
+        footer={null}
         width={600}
         destroyOnClose
       >
-        <div className="py-4">
-          <Upload {...uploadProps}>
-            {fileList.length === 0 && (
-              <div>
-                <PlusOutlined />
-                <div style={{ marginTop: 8 }}>Select Image</div>
-              </div>
-            )}
-          </Upload>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleUploadPhoto}
+          className="py-4"
+        >
+          <Form.Item
+            name="title"
+            label="Photo Title"
+            rules={[
+              { required: true, message: "Please enter a title for the photo" },
+              { max: 100, message: "Title cannot exceed 100 characters" },
+            ]}
+          >
+            <Input
+              placeholder="Enter a descriptive title for your photo"
+              showCount
+              maxLength={100}
+            />
+          </Form.Item>
+
+          <Form.Item label="Select Image" required>
+            <Upload {...uploadProps}>
+              {fileList.length === 0 && (
+                <div>
+                  <PlusOutlined />
+                  <div style={{ marginTop: 8 }}>Select Image</div>
+                </div>
+              )}
+            </Upload>
+          </Form.Item>
 
           {fileList.length > 0 && (
             <div className="mt-4 p-3 bg-blue-50 rounded">
@@ -400,11 +429,34 @@ const Gallery = () => {
               </ul>
             </div>
           )}
-        </div>
+
+          <Form.Item className="mb-0 mt-6">
+            <Space className="flex justify-end">
+              <Button onClick={handleCancel} disabled={uploading}>
+                Cancel
+              </Button>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={uploading}
+                disabled={fileList.length === 0}
+              >
+                Upload Photo
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
       </Modal>
 
       {/* Preview Modal */}
       <Modal
+        title={
+          <div className="text-center">
+            <Title level={4} className="mb-0">
+              {currentPhoto?.title || "Untitled"}
+            </Title>
+          </div>
+        }
         open={previewModalOpen}
         onCancel={() => setPreviewModalOpen(false)}
         footer={[
@@ -419,7 +471,7 @@ const Gallery = () => {
         <div className="flex flex-col items-center">
           <img
             src={currentPhoto?.image}
-            alt="Gallery Preview"
+            alt={currentPhoto?.title || "Gallery Preview"}
             style={{
               maxWidth: "100%",
               maxHeight: "70vh",
@@ -429,12 +481,17 @@ const Gallery = () => {
           />
           <div className="mt-4 text-center">
             <Space direction="vertical" size="small">
-              <Tag
-                color={getVisibilityInfo(currentPhoto?.hidden).color}
-                className="text-sm"
-              >
-                {getVisibilityInfo(currentPhoto?.hidden).text}
-              </Tag>
+              <div className="bg-gray-50 p-3 rounded-md">
+                <p className="text-base font-medium text-gray-900 mb-2">
+                  {currentPhoto?.title || "Untitled"}
+                </p>
+                <Tag
+                  color={getVisibilityInfo(currentPhoto?.hidden).color}
+                  className="text-sm"
+                >
+                  {getVisibilityInfo(currentPhoto?.hidden).text}
+                </Tag>
+              </div>
               <p className="text-sm text-gray-500">
                 Added:{" "}
                 {currentPhoto?.created_at &&

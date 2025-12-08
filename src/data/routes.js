@@ -4,6 +4,8 @@ import {
   IoChatbox,
   IoChatboxEllipsesOutline,
 } from "react-icons/io5";
+import { TbDiscount } from "react-icons/tb";
+
 import Banners from "../pages/banners";
 import Home from "../pages/home";
 import Login from "../pages/login";
@@ -23,8 +25,10 @@ import Orders from "../pages/tours/innerPages/orders";
 import LiveSupport from "../pages/LiveSupport";
 import {
   FaBell,
+  FaBlog,
   FaCheck,
   FaClipboardCheck,
+  FaHome,
   FaImages,
   FaNewspaper,
   FaQuestionCircle,
@@ -48,6 +52,9 @@ import SiteInfo from "../pages/SiteInfo";
 import Activities from "../pages/activities";
 import CreateActivity from "../pages/activities/innerPages/create";
 import UpdateActivity from "../pages/activities/innerPages/update";
+import Blogs from "../pages/adminBlogs";
+import OfferBanners from "../pages/OfferBanners";
+import HomePageManagement from "../pages/HomePage/HomePage";
 
 export const publicRoutes = [
   {
@@ -218,6 +225,13 @@ export const publicRoutes = [
   },
 
   {
+    title: "Blogs",
+    icon: FaBlog,
+    hidden: false,
+    route: "/blogs",
+    element: Blogs,
+  },
+  {
     title: "Community",
     icon: FaUsers,
     hidden: false,
@@ -225,12 +239,26 @@ export const publicRoutes = [
     element: Community,
   },
 
+  // {
+  //   title: "Users Requests",
+  //   icon: FaUsers,
+  //   hidden: false,
+  //   route: "/users-requests",
+  //   element: UsersRequests,
+  // },
   {
-    title: "Users Requests",
-    icon: FaUsers,
+    title: "Offer Banners",
+    icon: TbDiscount,
     hidden: false,
-    route: "/users-requests",
-    element: UsersRequests,
+    route: "/",
+    element: OfferBanners,
+  },
+  {
+    title: "Home Page",
+    icon: FaHome,
+    hidden: false,
+    route: "/home-page",
+    element: HomePageManagement,
   },
   {
     title: "Users Messages",

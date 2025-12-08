@@ -94,24 +94,24 @@ const FramerModal = ({
         footer={
           selectedPost?.status === "pending"
             ? [
-                <Button
-                  key="reject"
-                  danger
-                  onClick={handleRejectAndClose}
-                  icon={<FaTimes />}
-                >
-                  Hide Blog
-                </Button>,
-                <Button
-                  key="accept"
-                  type="primary"
-                  onClick={handleAcceptAndClose}
-                >
-                  Publish Blog
-                </Button>,
-              ]
+              <Button
+                key="reject"
+                danger
+                onClick={handleRejectAndClose}
+                icon={<FaTimes />}
+              >
+                Hide Blog
+              </Button>,
+              <Button
+                key="accept"
+                type="primary"
+                onClick={handleAcceptAndClose}
+              >
+                Publish Blog
+              </Button>,
+            ]
             : selectedPost?.status === "accepted"
-            ? [
+              ? [
                 <Button
                   key="manage-comments"
                   type="primary"
@@ -124,7 +124,7 @@ const FramerModal = ({
                   Close
                 </Button>,
               ]
-            : [
+              : [
                 <Button key="close" onClick={closeModal}>
                   Close
                 </Button>,
@@ -156,10 +156,10 @@ const FramerModal = ({
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-4">
                   <div>
-                    <h4 className="font-semibold text-gray-900 flex items-center">
+                    {/* <h4 className="font-semibold text-gray-900 flex items-center">
                       <FaUser className="w-4 h-4 mr-2" />
                       {selectedPost.pageName}
-                    </h4>
+                    </h4> */}
                     <div className="flex items-center space-x-4 text-sm text-gray-500">
                       <span className="flex items-center">
                         <FaCalendar className="w-3 h-3 mr-1" />
@@ -211,7 +211,7 @@ const FramerModal = ({
 
                     {/* Comments Preview */}
                     {selectedPost.comments &&
-                    selectedPost.comments.length > 0 ? (
+                      selectedPost.comments.length > 0 ? (
                       <div className="space-y-4 max-h-60 overflow-y-auto">
                         {selectedPost.comments.slice(0, 3).map((comment) => (
                           <div
@@ -231,11 +231,10 @@ const FramerModal = ({
                               </div>
                               <div className="flex items-center space-x-2">
                                 <span
-                                  className={`text-xs px-2 py-1 rounded ${
-                                    comment.hidden === "0"
+                                  className={`text-xs px-2 py-1 rounded ${comment.hidden === "0"
                                       ? "bg-green-100 text-green-800"
                                       : "bg-red-100 text-red-800"
-                                  }`}
+                                    }`}
                                 >
                                   {comment.hidden === "0"
                                     ? "Visible"
@@ -254,11 +253,10 @@ const FramerModal = ({
                                   >
                                     <p>{reply.comment}</p>
                                     <span
-                                      className={`text-xs px-2 py-1 rounded mt-1 inline-block ${
-                                        reply.hidden === "0"
+                                      className={`text-xs px-2 py-1 rounded mt-1 inline-block ${reply.hidden === "0"
                                           ? "bg-green-100 text-green-800"
                                           : "bg-red-100 text-red-800"
-                                      }`}
+                                        }`}
                                     >
                                       {reply.hidden === "0"
                                         ? "Visible"

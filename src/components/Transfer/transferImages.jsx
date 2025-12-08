@@ -2,37 +2,59 @@ import React, { useRef } from "react";
 import { FaEye } from "react-icons/fa";
 import { FiPlus } from "react-icons/fi";
 import { MdDelete } from "react-icons/md";
+import { message } from "antd";
+import { uploadImageToServer } from "./../../hooks/uploadImage";
 
 const TransferImages = ({ rowData, setRowData }) => {
   const imageInputRef = useRef(null);
   const imageRefs = useRef([]);
 
-  const handleImageFilesChange = (files) => {
-    const fileArray = Array.from(files).map((file) => ({
-      type: "file",
-      file,
-      value: file.name,
-      preview: URL.createObjectURL(file),
-    }));
+  const handleImageFilesChange = async (files) => {
+    const loading = message.loading("Uploading images...", 0);
 
-    setRowData((prev) => {
-      const updated = [...prev.images, ...fileArray];
+    try {
+      const fileArray = [];
 
-      // Add zoomIn to new refs
-      setTimeout(() => {
-        fileArray.forEach((_, idx) => {
-          const refIndex = prev.images.length + idx;
-          const imgRef = imageRefs.current[refIndex];
-          if (imgRef) {
-            imgRef.classList.add("zoomIn");
+      for (let file of files) {
+        // Upload each image to server
+        const uploadedImageUrl = await uploadImageToServer(file);
 
-            setTimeout(() => imgRef.classList.remove("zoomIn"), 300);
-          }
-        });
-      }, 10);
+        if (uploadedImageUrl) {
+          fileArray.push({
+            type: "url",
+            file,
+            value: uploadedImageUrl,
+            preview: uploadedImageUrl,
+          });
+        }
+      }
 
-      return { ...prev, images: updated };
-    });
+      setRowData((prev) => {
+        const updated = [...prev.images, ...fileArray];
+
+        // Add zoomIn to new refs
+        setTimeout(() => {
+          fileArray.forEach((_, idx) => {
+            const refIndex = prev.images.length + idx;
+            const imgRef = imageRefs.current[refIndex];
+            if (imgRef) {
+              imgRef.classList.add("zoomIn");
+
+              setTimeout(() => imgRef.classList.remove("zoomIn"), 300);
+            }
+          });
+        }, 10);
+
+        return { ...prev, images: updated };
+      });
+
+      loading();
+      message.success(`${fileArray.length} image(s) uploaded successfully!`);
+    } catch (error) {
+      loading();
+      message.error("Failed to upload images");
+      console.error("Upload error:", error);
+    }
   };
 
   const removeImage = (index) => {
@@ -54,6 +76,7 @@ const TransferImages = ({ rowData, setRowData }) => {
       }, 300); // Match this with animation duration
     }
   };
+
   return (
     <fieldset className="border p-4 rounded">
       <legend className="font-medium mb-2">Images</legend>

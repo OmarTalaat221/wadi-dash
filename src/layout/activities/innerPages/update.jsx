@@ -156,7 +156,7 @@ function UpdateActivityLayout() {
         title: rowData.title,
         subtitle: rowData.subtitle,
         description: rowData.description,
-        background_image: rowData.background_image,
+        background_image: rowData.images[0]?.value,
         cta_button_text: rowData.cta_button_text,
         cta_button_url: rowData.cta_button_url,
         duration: rowData.duration,
@@ -166,7 +166,7 @@ function UpdateActivityLayout() {
         price_current: rowData.price_current,
         price_original: rowData.price_original,
         price_currency: rowData.price_currency,
-        per_adult: rowData.per_adult,
+        per_adult: rowData.price_current,
         per_child: rowData.per_child,
         price_note: rowData.price_note,
         activity_type: rowData.activity_type,
@@ -296,8 +296,8 @@ function UpdateActivityLayout() {
             </div> */}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
+          <div className="grid grid-cols-1 gap-4">
+            {/* <div>
               <label className="block mb-1 font-medium">Price per Adult</label>
               <input
                 type="number"
@@ -306,7 +306,7 @@ function UpdateActivityLayout() {
                 onChange={handleChange}
                 className="w-full border border-gray-300 p-2 rounded"
               />
-            </div>
+            </div> */}
 
             <div>
               <label className="block mb-1 font-medium">Price per Child</label>
@@ -360,7 +360,7 @@ function UpdateActivityLayout() {
             />
           </div>
 
-          <div>
+          {/* <div>
             <label className="block mb-1 font-medium">
               Background Image URL
             </label>
@@ -371,7 +371,7 @@ function UpdateActivityLayout() {
               onChange={handleChange}
               className="w-full border border-gray-300 p-2 rounded"
             />
-          </div>
+          </div> */}
 
           <div>
             <label className="block mb-1 font-medium">Price Note</label>

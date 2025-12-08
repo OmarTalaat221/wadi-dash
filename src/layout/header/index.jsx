@@ -1,5 +1,5 @@
-import React from 'react';
-import ProfileMenu from '../../components/header/profileMenu';
+import React from "react";
+import ProfileMenu from "../../components/header/profileMenu";
 
 function Header() {
   return (

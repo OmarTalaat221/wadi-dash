@@ -52,12 +52,10 @@ function ActivityTableData({ setOpenDelete, activities, loading, onToggle }) {
         return (
           <div className="flex flex-col">
             <span className="font-bold text-green-600">
-              {row.price_currency}
               {row.price_current}
             </span>
             {row.price_original && (
               <span className="text-sm text-gray-400 line-through">
-                {row.price_currency}
                 {row.price_original}
               </span>
             )}

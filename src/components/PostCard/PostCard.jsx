@@ -14,7 +14,7 @@ import {
 export default function PostCard({
   post,
   setSelectedPost,
-  width = "max-w-sm",
+  width = "w-full",
   onAccept,
   onReject,
 }) {
@@ -89,7 +89,7 @@ export default function PostCard({
                 {post.category && (
                   <span className="text-xs text-gray-500 flex items-center">
                     <FaTag className="w-3 h-3 mr-1" />
-                    {post.category}
+                    {post.category?.replaceAll("_", " ")}
                   </span>
                 )}
               </div>

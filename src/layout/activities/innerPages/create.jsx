@@ -211,7 +211,7 @@ function CreateActivityLayout() {
         title: formData.title,
         subtitle: formData.subtitle,
         description: formData.description,
-        background_image: formData.background_image,
+        background_image: formData.images[0].value,
         cta_button_text: formData.cta_button_text,
         cta_button_url: formData.cta_button_url,
         duration: formData.duration,
@@ -221,7 +221,7 @@ function CreateActivityLayout() {
         price_current: formData.price_current,
         price_original: formData.price_original,
         price_currency: formData.price_currency,
-        per_adult: formData.per_adult,
+        per_adult: formData.price_current,
         per_child: formData.per_child,
         price_note: formData.price_note,
         activity_type: formData.activity_type,
@@ -337,8 +337,8 @@ function CreateActivityLayout() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
+          <div className="grid grid-cols-1 gap-4">
+            {/* <div>
               <label className="block mb-1 font-medium">Price per Adult</label>
               <input
                 type="number"
@@ -347,7 +347,7 @@ function CreateActivityLayout() {
                 onChange={handleChange}
                 className="w-full border border-gray-300 p-2 rounded"
               />
-            </div>
+            </div> */}
 
             <div>
               <label className="block mb-1 font-medium">Price per Child</label>

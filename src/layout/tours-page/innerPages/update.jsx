@@ -1,15 +1,12 @@
-import { MdDelete } from "react-icons/md";
-import { FaEye } from "react-icons/fa";
-import { FaPlus } from "react-icons/fa6";
-import { RiDeleteBin6Line } from "react-icons/ri";
-import { IoMdCloseCircle } from "react-icons/io";
+// components/tours/UpdateTourLayout.jsx
 import React, { useState, useRef, useEffect } from "react";
-import { useParams } from "react-router-dom";
-import { tours } from "../../../data/tours";
+import { useParams, useNavigate } from "react-router-dom";
+import axios from "axios";
 import Tabs from "../../../components/Tabs";
-import { FiPlus } from "react-icons/fi";
-import JoditEditor from "jodit-react";
+import TourFeatures from "../../../components/tours-page/TourFeatures";
+import GallerySelector from "../../../components/tours-page/GallerySelector";
 
+import JoditEditor from "jodit-react";
 import {
   Box,
   Button,
@@ -17,18 +14,60 @@ import {
   FormControl,
   TextField,
   Dialog,
-  DialogTitle,
   DialogContent,
+  CircularProgress,
+  Select as MuiSelect,
+  MenuItem,
+  InputLabel,
 } from "@mui/material";
-import { days } from "../../../data/days";
-import { accom } from "../../../data/accom";
-import { transfers } from "../../../data/transfer";
-import { Select, Tag, Space } from "antd";
-import TourFeatures from "../../../components/tours-page/TourFeatures";
+import { Select, Space, message } from "antd";
+import { MdDelete } from "react-icons/md";
+import { FaEye, FaPlus } from "react-icons/fa";
+import { FiPlus } from "react-icons/fi";
+import { base_url } from "../../../utils/base_url";
+import TourImages from "../../../components/tours-page/tour-images";
 
 function UpdateTourLayout() {
   const { product_id } = useParams();
-  const toursData = tours?.[product_id];
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [countries, setCountries] = useState([]);
+  const [hotels, setHotels] = useState([]);
+  const [cars, setCars] = useState([]);
+  const [activities, setActivities] = useState([]);
+
+  const [formData, setFormData] = useState({
+    id: product_id,
+    country_id: "",
+    title: "",
+    subtitle: "",
+    description: "",
+    background_image: "",
+    cta_button_text: "Book Now",
+    cta_button_url: "/book",
+    duration: "",
+    category: "",
+    image: "",
+    route: "",
+    price_current: "",
+    price_original: "",
+    per_adult: "",
+    per_child: "",
+    price_currency: "$",
+    price_note: "",
+    highlights: [],
+    includes: [],
+    excludes: [],
+    gallery: [],
+    features: [],
+    images: [],
+    days: [],
+  });
+
+  const [activeTab, setActiveTab] = useState("General");
+  const [activeDay, setActiveDay] = useState(0);
+
   const editorConfig = {
     readonly: false,
     height: 300,
@@ -68,515 +107,729 @@ function UpdateTourLayout() {
     ],
   };
 
-  const [showMapModal, setShowMapModal] = useState(false);
-  const imageRefs = useRef([]);
-  const isMapUrl = (url) => {
-    const regex =
-      /^(https?:\/\/)?(www\.)?(google\.[a-z.]+\/maps|maps\.google\.[a-z.]+|openstreetmap\.org\/|maps\.apple\.com\/)/i;
-    return regex.test(url);
+  useEffect(() => {
+    loadInitialData();
+    loadTourData();
+  }, [product_id]);
+
+  const loadInitialData = async () => {
+    try {
+      setCountries([
+        { id: 1, name: "UAE" },
+        { id: 2, name: "Oman" },
+      ]);
+
+      const [hotelsRes, carsRes, activitiesRes] = await Promise.all([
+        axios.get(`${base_url}/admin/hotels/select_hotels.php`),
+        axios.get(`${base_url}/admin/cars/select_cars.php`),
+        axios.get(`${base_url}/admin/activities/select_activities.php`),
+      ]);
+
+      setHotels(
+        (hotelsRes.data.message || []).map((hotel) => ({
+          ...hotel,
+          id: Number(hotel.id),
+        }))
+      );
+      setCars(
+        (carsRes.data.message || []).map((car) => ({
+          ...car,
+          id: Number(car.id),
+        }))
+      );
+      setActivities(
+        (activitiesRes.data.message || []).map((activity) => ({
+          ...activity,
+          id: Number(activity.id),
+        }))
+      );
+    } catch (error) {
+      console.error("Error loading initial data:", error);
+      message.error("Failed to load selection data");
+    }
   };
 
-  const initialFeatures = (toursData.features || []).map((feat) => {
-    if (feat.label !== undefined && feat.value !== undefined) {
-      return feat;
-    } else {
-      const parts = feat.text.split(":");
-      const label = parts[0]?.trim() || "";
-      const value = parts[1]?.trim() || "";
-      return { icon: null, label, value };
+  const loadTourData = async () => {
+    try {
+      setInitialLoading(true);
+
+      const response = await axios.post(
+        `${base_url}/admin/tours/tour_details.php`,
+        {
+          id: product_id,
+        }
+      );
+
+      console.log("Tour details response:", response.data);
+
+      if (
+        response.data.status === "success" &&
+        response.data.message.length > 0
+      ) {
+        const tourData = response.data.message[0];
+
+        console.log("Tour data received:", tourData);
+        console.log("Raw gallery data:", tourData.gallery);
+
+        // Convert itinerary to days format for form
+        const days =
+          tourData.itinerary?.map((item) => ({
+            day: item.day,
+            title: item.title,
+            description: item.description,
+            hotel_id: item.hotel_options?.map((h) => Number(h.hotel_id)) || [],
+            car_id: item.cars_options?.map((c) => Number(c.car_id)) || [],
+            activity_id:
+              item.activities_options?.map((a) => Number(a.activity_id)) || [],
+            isExisting: true,
+          })) || [];
+
+        console.log("Converted days:", days);
+
+        // UPDATED: Parse gallery data - handle array of objects
+        let galleryData = [];
+
+        if (tourData.gallery) {
+          if (Array.isArray(tourData.gallery)) {
+            // Check if it's an array of objects with id property
+            if (
+              tourData.gallery.length > 0 &&
+              typeof tourData.gallery[0] === "object" &&
+              tourData.gallery[0].id
+            ) {
+              // Extract IDs from objects: [{id: "1", image: "..."}, ...] -> ["1", ...]
+              galleryData = tourData.gallery.map((item) => String(item.id));
+              console.log("Parsed gallery from array of objects:", galleryData);
+            } else {
+              // Simple array of IDs
+              galleryData = tourData.gallery.map((id) => String(id));
+              console.log("Parsed gallery from simple array:", galleryData);
+            }
+          } else if (typeof tourData.gallery === "string") {
+            // String separated by **
+            galleryData = tourData.gallery
+              .split("**")
+              .filter((id) => id.trim())
+              .map((id) => String(id.trim()));
+            console.log("Parsed gallery from string:", galleryData);
+          }
+        }
+
+        console.log("Final parsed gallery data:", galleryData);
+
+        const features = tourData.features || [];
+
+        setFormData({
+          id: tourData.id,
+          country_id: tourData.country_id,
+          title: tourData.title,
+          subtitle: tourData.subtitle,
+          description: tourData.description,
+          background_image: tourData.background_image,
+          cta_button_text: tourData.cta_button_text,
+          cta_button_url: tourData.cta_button_url,
+          duration: tourData.duration,
+          category: tourData.category,
+          image: tourData.image,
+          route: tourData.route,
+          price_current: tourData.price_current,
+          price_original: tourData.price_original,
+          per_adult: tourData.per_adult,
+          per_child: tourData.per_child,
+          price_currency: tourData.price_currency,
+          price_note: tourData.price_note,
+          highlights: Array.isArray(tourData.highlights)
+            ? tourData.highlights
+            : typeof tourData.highlights === "string"
+            ? tourData.highlights.split("**").filter((h) => h.trim())
+            : [],
+          includes: Array.isArray(tourData.includes)
+            ? tourData.includes
+            : typeof tourData.includes === "string"
+            ? tourData.includes.split("**").filter((i) => i.trim())
+            : [],
+          excludes: Array.isArray(tourData.excludes)
+            ? tourData.excludes
+            : typeof tourData.excludes === "string"
+            ? tourData.excludes.split("**").filter((e) => e.trim())
+            : [],
+          gallery: galleryData,
+          features: features,
+          images: [],
+          days: days,
+        });
+
+        console.log("Form data set successfully");
+        console.log("Gallery in formData:", galleryData);
+      }
+    } catch (error) {
+      console.error("Error loading tour data:", error);
+      message.error("Failed to load tour data");
+    } finally {
+      setInitialLoading(false);
     }
-  });
-  const initialImages = (toursData.images || []).map((img) => ({
-    type: "url",
-    value: img,
-  }));
-  const initialFloorPlans = (toursData.floorPlans || []).map((fp) => ({
-    type: "url",
-    value: fp,
-  }));
-  const [rowData, setRowData] = useState({
-    ...toursData,
-    features: initialFeatures,
-    images: initialImages,
-    floorPlans: initialFloorPlans,
-    days: days || [],
-  });
-  const [activeTab, setActiveTab] = useState("General");
-  const [activeDay, setActiveDay] = useState(0);
-  const imageInputRef = useRef(null);
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setRowData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  useEffect(() => {
-    console.log(rowData);
-  }, [rowData]);
+  // Handler for gallery selection
+  const handleGallerySelection = (selectedIds) => {
+    console.log("Gallery selection changed:", selectedIds);
+    setFormData((prev) => ({ ...prev, gallery: selectedIds }));
+  };
 
   const addDay = () => {
-    const newDayNumber = rowData?.days?.length + 1;
     const newDay = {
-      day: newDayNumber,
-      location: "",
+      day: formData.days.length + 1,
+      title: "",
       description: "",
-      accommodation: [],
-      transfers: [],
+      hotel_id: [],
+      car_id: [],
+      activity_id: [],
+      isExisting: false,
     };
-    setRowData({ ...rowData, days: [...(rowData.days || []), newDay] });
+    setFormData((prev) => ({ ...prev, days: [...prev.days, newDay] }));
+    setActiveDay(formData.days.length);
   };
 
-  useEffect(() => {
-    console.log(rowData);
-  }, [rowData]);
+  const removeDay = async (indexToRemove) => {
+    try {
+      const dayToRemove = formData.days[indexToRemove];
 
-  const removeDay = (indexToRemove) => {
-    const updatedDays = [...rowData.days];
-    updatedDays.splice(indexToRemove, 1);
+      if (dayToRemove.isExisting) {
+        setLoading(true);
+        const deleteResponse = await axios.post(
+          `${base_url}/admin/tours/days/delete_tour_day.php`,
+          {
+            id: product_id,
+            day: dayToRemove.day,
+          }
+        );
 
-    const renumbered = updatedDays.map((day, i) => ({
-      ...day,
-      day: i + 1,
-    }));
+        console.log("Delete day response:", deleteResponse.data);
 
-    setRowData({ ...rowData, days: renumbered });
-    if (activeDay >= indexToRemove) {
-      setActiveDay(Math.max(0, activeDay - 1));
+        if (deleteResponse.data.status !== "success") {
+          message.warning(
+            `Failed to delete day from server: ${deleteResponse.data.message}`
+          );
+          setLoading(false);
+          return;
+        }
+      }
+
+      const updatedDays = formData.days.filter((_, i) => i !== indexToRemove);
+      const renumbered = updatedDays.map((day, i) => ({ ...day, day: i + 1 }));
+
+      setFormData((prev) => ({ ...prev, days: renumbered }));
+
+      if (activeDay >= indexToRemove) {
+        setActiveDay(Math.max(0, activeDay - 1));
+      }
+
+      message.success("Day removed successfully");
+    } catch (error) {
+      console.error("Error removing day:", error);
+      message.error("Failed to remove day");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDayChange = (index, field, value) => {
-    const updatedDays = [...rowData.days];
+    const updatedDays = [...formData.days];
     updatedDays[index] = { ...updatedDays[index], [field]: value };
-    setRowData((prev) => ({ ...prev, days: updatedDays }));
+    setFormData((prev) => ({ ...prev, days: updatedDays }));
   };
 
-  const handleImageFilesChange = (files) => {
-    const fileArray = Array.from(files).map((file) => ({
-      type: "file",
-      file,
-      value: file.name,
-      preview: URL.createObjectURL(file),
-    }));
+  const prepareDataForAPI = (data) => {
+    return {
+      ...data,
+      highlights: Array.isArray(data.highlights)
+        ? data.highlights.join("**")
+        : data.highlights,
+      includes: Array.isArray(data.includes)
+        ? data.includes.join("**")
+        : data.includes,
+      excludes: Array.isArray(data.excludes)
+        ? data.excludes.join("**")
+        : data.excludes,
+      gallery: Array.isArray(data.gallery)
+        ? data.gallery.join("**")
+        : data.gallery,
+    };
+  };
 
-    setRowData((prev) => {
-      const updated = [...prev.images, ...fileArray];
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-      // Add zoomIn to new refs
-      setTimeout(() => {
-        fileArray.forEach((_, idx) => {
-          const refIndex = prev.images.length + idx;
-          const imgRef = imageRefs.current[refIndex];
-          if (imgRef) {
-            imgRef.classList.add("zoomIn");
+    try {
+      setLoading(true);
 
-            setTimeout(() => imgRef.classList.remove("zoomIn"), 300);
+      const apiData = prepareDataForAPI(formData);
+      const { features, days, images, ...tourData } = apiData;
+
+      console.log("Updating tour with data:", tourData);
+      console.log("Gallery being sent:", tourData.gallery);
+
+      const tourResponse = await axios.post(
+        `${base_url}/admin/tours/edit_tour.php`,
+        tourData
+      );
+
+      console.log("Tour update response:", tourResponse.data);
+
+      if (tourResponse.data.status === "success") {
+        if (formData.days && formData.days.length > 0) {
+          console.log("Processing days...");
+
+          for (const [index, day] of formData.days.entries()) {
+            const dayData = {
+              tour_id: product_id,
+              day: day.day,
+              title: day.title,
+              description: day.description,
+              hotel_id: Array.isArray(day.hotel_id)
+                ? day.hotel_id.join(",")
+                : day.hotel_id,
+              car_id: Array.isArray(day.car_id)
+                ? day.car_id.join(",")
+                : day.car_id,
+              activity_id: Array.isArray(day.activity_id)
+                ? day.activity_id.join(",")
+                : day.activity_id,
+            };
+
+            try {
+              let dayResponse;
+
+              if (day.isExisting) {
+                console.log(
+                  `Updating existing day ${index + 1} with data:`,
+                  dayData
+                );
+                dayResponse = await axios.post(
+                  `${base_url}/admin/tours/days/edit_tour_day.php`,
+                  dayData
+                );
+              } else {
+                console.log(`Adding new day ${index + 1} with data:`, dayData);
+                dayResponse = await axios.post(
+                  `${base_url}/admin/tours/days/add_tour_day.php`,
+                  dayData
+                );
+              }
+
+              console.log(
+                `Day ${index + 1} ${
+                  day.isExisting ? "update" : "add"
+                } response:`,
+                dayResponse.data
+              );
+
+              if (dayResponse.data.status !== "success") {
+                console.error(
+                  `Failed to ${day.isExisting ? "update" : "add"} day ${
+                    index + 1
+                  }:`,
+                  dayResponse.data
+                );
+                message.warning(
+                  `Day ${index + 1} ${
+                    day.isExisting ? "update" : "add"
+                  } failed: ${dayResponse.data.message || "Unknown error"}`
+                );
+              }
+            } catch (dayError) {
+              console.error(`Error processing day ${index + 1}:`, dayError);
+              message.warning(
+                `Failed to process day ${index + 1}: ${dayError.message}`
+              );
+            }
           }
-        });
-      }, 10);
+        }
 
-      return { ...prev, images: updated };
-    });
-  };
-
-  const removeImage = (index) => {
-    const imgRef = imageRefs.current[index];
-
-    if (imgRef) {
-      imgRef.classList.remove("zoomIn");
-      imgRef.classList.add("zoomOut");
-
-      // Remove from state *after* animation
-      setTimeout(() => {
-        setRowData((prev) => ({
-          ...prev,
-          images: prev.images.filter((_, i) => i !== index),
-        }));
-
-        // No need to manually remove class; image is removed from DOM
-        // But if you're reusing DOM nodes, do it here instead:
-        imgRef.classList.remove("zoomOut");
-      }, 300); // Match this with animation duration
+        message.success("Tour updated successfully!");
+        navigate("/tours");
+      } else {
+        console.error("Tour update failed:", tourResponse.data);
+        message.error(
+          `Failed to update tour: ${
+            tourResponse.data.message || "Unknown error"
+          }`
+        );
+      }
+    } catch (error) {
+      console.error("Error updating tour:", error);
+      message.error(
+        `An error occurred while updating the tour: ${error.message}`
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log("Updated tour:", rowData);
-  };
-  const renderTabContent = () => {
-    if (activeTab === "General") {
-      return (
-        <>
-          <div>
-            <label className="block mb-1 font-medium">Title</label>
-            <input
-              type="text"
-              name="title"
-              value={rowData.title || ""}
-              onChange={handleChange}
-              className="w-full border border-gray-300 p-2 rounded"
-            />
-          </div>
+  const renderGeneralTab = () => (
+    <div className="flex flex-col !gap-4">
+      <FormControl fullWidth>
+        <InputLabel>Country</InputLabel>
+        <MuiSelect
+          name="country_id"
+          value={formData.country_id}
+          onChange={handleChange}
+          label="Country"
+        >
+          {countries.map((country) => (
+            <MenuItem key={country.id} value={country.id}>
+              {country.name}
+            </MenuItem>
+          ))}
+        </MuiSelect>
+      </FormControl>
+
+      <TextField
+        fullWidth
+        label="Title"
+        name="title"
+        value={formData.title}
+        onChange={handleChange}
+        required
+      />
+
+      <TextField
+        fullWidth
+        label="Subtitle"
+        name="subtitle"
+        value={formData.subtitle}
+        onChange={handleChange}
+      />
+
+      <div>
+        <label className="block mb-1 font-medium">Description</label>
+        <JoditEditor
+          value={formData.description}
+          config={editorConfig}
+          onBlur={(content) =>
+            setFormData((prev) => ({ ...prev, description: content }))
+          }
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <TextField
+          label="Duration"
+          name="duration"
+          value={formData.duration}
+          onChange={handleChange}
+        />
+        <TextField
+          label="Category"
+          name="category"
+          value={formData.category}
+          onChange={handleChange}
+        />
+      </div>
+
+      <TextField
+        fullWidth
+        label="Route"
+        name="route"
+        value={formData.route}
+        onChange={handleChange}
+      />
+    </div>
+  );
+
+  const renderPricingTab = () => (
+    <div className="!space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <TextField
+          label="Current Price"
+          name="price_current"
+          type="number"
+          value={formData.price_current}
+          onChange={handleChange}
+          onWheel={(e) => e.target.blur()}
+        />
+        <TextField
+          label="Original Price"
+          name="price_original"
+          type="number"
+          value={formData.price_original}
+          onChange={handleChange}
+          onWheel={(e) => e.target.blur()}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <TextField
+          label="Per Child"
+          name="per_child"
+          type="number"
+          value={formData.per_child}
+          onChange={handleChange}
+          onWheel={(e) => e.target.blur()}
+        />
+        <TextField
+          fullWidth
+          label="Price Note"
+          name="price_note"
+          value={formData.price_note}
+          onChange={handleChange}
+          multiline
+          rows={2}
+        />
+      </div>
+    </div>
+  );
+
+  const renderFeaturesTab = () => (
+    <div className="!space-y-4">
+      <div>
+        <label className="block mb-2 font-medium">Highlights</label>
+        <Select
+          mode="tags"
+          style={{ width: "100%" }}
+          placeholder="Add highlights (press Enter to add each one)"
+          value={formData.highlights}
+          onChange={(values) =>
+            setFormData((prev) => ({ ...prev, highlights: values }))
+          }
+          tokenSeparators={[","]}
+        />
+        <div className="text-sm text-gray-500 mt-1">
+          Type and press Enter to add each highlight
+        </div>
+      </div>
+
+      <div>
+        <label className="block mb-2 font-medium">Includes</label>
+        <Select
+          mode="tags"
+          style={{ width: "100%" }}
+          placeholder="Add what's included (press Enter to add each one)"
+          value={formData.includes}
+          onChange={(values) =>
+            setFormData((prev) => ({ ...prev, includes: values }))
+          }
+          tokenSeparators={[","]}
+        />
+        <div className="text-sm text-gray-500 mt-1">
+          Type and press Enter to add each item
+        </div>
+      </div>
+
+      <div>
+        <label className="block mb-2 font-medium">Excludes</label>
+        <Select
+          mode="tags"
+          style={{ width: "100%" }}
+          placeholder="Add what's excluded (press Enter to add each one)"
+          value={formData.excludes}
+          onChange={(values) =>
+            setFormData((prev) => ({ ...prev, excludes: values }))
+          }
+          tokenSeparators={[","]}
+        />
+        <div className="text-sm text-gray-500 mt-1">
+          Type and press Enter to add each item
+        </div>
+      </div>
+
+      <div>
+        <GallerySelector
+          selectedImages={formData.gallery}
+          onSelectionChange={handleGallerySelection}
+        />
+      </div>
+    </div>
+  );
+
+  const renderImagesTab = () => (
+    <TourImages rowData={formData} setRowData={setFormData} />
+  );
+
+  const renderDaysTab = () => (
+    <div className="border p-4 rounded">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-bold">Days & Itinerary</h3>
+        <Button variant="contained" startIcon={<FaPlus />} onClick={addDay}>
+          Add Day
+        </Button>
+      </div>
+
+      <div className="flex gap-2 mb-4 overflow-x-auto">
+        {formData.days.map((day, index) => (
+          <Button
+            key={index}
+            variant={activeDay === index ? "contained" : "outlined"}
+            onClick={() => setActiveDay(index)}
+            className="min-w-[120px]"
+          >
+            Day {day.day}{" "}
+            {!day.isExisting && <span className="ml-1 text-xs">(New)</span>}
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                removeDay(index);
+              }}
+              className="ml-1"
+            >
+              <MdDelete className="text-red-600" />
+            </IconButton>
+          </Button>
+        ))}
+      </div>
+
+      {formData.days.length > 0 && formData.days[activeDay] && (
+        <div className="!space-y-4">
+          <TextField
+            fullWidth
+            label="Day Title"
+            value={formData.days[activeDay]?.title || ""}
+            onChange={(e) =>
+              handleDayChange(activeDay, "title", e.target.value)
+            }
+          />
 
           <div>
-            <label className="block mb-1 font-medium">Description</label>
+            <label className="block mb-1 font-medium">Day Description</label>
             <JoditEditor
-              value={rowData.description || ""}
+              value={formData.days[activeDay]?.description || ""}
               config={editorConfig}
               onBlur={(content) =>
-                setRowData((prev) => ({ ...prev, description: content }))
+                handleDayChange(activeDay, "description", content)
               }
             />
           </div>
 
-          <div>
-            <label className="block mb-1 font-medium">Map</label>
-            <div className="flex items-center gap-[10px]">
-              <input
-                type="text"
-                name="map"
-                value={rowData.map || ""}
-                onChange={handleChange}
-                className="w-full border border-gray-300 p-2 rounded"
-              />
+          <FormControl fullWidth>
+            <label className="block mb-1 font-medium">Select Hotels</label>
+            <Select
+              mode="multiple"
+              allowClear
+              style={{ width: "100%" }}
+              placeholder="Please select hotels for this day"
+              value={formData.days[activeDay]?.hotel_id || []}
+              onChange={(value) =>
+                handleDayChange(activeDay, "hotel_id", value)
+              }
+              filterOption={(input, option) =>
+                (option?.label ?? "")
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
+              }
+              options={hotels.map((hotel) => ({
+                value: Number(hotel.id),
+                label: hotel.title,
+              }))}
+            />
+          </FormControl>
 
-              {isMapUrl(rowData.map) && (
-                <button
-                  type="button"
-                  onClick={() => setShowMapModal(true)}
-                  className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition-colors duration-200"
-                >
-                  View
-                </button>
-              )}
-            </div>
-          </div>
+          <FormControl fullWidth>
+            <label className="block mb-1 font-medium">Select Cars</label>
+            <Select
+              mode="multiple"
+              allowClear
+              style={{ width: "100%" }}
+              placeholder="Please select cars for this day"
+              value={formData.days[activeDay]?.car_id || []}
+              onChange={(value) => handleDayChange(activeDay, "car_id", value)}
+              filterOption={(input, option) =>
+                (option?.label ?? "")
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
+              }
+              options={cars.map((car) => ({
+                value: Number(car.id),
+                label: car.title,
+              }))}
+            />
+          </FormControl>
 
-          <Dialog
-            open={showMapModal}
-            onClose={() => setShowMapModal(false)}
-            fullWidth
-            maxWidth="lg"
-          >
-            <DialogContent>
-              {rowData.map && (
-                <iframe
-                  src={rowData.map}
-                  width="100%"
-                  height="450px"
-                  className="rounded-[10px]"
-                ></iframe>
-              )}
-            </DialogContent>
-          </Dialog>
-        </>
-      );
-    }
-    if (activeTab === "Features") {
-      return <TourFeatures rowData={rowData} setRowData={setRowData} />;
-    }
-
-    if (activeTab === "Images") {
-      return (
-        <fieldset className="border p-4 rounded">
-          <legend className="font-medium mb-2">Images</legend>
-          <div className="space-y-2">
-            <div className="flex flex-wrap gap-3 m-auto">
-              <label
-                htmlFor="image-upload"
-                className="cursor-pointer px-0 py-2 bg-[rgba(0,0,0,0.02)] border border-dashed border-[#d9d9d9] rounded-lg flex text-center text-[#555] w-[102px] h-[102px] text-xs flex-col gap-2 items-center justify-center hover:border-[#1677ff] transition duration-300 ease-in-out"
-              >
-                <FiPlus className="text-[15px]" />
-                Add Image
-              </label>
-              <input
-                id="image-upload"
-                type="file"
-                accept="image/*"
-                multiple
-                ref={imageInputRef}
-                onChange={(e) => {
-                  if (e.target.files) {
-                    handleImageFilesChange(e.target.files);
-                  }
-                }}
-                className="hidden"
-              />
-              {rowData.images.map((img, index) => (
-                <div
-                  ref={(el) => {
-                    imageRefs.current[index] = el;
-                  }}
-                  key={index}
-                  className="w-[102px] h-[102px] overflow-hidden relative cursor-pointer rounded-lg p-2 border border-[#d9d9d9] zoomIn"
-                >
-                  <div className="w-full h-full relative group">
-                    <img
-                      src={img.preview || img.value}
-                      alt={`uploaded-${index}`}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute top-0 left-0 w-full h-full bg-black/45 opacity-0 transition-all duration-300 group-hover:opacity-100 z-10" />
-                    <div className="absolute inset-0 flex justify-center items-center gap-2 text-white opacity-0 group-hover:opacity-100 z-20">
-                      <FaEye />
-                      <div
-                        onClick={() => removeImage(index)}
-                        className="cursor-pointer"
-                      >
-                        <MdDelete />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </fieldset>
-      );
-    }
-    if (activeTab === "Days") {
-      return (
-        <div className="border p-4 rounded overflow-hidden">
-          <div className="space-y-2">
-            <div className="flex justify-between items-center mb-4">
-              <div className="text-[18px] font-bold">Days</div>
-              <Button
-                variant="contained"
-                startIcon={<FaPlus />}
-                onClick={addDay}
-              >
-                Add Day
-              </Button>
-            </div>
-
-            <div className="w-full flex gap-[20px] my-[10px] items-center overflow-auto snap-x snap-mandatory [&::-webkit-scrollbar]:w-0">
-              {rowData.days.map((item, index) => (
-                <Button
-                  key={index}
-                  className="!text-[11px] min-h-[100px] snap-start"
-                  sx={{
-                    minWidth: 150,
-                    border: 1,
-                    borderColor: "#a4aeb6",
-                    backgroundColor:
-                      activeDay === index ? "#e3f2fd" : "transparent",
-                  }}
-                  onClick={() => setActiveDay(index)}
-                >
-                  {`Day ${item.day}`}
-                  <IconButton
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeDay(index);
-                    }}
-                    sx={{ ml: 1 }}
-                  >
-                    <MdDelete className="text-[20px] text-red-600" />
-                  </IconButton>
-                </Button>
-              ))}
-            </div>
-            {rowData?.days?.length > 0 && (
-              <div>
-                <div className="grid grid-cols-3 items-center gap-x-[15px] w-full">
-                  <div className="col-span-3">
-                    <FormControl fullWidth margin="normal">
-                      <TextField
-                        className="!shadow-none"
-                        label="Location"
-                        value={rowData.days[activeDay]?.location || ""}
-                        fullWidth
-                        onChange={(e) =>
-                          handleDayChange(activeDay, "location", e.target.value)
-                        }
-                        required
-                      />
-                    </FormControl>
-                  </div>
-
-                  <div className="col-span-3">
-                    <FormControl fullWidth margin="normal">
-                      <label className="block mb-1 font-medium">
-                        Description
-                      </label>
-                      <JoditEditor
-                        value={rowData.days[activeDay]?.description || ""}
-                        config={editorConfig}
-                        onBlur={(content) =>
-                          handleDayChange(activeDay, "description", content)
-                        }
-                      />
-                    </FormControl>
-                  </div>
-                  <div className="col-span-3">
-                    <div className="mb-2">Select Accommodation</div>
-                    <Select
-                      mode="multiple"
-                      size="middle"
-                      labelInValue
-                      showSearch
-                      style={{ width: "100%" }}
-                      dropdownStyle={{
-                        maxHeight: "none",
-                        overflow: "auto",
-                        padding: "4px 8px",
-                      }}
-                      dropdownRender={(menu) => (
-                        <div style={{ maxHeight: "300px", overflow: "auto" }}>
-                          {menu}
-                        </div>
-                      )}
-                      placeholder="Select accommodations"
-                      optionFilterProp="label"
-                      filterOption={(input, option) =>
-                        option?.label &&
-                        typeof option.label === "string" &&
-                        option.label.toLowerCase().includes(input.toLowerCase())
-                      }
-                      value={(rowData.days[activeDay]?.accommodation || []).map(
-                        (acc) => ({
-                          label: acc.title,
-                          value: acc.id,
-                        })
-                      )}
-                      onChange={(value) => {
-                        const selectedAccoms = value.map((v) =>
-                          accom.find((a) => a.id === v.value)
-                        );
-                        handleDayChange(
-                          activeDay,
-                          "accommodation",
-                          selectedAccoms
-                        );
-                      }}
-                    >
-                      {accom.map((acc) => (
-                        <Select.Option
-                          key={acc.id}
-                          value={acc.id}
-                          label={acc.title}
-                        >
-                          <Space>
-                            <img
-                              src={acc.imageCover}
-                              alt={acc.title}
-                              style={{
-                                width: 32,
-                                height: 32,
-                                objectFit: "cover",
-                              }}
-                            />
-                            {acc.title}
-                          </Space>
-                        </Select.Option>
-                      ))}
-                    </Select>
-                  </div>
-                  <div className="col-span-3">
-                    <div className="mb-2">Select Transfers</div>
-                    <Select
-                      mode="multiple"
-                      size="middle"
-                      labelInValue
-                      showSearch
-                      allowClear
-                      style={{ width: "100%" }}
-                      dropdownStyle={{
-                        maxHeight: "none",
-                        overflow: "auto",
-                        padding: "4px 8px",
-                      }}
-                      dropdownRender={(menu) => (
-                        <div style={{ maxHeight: "300px", overflow: "auto" }}>
-                          {menu}
-                        </div>
-                      )}
-                      placeholder="Select transfers"
-                      optionFilterProp="label"
-                      filterOption={(input, option) =>
-                        option?.label &&
-                        typeof option.label === "string" &&
-                        option.label.toLowerCase().includes(input.toLowerCase())
-                      }
-                      value={(rowData.days[activeDay]?.transfers || []).map(
-                        (transfer) => ({
-                          label: transfer.name,
-                          value: transfer.id,
-                        })
-                      )}
-                      onChange={(value) => {
-                        const selectedTransfers = value.map((v) =>
-                          transfers.find((t) => t.id === v.value)
-                        );
-                        handleDayChange(
-                          activeDay,
-                          "transfers",
-                          selectedTransfers
-                        );
-                      }}
-                    >
-                      {transfers.map((transfer) => (
-                        <Select.Option
-                          key={transfer.id}
-                          value={transfer.id}
-                          label={transfer.name || transfer.title}
-                        >
-                          <Space>
-                            <img
-                              src={
-                                transfer.images && transfer.images.length > 0
-                                  ? transfer.images[0]
-                                  : ""
-                              }
-                              alt={transfer.name || transfer.title}
-                              style={{
-                                width: 32,
-                                height: 32,
-                                objectFit: "cover",
-                                borderRadius: "4px",
-                              }}
-                            />
-                            {transfer.name || transfer.title}
-                          </Space>
-                        </Select.Option>
-                      ))}
-                    </Select>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          <FormControl fullWidth>
+            <label className="block mb-1 font-medium">Select Activities</label>
+            <Select
+              mode="multiple"
+              allowClear
+              style={{ width: "100%" }}
+              placeholder="Please select activities for this day"
+              value={formData.days[activeDay]?.activity_id || []}
+              onChange={(value) =>
+                handleDayChange(activeDay, "activity_id", value)
+              }
+              filterOption={(input, option) =>
+                (option?.label ?? "")
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
+              }
+              options={activities.map((activity) => ({
+                value: Number(activity.id),
+                label: activity.title,
+              }))}
+            />
+          </FormControl>
         </div>
-      );
+      )}
+    </div>
+  );
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "General":
+        return renderGeneralTab();
+      case "Pricing":
+        return renderPricingTab();
+      case "Features":
+        return renderFeaturesTab();
+      case "Images":
+        return renderImagesTab();
+      case "Days":
+        return renderDaysTab();
+      default:
+        return null;
     }
   };
+
+  if (initialLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <CircularProgress />
+        <span className="ml-2">Loading tour data...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Edit Tour</h1>
+      <h1 className="text-2xl font-bold mb-4">Update Tour</h1>
+
       <div className="mb-4">
-        <nav className="flex space-x-4 border-b">
-          <Tabs
-            tabs={["General", "Days", "Features", "Images"]}
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            classNameDecoration=""
-            className=""
-          />
-        </nav>
+        <Tabs
+          tabs={["General", "Pricing", "Features", "Images", "Days"]}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+        />
       </div>
+
       <form
         onSubmit={handleSubmit}
-        className="space-y-6 bg-white p-5 rounded-[10px]"
+        className="space-y-6 bg-white p-5 rounded-lg"
       >
         {renderTabContent()}
-        <div className="w-full flex justify-end items-center">
-          <button
+
+        <div className="flex justify-end">
+          <Button
             type="submit"
-            className="bg-blue-500  text-white py-2 px-4 rounded hover:bg-blue-600 transition-colors duration-200"
+            variant="contained"
+            disabled={loading}
+            startIcon={loading ? <CircularProgress size={20} /> : null}
           >
-            Save Changes
-          </button>
+            {loading ? "Updating..." : "Update Tour"}
+          </Button>
         </div>
       </form>
     </div>

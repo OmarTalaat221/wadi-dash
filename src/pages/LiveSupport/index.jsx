@@ -10,14 +10,13 @@ const LiveSupport = () => {
         rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
       />
-      <div className="container mx-auto p-4 max-w-6xl">
+      <div className="">
         <div className="flex flex-col md:flex-row gap-4">
           {/* Left sidebar - Chat list */}
           <div className="w-full md:w-1/3 bg-white rounded-lg shadow">
             {/* Header */}
             <div className="p-4 border-b flex justify-between items-center border-slate-300">
               <h2 className="text-xl font-bold">Messages</h2>
-             
             </div>
             {/* Search */}
             <div className="p-3 border-b border-slate-300">
@@ -30,7 +29,7 @@ const LiveSupport = () => {
                 <i className="fas fa-search absolute left-3 top-3 text-gray-400" />
               </div>
             </div>
-           
+
             {/* Chat list */}
             <div className="overflow-y-auto" style={{ height: 500 }}>
               {/* Instagram Chat Item */}
@@ -92,17 +91,16 @@ const LiveSupport = () => {
                   <p className="text-xs text-gray-500">Active now</p>
                 </h3>
               </div>
-             
             </div>
             {/* Messages area */}
             <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
               {/* Incoming message */}
               <div className="flex mb-4">
-                  <img
-                    src="https://images.unsplash.com/photo-1686670798036-675839253a0f?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-                    alt="Profile"
-                    className="w-8 h-8 rounded-full object-cover mt-1"
-                  />
+                <img
+                  src="https://images.unsplash.com/photo-1686670798036-675839253a0f?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+                  alt="Profile"
+                  className="w-8 h-8 rounded-full object-cover mt-1"
+                />
                 <div className="ml-3">
                   <div className="bg-white p-3 rounded-lg rounded-tl-none shadow-sm max-w-xs">
                     <p>Hey there! How's it going?</p>
@@ -128,13 +126,10 @@ const LiveSupport = () => {
                   className="w-8 h-8 rounded-full object-cover mt-1"
                 />
               </div>
-            
-              
             </div>
             {/* Message input */}
             <div className="p-3 border-t border-slate-300">
               <div className="flex items-center">
-
                 <input
                   type="text"
                   placeholder="Message..."

@@ -12,7 +12,7 @@ function FooterButtons({}) {
   );
 }
 
-function ImportTransferExcel({ open, setOpen }) {
+function ImportCarExcel({ open, setOpen, onImportSuccess }) {
   const [dragging, setDragging] = useState(false);
 
   const handleDrop = async (e) => {
@@ -21,6 +21,7 @@ function ImportTransferExcel({ open, setOpen }) {
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const data = await readExcelFile(e.dataTransfer.files[0]);
       console.log("data", data);
+      if (onImportSuccess) onImportSuccess();
     }
   };
 
@@ -35,7 +36,7 @@ function ImportTransferExcel({ open, setOpen }) {
 
   return open ? (
     <Modal
-      title={"Import Transfer Excel"}
+      title={"Import Car Excel"}
       setOpen={setOpen}
       open={open}
       footer={<FooterButtons />}
@@ -44,7 +45,7 @@ function ImportTransferExcel({ open, setOpen }) {
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
-        className={`import-tour-accommodation min-h-[270px] py-3 flex justify-center items-center border-dashed border-3 w-[96%] m-auto flex-col gap-2 ${
+        className={`import-car min-h-[270px] py-3 flex justify-center items-center border-dashed border-3 w-[96%] m-auto flex-col gap-2 ${
           dragging ? "border-amber-700" : "border-amber-900"
         }`}
       >
@@ -57,8 +58,8 @@ function ImportTransferExcel({ open, setOpen }) {
           Drag Your File Here Or{" "}
         </p>
         <label
-          htmlFor="import-transfer-excel"
-          className="inline-block bg-[#295557] text-white text-[15px] py-2 px-6 text-lg font-bold rounded transition-colors ease-in-out duration-300 hover:bg-[#64401acb] cursor-pointer "
+          htmlFor="import-car-excel"
+          className="inline-block bg-[#295557] text-white text-[15px] py-2 px-6 text-lg font-bold rounded transition-colors ease-in-out duration-300 hover:bg-[#64401acb] cursor-pointer"
         >
           Click To Browse
         </label>
@@ -66,10 +67,11 @@ function ImportTransferExcel({ open, setOpen }) {
           onChange={async (e) => {
             const data = await readExcelFile(e.target.files[0]);
             console.log("data", data);
+            if (onImportSuccess) onImportSuccess();
           }}
           type="file"
-          name="import-transfer-excel"
-          id="import-transfer-excel"
+          name="import-car-excel"
+          id="import-car-excel"
           className="hidden"
         />
       </div>
@@ -77,4 +79,4 @@ function ImportTransferExcel({ open, setOpen }) {
   ) : null;
 }
 
-export default ImportTransferExcel;
+export default ImportCarExcel;
