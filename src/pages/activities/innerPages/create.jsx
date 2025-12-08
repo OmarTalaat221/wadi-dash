@@ -1,5 +1,5 @@
 import React from "react";
-import CreateActivityLayout from "../../../layout/Activities/innerPages/create";
+import CreateActivityLayout from "../../../layout/activities/innerPages/create";
 
 function CreateActivity() {
   return <CreateActivityLayout />;

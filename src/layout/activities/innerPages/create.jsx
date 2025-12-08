@@ -255,7 +255,6 @@ function CreateActivityLayout() {
             <div>
               <label className="block !mb-1 font-medium">Country*</label>
               <Select
-                name="country_id"
                 value={formData.country_id}
                 onChange={(value) =>
                   setFormData((prev) => ({ ...prev, country_id: value }))
@@ -271,7 +270,6 @@ function CreateActivityLayout() {
             <div>
               <label className="block !mb-1 font-medium">Category</label>
               <Select
-                name="category"
                 value={formData.category}
                 onChange={(value) =>
                   setFormData((prev) => ({ ...prev, category: value }))
