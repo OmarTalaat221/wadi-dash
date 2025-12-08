@@ -1,5 +1,5 @@
 import React from "react";
-import UpdateActivityLayout from "../../../layout/Activities/innerPages/update";
+import UpdateActivityLayout from "../../../layout/activities/innerPages/update";
 
 function UpdateActivity() {
   return <UpdateActivityLayout />;

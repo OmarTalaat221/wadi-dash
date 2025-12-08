@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Tabs from "../../../components/Tabs";
-import ActivityFeatures from "../../../components/Activities/ActivityFeatures";
+// import ActivityFeatures from "../../../components/Activities/ActivityFeatures";
 import ActivityImages from "../../../components/Activities/activityImages";
 import JoditEditor from "jodit-react";
 import axios from "axios";
 import { message, Select } from "antd";
 import { base_url } from "../../../utils/base_url";
+import ActivityFeatures from "../../../components/Activities/activityFeatures";
 
 const { Option } = Select;
 
@@ -199,7 +200,6 @@ function UpdateActivityLayout() {
             <div>
               <label className="block mb-1 font-medium">Country*</label>
               <Select
-                name="country_id"
                 value={rowData.country_id}
                 onChange={(value) =>
                   setRowData((prev) => ({ ...prev, country_id: value }))
@@ -215,7 +215,6 @@ function UpdateActivityLayout() {
             <div>
               <label className="block mb-1 font-medium">Category</label>
               <Select
-                name="category"
                 value={rowData.category}
                 onChange={(value) =>
                   setRowData((prev) => ({ ...prev, category: value }))
