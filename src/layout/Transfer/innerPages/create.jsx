@@ -2,8 +2,8 @@ import React, { useState, useRef } from "react";
 import Tabs from "../../../components/Tabs";
 import { RiDeleteBin6Line } from "react-icons/ri";
 import { FiPlus } from "react-icons/fi";
-import { FaEye } from "react-icons/fa";
-import { MdDelete } from "react-icons/md";
+import { FaEye, FaCheck, FaImage } from "react-icons/fa";
+import { MdDelete, MdWallpaper } from "react-icons/md";
 import JoditEditor from "jodit-react";
 import editorConfig from "../../../data/joditConfig";
 import { useNavigate } from "react-router-dom";
@@ -33,6 +33,7 @@ function CreateCarLayout() {
     price_original: "",
     price_currency: "$",
     price_note: "PER DAY",
+    max_people: "PER DAY",
     car_type: "",
     features: [],
     images: [],
@@ -59,7 +60,6 @@ function CreateCarLayout() {
       const fileArray = [];
 
       for (let file of files) {
-        // Upload each image to server
         const uploadedImageUrl = await uploadImageToServer(file);
 
         if (uploadedImageUrl) {
@@ -81,7 +81,6 @@ function CreateCarLayout() {
           background_image: prev.background_image || updated[0]?.preview || "",
         };
 
-        // Add zoomIn animation
         setTimeout(() => {
           fileArray.forEach((_, idx) => {
             const refIndex = prev.images.length + idx;
@@ -115,13 +114,14 @@ function CreateCarLayout() {
       setTimeout(() => {
         setFormData((prev) => {
           const updatedImages = prev.images.filter((_, i) => i !== index);
+          const removedImageUrl =
+            prev.images[index]?.preview || prev.images[index]?.value;
 
           return {
             ...prev,
             images: updatedImages,
-            // Update background_image if we removed the first image
             background_image:
-              index === 0
+              prev.background_image === removedImageUrl
                 ? updatedImages[0]?.preview || ""
                 : prev.background_image,
           };
@@ -129,6 +129,11 @@ function CreateCarLayout() {
         imgRef.classList.remove("zoomOut");
       }, 300);
     }
+  };
+
+  const setBackgroundImage = (imageUrl) => {
+    setFormData((prev) => ({ ...prev, background_image: imageUrl }));
+    message.success("Background image set!");
   };
 
   const handleFeatureFieldChange = (index, field, value) => {
@@ -156,13 +161,11 @@ function CreateCarLayout() {
     setIsSubmitting(true);
 
     try {
-      // Convert features array to string with ** separator
       const featuresString = formData.features
         .map((f) => f.feature || f.label || f.value || "")
         .filter((f) => f.trim() !== "")
         .join("**");
 
-      // Convert images array to string with //CAMP// separator
       const imagesString = formData.images
         .map((img) => img.preview || img.value || "")
         .filter((img) => img.trim() !== "")
@@ -319,46 +322,17 @@ function CreateCarLayout() {
             </div>
           </div>
 
-          {/* <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block mb-1 font-medium">
-                Background Image URL (Auto-filled from first image)
-              </label>
-              <input
-                type="url"
-                name="background_image"
-                value={formData.background_image || ""}
-                onChange={handleChange}
-                placeholder="Will be auto-filled from first uploaded image"
-                className="w-full border border-gray-300 p-2 rounded bg-gray-50"
-                readOnly
-              />
-            </div>
-
-            <div>
-              <label className="block mb-1 font-medium">CTA Button URL</label>
-              <input
-                type="url"
-                name="cta_button_url"
-                value={formData.cta_button_url || ""}
-                onChange={handleChange}
-                placeholder="/booking/car"
-                className="w-full border border-gray-300 p-2 rounded"
-              />
-            </div>
-          </div> */}
-
-          {/* <div>
-            <label className="block mb-1 font-medium">CTA Button Text</label>
+          <div>
+            <label className="block mb-1 font-medium">Max People *</label>
             <input
-              type="text"
-              name="cta_button_text"
-              value={formData.cta_button_text || ""}
+              type="number"
+              name="max_people"
+              value={formData.max_people || ""}
               onChange={handleChange}
-              placeholder="Rent Now"
               className="w-full border border-gray-300 p-2 rounded"
+              onWheel={(e) => e.target.blur()}
             />
-          </div> */}
+          </div>
 
           <div>
             <label className="block mb-1 font-medium">Description</label>
@@ -429,14 +403,11 @@ function CreateCarLayout() {
         </fieldset>
       );
     }
+
     if (activeTab === "Images") {
       return (
         <fieldset className="border p-4 rounded">
           <legend className="font-medium mb-2">Images</legend>
-          <div className="mb-3 text-sm text-gray-600">
-            Click on any image to set it as the background image. The background
-            image is marked with a "BG" badge.
-          </div>
           <div className="space-y-2">
             <div className="flex flex-wrap gap-3 m-auto">
               <label
@@ -471,6 +442,7 @@ function CreateCarLayout() {
                 className="hidden"
                 disabled={isUploading}
               />
+
               {formData.images.map((img, index) => {
                 const imageUrl = img.preview || img.value;
                 const isBackgroundImage =
@@ -482,48 +454,71 @@ function CreateCarLayout() {
                       imageRefs.current[index] = el;
                     }}
                     key={index}
-                    onClick={() => {
-                      setFormData((prev) => ({
-                        ...prev,
-                        background_image: imageUrl,
-                      }));
-                      message.success("Background image updated!");
-                    }}
-                    className={`w-[102px] h-[102px] overflow-hidden relative cursor-pointer rounded-lg p-2 border hover:border-blue-400 transition-all ${
+                    className={`w-[102px] h-[102px] overflow-hidden relative rounded-lg p-1 border-2 zoomIn transition-all duration-200 ${
                       isBackgroundImage
-                        ? "border-blue-500 border-2 shadow-lg"
+                        ? "border-green-500"
                         : "border-[#d9d9d9]"
                     }`}
                   >
-                    {isBackgroundImage && (
-                      <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full z-30 shadow">
+                    {/* Image */}
+                    <img
+                      src={imageUrl}
+                      alt={`uploaded-${index}`}
+                      className="w-full h-full object-cover rounded"
+                    />
+
+                    {/* Top-Left: Set as Background Button */}
+                    {!isBackgroundImage ? (
+                      <button
+                        type="button"
+                        onClick={() => setBackgroundImage(imageUrl)}
+                        className="absolute top-1 left-1 w-6 h-6 rounded-full bg-black/50 hover:bg-green-500 flex items-center justify-center text-white text-xs shadow-md transition-all"
+                        title="Set as Background"
+                      >
+                        <MdWallpaper className="text-[10px]" />
+                      </button>
+                    ) : (
+                      <div className="absolute top-1 left-1 bg-green-500 text-white rounded-full px-2 py-0.5 text-[10px] shadow-md flex items-center gap-1">
+                        <FaCheck className="text-[8px]" />
                         BG
                       </div>
                     )}
-                    <div className="w-full h-full relative group">
-                      <img
-                        src={imageUrl}
-                        alt={`uploaded-${index}`}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute top-0 left-0 w-full h-full bg-black/45 opacity-0 transition-all duration-300 group-hover:opacity-100 z-10" />
-                      <div className="absolute inset-0 flex justify-center items-center gap-2 text-white opacity-0 group-hover:opacity-100 z-20">
-                        <FaEye />
-                        <div
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeImage(index);
-                          }}
-                          className="cursor-pointer hover:text-red-500"
-                        >
-                          <MdDelete />
-                        </div>
-                      </div>
-                    </div>
+
+                    {/* Top-Right: Preview Button */}
+                    <button
+                      type="button"
+                      onClick={() => window.open(imageUrl, "_blank")}
+                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/50 hover:bg-blue-500 flex items-center justify-center text-white text-xs shadow-md transition-all"
+                      title="Preview"
+                    >
+                      <FaEye className="text-[10px]" />
+                    </button>
+
+                    {/* Bottom-Right: Delete Button */}
+                    <button
+                      type="button"
+                      onClick={() => removeImage(index)}
+                      className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-black/50 hover:bg-red-500 flex items-center justify-center text-white text-xs shadow-md transition-all"
+                      title="Delete"
+                    >
+                      <MdDelete className="text-[10px]" />
+                    </button>
                   </div>
                 );
               })}
             </div>
+
+            {formData.images.length > 0 && (
+              <div className="text-sm text-gray-600 mt-2">
+                <span className="font-medium">Total Images:</span>{" "}
+                {formData.images.length}
+                {formData.background_image && (
+                  <span className="ml-2 text-green-600">
+                    • Background image selected
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </fieldset>
       );

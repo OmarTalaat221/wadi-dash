@@ -287,9 +287,7 @@ function UpdateAccomLayout() {
             </div>
 
             <div>
-              <label className="block mb-1 font-medium">
-                Max Adults Number
-              </label>
+              <label className="block mb-1 font-medium">Max People</label>
               <input
                 type="number"
                 name="adults_num"
@@ -333,6 +331,16 @@ function UpdateAccomLayout() {
                 <Option value="3">Country 3</Option>
               </Select>
             </div>
+          </div>
+
+          <div className="col-span-2 mt-4">
+            <label className="block mb-1 font-medium">video_link</label>
+            <input
+              name="video_link"
+              value={rowData.video_link || ""}
+              onChange={handleChange}
+              className="w-full border border-gray-300 p-2 rounded"
+            />
           </div>
 
           <div className="col-span-2 mt-4">

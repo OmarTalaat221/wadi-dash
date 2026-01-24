@@ -5,7 +5,7 @@ function Table({ title, body, headers, pages, setPages, extraColumns = [] }) {
   const [searchFilters, setSearchFilters] = useState({});
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
 
-  const [localPages, setLocalPages] = useState({ page: 1, perPage: 5 });
+  const [localPages, setLocalPages] = useState({ page: 1, perPage: 10 });
 
   const safePages = pages || localPages;
   const safeSetPages = setPages || setLocalPages;

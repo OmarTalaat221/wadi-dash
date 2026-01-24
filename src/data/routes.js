@@ -47,7 +47,7 @@ import Faqs from "../pages/Faqs";
 import Requests from "../pages/Requests";
 import { FaMessage } from "react-icons/fa6";
 import UserProblems from "../pages/UserProblems";
-import { MdQuestionMark } from "react-icons/md";
+import { MdCategory, MdQuestionMark } from "react-icons/md";
 import SiteInfo from "../pages/SiteInfo";
 import Activities from "../pages/activities";
 import CreateActivity from "../pages/activities/innerPages/create";
@@ -55,13 +55,14 @@ import UpdateActivity from "../pages/activities/innerPages/update";
 import Blogs from "../pages/adminBlogs";
 import OfferBanners from "../pages/OfferBanners";
 import HomePageManagement from "../pages/HomePage/HomePage";
+import BlogCategories from "../pages/BlogCategories/BlogCategories";
 
 export const publicRoutes = [
   {
     title: "Dashboard",
     icon: "/space_dashboard.svg",
     hidden: false,
-    route: "*",
+    route: "/",
     element: Home,
   },
   {
@@ -250,7 +251,7 @@ export const publicRoutes = [
     title: "Offer Banners",
     icon: TbDiscount,
     hidden: false,
-    route: "/",
+    route: "/offer-banners",
     element: OfferBanners,
   },
   {
@@ -266,6 +267,13 @@ export const publicRoutes = [
     hidden: false,
     route: "/users-messages",
     element: UserProblems,
+  },
+  {
+    title: "Blog Categories",
+    icon: MdCategory,
+    hidden: false,
+    route: "/blog-categories",
+    element: BlogCategories,
   },
 
   {

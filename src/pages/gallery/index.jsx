@@ -13,33 +13,71 @@ import {
   Tooltip,
   Input,
   Form,
+  Select,
 } from "antd";
 import {
   PlusOutlined,
   DeleteOutlined,
   EyeOutlined,
   EyeInvisibleOutlined,
-  UploadOutlined,
   ReloadOutlined,
+  EditOutlined,
+  GlobalOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
 import { base_url } from "../../utils/base_url";
 import { uploadImageToServer } from "../../hooks/uploadImage";
 
 const { Title } = Typography;
+const { Option } = Select;
 
 const Gallery = () => {
   const [photos, setPhotos] = useState([]);
+  const [countries, setCountries] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [currentPhoto, setCurrentPhoto] = useState(null);
   const [fileList, setFileList] = useState([]);
+  const [editFileList, setEditFileList] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [countriesLoading, setCountriesLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [toggling, setToggling] = useState(null);
 
-  // Form for adding photos with title
+  // Forms
   const [form] = Form.useForm();
+  const [editForm] = Form.useForm();
+
+  // Fetch countries
+  const fetchCountries = async () => {
+    setCountriesLoading(true);
+    try {
+      const response = await axios.get(
+        `${base_url}/user/countries/select_countries.php`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.data && response.data.status === "success") {
+        setCountries(response.data.message || []);
+      } else {
+        message.error("Failed to fetch countries");
+      }
+    } catch (error) {
+      console.error("Error fetching countries:", error);
+      message.error(
+        error.response?.data?.message ||
+          "Failed to load countries. Please try again."
+      );
+    } finally {
+      setCountriesLoading(false);
+    }
+  };
 
   // Fetch gallery images
   const fetchGallery = async () => {
@@ -70,15 +108,34 @@ const Gallery = () => {
     }
   };
 
-  // Load gallery on component mount
+  // Load gallery and countries on component mount
   useEffect(() => {
     fetchGallery();
+    fetchCountries();
   }, []);
+
+  // Get country name by ID
+  const getCountryName = (countryId) => {
+    const country = countries.find(
+      (c) => c.country_id === countryId || c.country_id === String(countryId)
+    );
+    return country ? country.country_name : "Unknown";
+  };
 
   const handleAddPhoto = () => {
     setFileList([]);
     form.resetFields();
     setModalOpen(true);
+  };
+
+  const handleEditPhoto = (photo) => {
+    setCurrentPhoto(photo);
+    setEditFileList([]);
+    editForm.setFieldsValue({
+      title: photo.title,
+      country_id: photo.country_id ? String(photo.country_id) : undefined,
+    });
+    setEditModalOpen(true);
   };
 
   const handleDeletePhoto = async (photoId) => {
@@ -97,7 +154,7 @@ const Gallery = () => {
 
       if (response.data && response.data.status === "success") {
         message.success("Photo deleted successfully");
-        await fetchGallery(); // Refresh gallery
+        await fetchGallery();
       } else {
         throw new Error(response.data?.message || "Failed to delete photo");
       }
@@ -130,7 +187,7 @@ const Gallery = () => {
         const isCurrentlyHidden = photo.hidden === "1";
         const actionText = isCurrentlyHidden ? "shown" : "hidden";
         message.success(`Photo ${actionText} successfully`);
-        await fetchGallery(); // Refresh gallery
+        await fetchGallery();
       } else {
         throw new Error(
           response.data?.message || "Failed to toggle visibility"
@@ -159,8 +216,8 @@ const Gallery = () => {
       return;
     }
 
-    if (!values.title || values.title.trim() === "") {
-      message.error("Please enter a title for the photo");
+    if (!values.country_id) {
+      message.error("Please select a country");
       return;
     }
 
@@ -177,13 +234,17 @@ const Gallery = () => {
         throw new Error("No image URL returned from upload");
       }
 
-      // Step 2: Add image URL to gallery database with title
+      const payload = {
+        image: imageUrl,
+        title: values.title,
+        country_id: parseInt(values.country_id),
+      };
+
+      console.log("Adding photo with payload:", payload);
+
       const response = await axios.post(
         `${base_url}/admin/gallary/add_gallary.php`,
-        {
-          image: imageUrl,
-          title: values.title.trim(),
-        },
+        payload,
         {
           headers: {
             "Content-Type": "application/json",
@@ -193,7 +254,7 @@ const Gallery = () => {
 
       if (response.data && response.data.status === "success") {
         message.success("Photo uploaded and added to gallery successfully!");
-        await fetchGallery(); // Refresh gallery
+        await fetchGallery();
         setModalOpen(false);
         setFileList([]);
         form.resetFields();
@@ -203,7 +264,7 @@ const Gallery = () => {
         );
       }
     } catch (error) {
-      message.destroy(); // Clear any loading messages
+      message.destroy();
       console.error("Error uploading photo:", error);
       message.error(
         error.response?.data?.message ||
@@ -215,10 +276,78 @@ const Gallery = () => {
     }
   };
 
+  const handleUpdatePhoto = async (values) => {
+    if (!currentPhoto) return;
+
+    setUpdating(true);
+    try {
+      let imageUrl = currentPhoto.image;
+
+      // If new image is selected, upload it
+      if (editFileList.length > 0) {
+        const file = editFileList[0].originFileObj || editFileList[0];
+        message.loading("Uploading new image...", 0);
+        imageUrl = await uploadImageToServer(file);
+        message.destroy();
+
+        if (!imageUrl) {
+          throw new Error("No image URL returned from upload");
+        }
+      }
+
+      const payload = {
+        id: parseInt(currentPhoto.id),
+        image: imageUrl,
+        title: values.title,
+        country_id: parseInt(values.country_id),
+      };
+
+      console.log("Updating photo with payload:", payload);
+
+      const response = await axios.post(
+        `${base_url}/admin/gallary/update_gallary.php`,
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.data && response.data.status === "success") {
+        message.success("Photo updated successfully!");
+        await fetchGallery();
+        setEditModalOpen(false);
+        setEditFileList([]);
+        editForm.resetFields();
+        setCurrentPhoto(null);
+      } else {
+        throw new Error(response.data?.message || "Failed to update photo");
+      }
+    } catch (error) {
+      message.destroy();
+      console.error("Error updating photo:", error);
+      message.error(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to update photo. Please try again."
+      );
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleCancel = () => {
     setModalOpen(false);
     setFileList([]);
     form.resetFields();
+  };
+
+  const handleEditCancel = () => {
+    setEditModalOpen(false);
+    setEditFileList([]);
+    editForm.resetFields();
+    setCurrentPhoto(null);
   };
 
   const uploadProps = {
@@ -226,7 +355,6 @@ const Gallery = () => {
       setFileList([]);
     },
     beforeUpload: (file) => {
-      // Validate file type
       const isImage = file.type.startsWith("image/");
       if (!isImage) {
         message.error("You can only upload image files!");
@@ -240,9 +368,34 @@ const Gallery = () => {
       }
 
       setFileList([file]);
-      return false; // Prevent auto upload
+      return false;
     },
     fileList,
+    listType: "picture-card",
+    accept: "image/*",
+  };
+
+  const editUploadProps = {
+    onRemove: () => {
+      setEditFileList([]);
+    },
+    beforeUpload: (file) => {
+      const isImage = file.type.startsWith("image/");
+      if (!isImage) {
+        message.error("You can only upload image files!");
+        return false;
+      }
+
+      const isLt10M = file.size / 1024 / 1024 < 10;
+      if (!isLt10M) {
+        message.error("Image must be smaller than 10MB!");
+        return false;
+      }
+
+      setEditFileList([file]);
+      return false;
+    },
+    fileList: editFileList,
     listType: "picture-card",
     accept: "image/*",
   };
@@ -259,6 +412,7 @@ const Gallery = () => {
 
   const handleRefresh = () => {
     fetchGallery();
+    fetchCountries();
   };
 
   return (
@@ -319,16 +473,32 @@ const Gallery = () => {
                     }}
                     onClick={() => handlePreviewPhoto(photo)}
                   >
+                    {/* Visibility Tag */}
                     <div className="absolute top-2 right-2">
                       <Tag color={visibilityInfo.color} className="m-0">
                         {visibilityInfo.text}
                       </Tag>
                     </div>
+                    {/* Country Tag */}
+                    {photo.country_id && (
+                      <div className="absolute top-2 left-2">
+                        <Tag
+                          color="blue"
+                          icon={<GlobalOutlined />}
+                          className="m-0"
+                        >
+                          {getCountryName(photo.country_id)}
+                        </Tag>
+                      </div>
+                    )}
                   </div>
                 }
                 actions={[
                   <Tooltip title="Preview Image" key="preview">
                     <EyeOutlined onClick={() => handlePreviewPhoto(photo)} />
+                  </Tooltip>,
+                  <Tooltip title="Edit Photo" key="edit">
+                    <EditOutlined onClick={() => handleEditPhoto(photo)} />
                   </Tooltip>,
                   <Tooltip title={visibilityInfo.tooltipText} key="toggle">
                     <VisibilityIcon
@@ -362,6 +532,12 @@ const Gallery = () => {
                   }
                   description={
                     <div className="text-center">
+                      {photo.country_id && (
+                        <p className="text-xs text-blue-600 mb-1">
+                          <GlobalOutlined className="mr-1" />
+                          {getCountryName(photo.country_id)}
+                        </p>
+                      )}
                       <p className="text-xs text-gray-500 mb-1">
                         Added: {new Date(photo.created_at).toLocaleDateString()}
                       </p>
@@ -390,19 +566,36 @@ const Gallery = () => {
           onFinish={handleUploadPhoto}
           className="py-4"
         >
-          <Form.Item
-            name="title"
-            label="Photo Title"
-            rules={[
-              { required: true, message: "Please enter a title for the photo" },
-              { max: 100, message: "Title cannot exceed 100 characters" },
-            ]}
-          >
+          <Form.Item name="title" label="Photo Title">
             <Input
               placeholder="Enter a descriptive title for your photo"
               showCount
               maxLength={100}
             />
+          </Form.Item>
+
+          <Form.Item
+            name="country_id"
+            label="Country"
+            rules={[{ required: true, message: "Please select a country" }]}
+          >
+            <Select
+              placeholder="Select a country"
+              loading={countriesLoading}
+              showSearch
+              optionFilterProp="children"
+              filterOption={(input, option) =>
+                (option?.children ?? "")
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
+              }
+            >
+              {countries.map((country) => (
+                <Option key={country.country_id} value={country.country_id}>
+                  {country.country_name}
+                </Option>
+              ))}
+            </Select>
           </Form.Item>
 
           <Form.Item label="Select Image" required>
@@ -448,6 +641,97 @@ const Gallery = () => {
         </Form>
       </Modal>
 
+      {/* Edit Photo Modal */}
+      <Modal
+        title="Edit Photo"
+        open={editModalOpen}
+        onCancel={handleEditCancel}
+        footer={null}
+        width={600}
+        destroyOnClose
+      >
+        <Form
+          form={editForm}
+          layout="vertical"
+          onFinish={handleUpdatePhoto}
+          className="py-4"
+        >
+          {/* Current Image Preview */}
+          {currentPhoto && (
+            <div className="mb-4">
+              <p className="text-sm font-medium text-gray-700 mb-2">
+                Current Image:
+              </p>
+              <div
+                className="h-40 w-full bg-cover bg-center rounded-lg border"
+                style={{
+                  backgroundImage: `url(${currentPhoto.image})`,
+                  backgroundSize: "contain",
+                  backgroundRepeat: "no-repeat",
+                }}
+              />
+            </div>
+          )}
+
+          <Form.Item name="title" label="Photo Title">
+            <Input
+              placeholder="Enter a descriptive title for your photo"
+              showCount
+              maxLength={100}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="country_id"
+            label="Country"
+            rules={[{ required: true, message: "Please select a country" }]}
+          >
+            <Select
+              placeholder="Select a country"
+              loading={countriesLoading}
+              showSearch
+              optionFilterProp="children"
+              filterOption={(input, option) =>
+                (option?.children ?? "")
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
+              }
+            >
+              {countries.map((country) => (
+                <Option key={country.country_id} value={country.country_id}>
+                  {country.country_name}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item label="Change Image (Optional)">
+            <Upload {...editUploadProps}>
+              {editFileList.length === 0 && (
+                <div>
+                  <PlusOutlined />
+                  <div style={{ marginTop: 8 }}>Select New Image</div>
+                </div>
+              )}
+            </Upload>
+            <p className="text-xs text-gray-500 mt-2">
+              Leave empty to keep the current image
+            </p>
+          </Form.Item>
+
+          <Form.Item className="mb-0 mt-6">
+            <Space className="flex justify-end">
+              <Button onClick={handleEditCancel} disabled={updating}>
+                Cancel
+              </Button>
+              <Button type="primary" htmlType="submit" loading={updating}>
+                Update Photo
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
       {/* Preview Modal */}
       <Modal
         title={
@@ -460,6 +744,17 @@ const Gallery = () => {
         open={previewModalOpen}
         onCancel={() => setPreviewModalOpen(false)}
         footer={[
+          <Button
+            key="edit"
+            type="primary"
+            icon={<EditOutlined />}
+            onClick={() => {
+              setPreviewModalOpen(false);
+              handleEditPhoto(currentPhoto);
+            }}
+          >
+            Edit
+          </Button>,
           <Button key="close" onClick={() => setPreviewModalOpen(false)}>
             Close
           </Button>,
@@ -485,12 +780,23 @@ const Gallery = () => {
                 <p className="text-base font-medium text-gray-900 mb-2">
                   {currentPhoto?.title || "Untitled"}
                 </p>
-                <Tag
-                  color={getVisibilityInfo(currentPhoto?.hidden).color}
-                  className="text-sm"
-                >
-                  {getVisibilityInfo(currentPhoto?.hidden).text}
-                </Tag>
+                <Space>
+                  <Tag
+                    color={getVisibilityInfo(currentPhoto?.hidden).color}
+                    className="text-sm"
+                  >
+                    {getVisibilityInfo(currentPhoto?.hidden).text}
+                  </Tag>
+                  {currentPhoto?.country_id && (
+                    <Tag
+                      color="blue"
+                      icon={<GlobalOutlined />}
+                      className="text-sm"
+                    >
+                      {getCountryName(currentPhoto?.country_id)}
+                    </Tag>
+                  )}
+                </Space>
               </div>
               <p className="text-sm text-gray-500">
                 Added:{" "}

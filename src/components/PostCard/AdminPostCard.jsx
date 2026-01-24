@@ -100,10 +100,10 @@ export default function PostCard({
               </div>
               <div className="mt-1 flex items-center gap-2">
                 {getStatusBadge()}
-                {post.category && (
+                {post.category_name && (
                   <span className="text-xs text-gray-500 flex items-center">
                     <FaTag className="w-3 h-3 mr-1" />
-                    {post.category?.replaceAll("_", " ")}
+                    {post.category_name}
                   </span>
                 )}
               </div>

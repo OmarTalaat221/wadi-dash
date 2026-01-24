@@ -1,13 +1,13 @@
-// components/tours-page/TourImages.jsx
 import React, { useRef } from "react";
-import { FaEye, FaImage } from "react-icons/fa";
+import { FaEye, FaImage, FaCheck } from "react-icons/fa";
 import { FiPlus } from "react-icons/fi";
-import { MdDelete } from "react-icons/md";
+import { MdDelete, MdWallpaper, MdLink } from "react-icons/md";
 import { message } from "antd";
 import { uploadImageToServer } from "./../../hooks/uploadImage";
 
 const TourImages = ({ rowData, setRowData }) => {
   const imageInputRef = useRef(null);
+  const urlInputRef = useRef(null);
   const imageRefs = useRef([]);
 
   const handleImageFilesChange = async (files) => {
@@ -17,7 +17,6 @@ const TourImages = ({ rowData, setRowData }) => {
       const fileArray = [];
 
       for (let file of files) {
-        // Upload each image to server
         const uploadedImageUrl = await uploadImageToServer(file);
 
         if (uploadedImageUrl) {
@@ -33,7 +32,6 @@ const TourImages = ({ rowData, setRowData }) => {
       setRowData((prev) => {
         const updated = [...(prev.images || []), ...fileArray];
 
-        // Add zoomIn to new refs
         setTimeout(() => {
           fileArray.forEach((_, idx) => {
             const refIndex = (prev.images || []).length + idx;
@@ -57,6 +55,42 @@ const TourImages = ({ rowData, setRowData }) => {
     }
   };
 
+  // ✅ Updated: Add URL Button Click Handler
+  const handleAddUrlClick = () => {
+    const url = urlInputRef.current?.value?.trim();
+
+    if (!url) {
+      message.warning("Please enter an image URL");
+      return;
+    }
+
+    const imageData = {
+      type: "url",
+      value: url,
+      preview: url,
+    };
+
+    setRowData((prev) => {
+      const updated = [...(prev.images || []), imageData];
+
+      setTimeout(() => {
+        const refIndex = (prev.images || []).length;
+        const imgRef = imageRefs.current[refIndex];
+        if (imgRef) {
+          imgRef.classList.add("zoomIn");
+          setTimeout(() => imgRef.classList.remove("zoomIn"), 300);
+        }
+      }, 10);
+
+      return { ...prev, images: updated };
+    });
+
+    message.success("Image URL added");
+    if (urlInputRef.current) {
+      urlInputRef.current.value = "";
+    }
+  };
+
   const removeImage = (index) => {
     const imgRef = imageRefs.current[index];
     const imageToRemove = rowData.images[index];
@@ -69,7 +103,6 @@ const TourImages = ({ rowData, setRowData }) => {
         setRowData((prev) => {
           const newImages = prev.images.filter((_, i) => i !== index);
 
-          // Reset cover and background if they were the removed image
           let updates = { images: newImages };
           if (prev.image === imageToRemove.value) {
             updates.image = "";
@@ -96,18 +129,37 @@ const TourImages = ({ rowData, setRowData }) => {
     message.success("Background image set!");
   };
 
+  const isBackgroundImage = (imageUrl) => rowData.background_image === imageUrl;
+  const isCoverImage = (imageUrl) => rowData.image === imageUrl;
+
   return (
     <div className="space-y-4">
       <fieldset className="border p-4 rounded">
         <legend className="font-medium mb-2">Tour Images</legend>
-        <div className="space-y-2">
-          <div className="flex flex-wrap gap-3 m-auto">
+
+        {/* ✅ Updated: Two Separate Buttons */}
+        <div className="space-y-2 mb-4">
+          <div className="flex gap-2">
+            <input
+              ref={urlInputRef}
+              type="text"
+              placeholder="Enter image URL"
+              className="border border-gray-300 p-2 rounded flex-1"
+            />
+            <button
+              type="button"
+              onClick={handleAddUrlClick}
+              className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors duration-200 flex items-center gap-2"
+            >
+              <MdLink />
+              Add URL
+            </button>
             <label
               htmlFor="tour-image-upload"
-              className="cursor-pointer px-0 py-2 bg-[rgba(0,0,0,0.02)] border border-dashed border-[#d9d9d9] rounded-lg flex text-center text-[#555] w-[102px] h-[102px] text-xs flex-col gap-2 items-center justify-center hover:border-[#1677ff] transition duration-300 ease-in-out"
+              className="cursor-pointer px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors duration-200 flex items-center gap-2"
             >
-              <FiPlus className="text-[15px]" />
-              Add Image
+              <FiPlus />
+              Upload Files
             </label>
             <input
               id="tour-image-upload"
@@ -118,81 +170,95 @@ const TourImages = ({ rowData, setRowData }) => {
               onChange={(e) => {
                 if (e.target.files) {
                   handleImageFilesChange(e.target.files);
+                  e.target.value = "";
                 }
               }}
               className="hidden"
             />
-            {(rowData.images || []).map((img, index) => (
-              <div
-                ref={(el) => {
-                  imageRefs.current[index] = el;
-                }}
-                key={index}
-                className="w-[102px] h-[102px] overflow-hidden relative cursor-pointer rounded-lg p-2 border border-[#d9d9d9] zoomIn"
-              >
-                <div className="w-full h-full relative group">
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-3 m-auto">
+            {(rowData.images || []).map((img, index) => {
+              const isBackground = isBackgroundImage(img.value);
+              const isCover = isCoverImage(img.value);
+
+              return (
+                <div
+                  ref={(el) => {
+                    imageRefs.current[index] = el;
+                  }}
+                  key={index}
+                  className={`w-[102px] h-[102px] overflow-hidden relative rounded-lg p-1 border-2 zoomIn transition-all duration-200 ${
+                    isBackground
+                      ? "border-green-500"
+                      : isCover
+                        ? "border-blue-500"
+                        : "border-[#d9d9d9]"
+                  }`}
+                >
                   <img
                     src={img.preview || img.value}
                     alt={`uploaded-${index}`}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover rounded"
                   />
 
-                  {/* Cover image indicator */}
-                  {rowData.image === img.value && (
-                    <div className="absolute top-1 left-1 bg-blue-500 text-white rounded-full p-1">
-                      <FaImage className="text-xs" />
-                    </div>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => setCoverImage(img.value)}
+                    className={`absolute top-1 left-1 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs shadow-md transition-all ${
+                      isCover ? "bg-blue-500" : "bg-black/50 hover:bg-blue-500"
+                    }`}
+                    title="Set as Cover"
+                  >
+                    {isCover ? (
+                      <FaCheck className="text-[10px]" />
+                    ) : (
+                      <FaImage className="text-[10px]" />
+                    )}
+                  </button>
 
-                  {/* Background image indicator */}
-                  {rowData.background_image === img.value && (
-                    <div className="absolute top-1 right-1 bg-green-500 text-white rounded-full p-1">
-                      <FaImage className="text-xs" />
-                    </div>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => setBackgroundImage(img.value)}
+                    className={`absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs shadow-md transition-all ${
+                      isBackground
+                        ? "bg-green-500"
+                        : "bg-black/50 hover:bg-green-500"
+                    }`}
+                    title="Set as Background"
+                  >
+                    {isBackground ? (
+                      <FaCheck className="text-[10px]" />
+                    ) : (
+                      <MdWallpaper className="text-[10px]" />
+                    )}
+                  </button>
 
-                  <div className="absolute top-0 left-0 w-full h-full bg-black/45 opacity-0 transition-all duration-300 group-hover:opacity-100 z-10" />
-                  <div className="absolute inset-0 flex justify-center items-center gap-2 text-white opacity-0 group-hover:opacity-100 z-20">
-                    <FaEye />
-                    <FaImage
-                      title="Set as Cover"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCoverImage(img.value);
-                      }}
-                      className="cursor-pointer hover:text-blue-300"
-                    />
-                    <FaImage
-                      title="Set as Background"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setBackgroundImage(img.value);
-                      }}
-                      className="cursor-pointer hover:text-green-300"
-                    />
-                    <div
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeImage(index);
-                      }}
-                      className="cursor-pointer hover:text-red-300"
-                    >
-                      <MdDelete />
-                    </div>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeImage(index)}
+                    className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-black/50 hover:bg-red-500 flex items-center justify-center text-white text-xs shadow-md transition-all"
+                    title="Delete"
+                  >
+                    <MdDelete className="text-[10px]" />
+                  </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </fieldset>
 
-      {/* Current selections display */}
       <div className="grid grid-cols-2 gap-4">
         <div className="border p-3 rounded">
-          <label className="block text-sm font-medium mb-2">Cover Image</label>
+          <label className="block text-sm font-medium mb-2 flex items-center gap-2">
+            <span className="w-3 h-3 bg-blue-500 rounded-full inline-block"></span>
+            Cover Image
+          </label>
           {rowData.image ? (
-            <div className="w-20 h-20 border rounded overflow-hidden">
+            <div className="w-20 h-20 border-2 border-blue-500 rounded overflow-hidden">
               <img
                 src={rowData.image}
                 alt="Cover"
@@ -207,11 +273,12 @@ const TourImages = ({ rowData, setRowData }) => {
         </div>
 
         <div className="border p-3 rounded">
-          <label className="block text-sm font-medium mb-2">
+          <label className="block text-sm font-medium mb-2 flex items-center gap-2">
+            <span className="w-3 h-3 bg-green-500 rounded-full inline-block"></span>
             Background Image
           </label>
           {rowData.background_image ? (
-            <div className="w-20 h-20 border rounded overflow-hidden">
+            <div className="w-20 h-20 border-2 border-green-500 rounded overflow-hidden">
               <img
                 src={rowData.background_image}
                 alt="Background"
@@ -220,7 +287,7 @@ const TourImages = ({ rowData, setRowData }) => {
             </div>
           ) : (
             <div className="w-20 h-20 border border-dashed rounded flex items-center justify-center text-gray-400">
-              <FaImage />
+              <MdWallpaper />
             </div>
           )}
         </div>

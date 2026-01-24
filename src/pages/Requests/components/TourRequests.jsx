@@ -15,6 +15,7 @@ import {
   Badge,
   Collapse,
   Empty,
+  Radio,
 } from "antd";
 import {
   UserOutlined,
@@ -32,6 +33,10 @@ import {
   MailOutlined,
   GlobalOutlined,
   FlagOutlined,
+  SafetyCertificateOutlined,
+  EditOutlined,
+  ThunderboltOutlined,
+  ToolOutlined,
 } from "@ant-design/icons";
 import DataTable from "../../../layout/DataTable";
 import axios from "axios";
@@ -46,9 +51,13 @@ const TourRequests = () => {
   const [filteredData, setFilteredData] = useState([]);
   const [rowData, setRowData] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isManualModalVisible, setIsManualModalVisible] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [manualFilter, setManualFilter] = useState("all");
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState("");
+  const [manualUpdateRecord, setManualUpdateRecord] = useState(null);
 
   // Fetch tour requests
   const fetchTourRequests = async () => {
@@ -99,32 +108,46 @@ const TourRequests = () => {
     fetchTourRequests();
   }, []);
 
-  // Filter data based on status
+  // Filter data based on status and manual
   useEffect(() => {
-    if (statusFilter === "all") {
-      setFilteredData(data);
-    } else {
-      const filtered = data.filter(
+    let filtered = data;
+
+    // Filter by status
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(
         (item) => item.reservation?.status?.toLowerCase() === statusFilter
       );
-      setFilteredData(filtered);
     }
-  }, [statusFilter, data]);
 
-  // Update status
+    // Filter by manual
+    if (manualFilter !== "all") {
+      filtered = filtered.filter(
+        (item) => item.reservation?.manual === manualFilter
+      );
+    }
+
+    setFilteredData(filtered);
+  }, [statusFilter, manualFilter, data]);
+
+  // Update status - Accept/Reject (Automatic - manual: "0")
   const handleStatusUpdate = async (reservationId, status) => {
     setUpdatingStatus(true);
     try {
+      const payload = {
+        reservation_id: reservationId,
+        status: status === "accepted" ? "upcoming" : status,
+        manual: "0",
+      };
+
       const response = await axios.post(
         `${base_url}/admin/tours/update_status.php`,
-        {
-          reservation_id: reservationId,
-          status,
-        }
+        payload
       );
 
       if (response.data.status === "success") {
-        message.success(`Status updated to ${status}`);
+        message.success(
+          `Status updated to ${status === "accepted" ? "upcoming" : status}`
+        );
         fetchTourRequests();
         setIsModalVisible(false);
       } else {
@@ -136,6 +159,50 @@ const TourRequests = () => {
     } finally {
       setUpdatingStatus(false);
     }
+  };
+
+  // Manual status update (manual: "1")
+  const handleManualStatusUpdate = async () => {
+    if (!selectedStatus) {
+      message.warning("Please select a status");
+      return;
+    }
+
+    setUpdatingStatus(true);
+    try {
+      const payload = {
+        reservation_id: manualUpdateRecord.reservation_id,
+        status: selectedStatus,
+        manual: "1",
+      };
+
+      const response = await axios.post(
+        `${base_url}/admin/tours/update_status.php`,
+        payload
+      );
+
+      if (response.data.status === "success") {
+        message.success(`Status manually updated to ${selectedStatus}`);
+        fetchTourRequests();
+        setIsManualModalVisible(false);
+        setSelectedStatus("");
+        setManualUpdateRecord(null);
+      } else {
+        message.error(response.data.message || "Failed to update status");
+      }
+    } catch (error) {
+      console.error("Error updating status:", error);
+      message.error("Error updating status");
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  // Open manual update modal
+  const openManualUpdateModal = (record) => {
+    setManualUpdateRecord(record);
+    setSelectedStatus(record.status || "");
+    setIsManualModalVisible(true);
   };
 
   // Calculate duration
@@ -150,11 +217,11 @@ const TourRequests = () => {
   // Get status color
   const getStatusColor = (status) => {
     const colors = {
-      accepted: "green",
-      confirmed: "green",
+      upcoming: "blue",
+      in_progress: "cyan",
+      completed: "purple",
       pending: "orange",
       rejected: "red",
-      cancelled: "red",
     };
     return colors[status?.toLowerCase()] || "default";
   };
@@ -272,30 +339,55 @@ const TourRequests = () => {
       title: "Status",
       dataIndex: ["reservation", "status"],
       key: "status",
-      render: (text) => (
-        <Tag
-          color={getStatusColor(text)}
-          className="px-3 py-1 text-sm font-medium"
-        >
-          {text?.toUpperCase()}
-        </Tag>
+      render: (text, record) => (
+        <div className="flex flex-col gap-1">
+          <Tag
+            color={getStatusColor(text)}
+            className="px-3 py-1 text-sm font-medium w-fit"
+          >
+            {text?.toUpperCase()}
+          </Tag>
+          {record.reservation?.manual === "1" && (
+            <Tooltip title="Manually Updated">
+              <Tag
+                color="gold"
+                className="flex items-center gap-1 justify-center w-fit"
+              >
+                Manual
+              </Tag>
+            </Tooltip>
+          )}
+        </div>
       ),
     },
     {
       title: "Actions",
       key: "actions",
       render: (_, record) => (
-        <Button
-          type="primary"
-          icon={<EyeOutlined />}
-          onClick={() =>
-            fetchTourRequestDetails(record.reservation?.reservation_id)
-          }
-          loading={detailsLoading}
-          className="bg-gradient-to-r from-blue-500 to-purple-600 border-0 shadow-md hover:shadow-lg"
-        >
-          View Details
-        </Button>
+        <div className="flex flex-col gap-2">
+          <Button
+            type="primary"
+            icon={<EyeOutlined />}
+            onClick={() =>
+              fetchTourRequestDetails(record.reservation?.reservation_id)
+            }
+            loading={detailsLoading}
+            className="bg-gradient-to-r from-blue-500 to-purple-600 border-0 shadow-md hover:shadow-lg"
+            size="small"
+          >
+            View
+          </Button>
+          {record.reservation?.status !== "pending" && (
+            <Button
+              icon={<EditOutlined />}
+              onClick={() => openManualUpdateModal(record.reservation)}
+              className="border-orange-400 text-orange-600 hover:bg-orange-50"
+              size="small"
+            >
+              Change Status
+            </Button>
+          )}
+        </div>
       ),
     },
   ];
@@ -315,7 +407,7 @@ const TourRequests = () => {
             }
             extra={
               <div className="flex items-center gap-3">
-                <span className="text-gray-500 text-sm">Filter by:</span>
+                <span className="text-gray-500 text-sm">Status:</span>
                 <Select
                   defaultValue="all"
                   style={{ width: 150 }}
@@ -323,13 +415,36 @@ const TourRequests = () => {
                 >
                   <Option value="all">All Status</Option>
                   <Option value="pending">
-                    <Tag color="orange">Pending</Tag>
+                    <>Pending</>
                   </Option>
-                  <Option value="accepted">
-                    <Tag color="green">Accepted</Tag>
+                  <Option value="upcoming">
+                    <>Upcoming</>
+                  </Option>
+                  <Option value="in_progress">
+                    <>In Progress</>
+                  </Option>
+                  <Option value="completed">
+                    <>Completed</>
                   </Option>
                   <Option value="rejected">
-                    <Tag color="red">Rejected</Tag>
+                    <>Rejected</>
+                  </Option>
+                </Select>
+
+                <Divider type="vertical" />
+
+                <span className="text-gray-500 text-sm">Type:</span>
+                <Select
+                  defaultValue="all"
+                  style={{ width: 150 }}
+                  onChange={(value) => setManualFilter(value)}
+                >
+                  <Option value="all">All Types</Option>
+                  <Option value="0">
+                    <>Automatic</>
+                  </Option>
+                  <Option value="1">
+                    <>Manual</>
                   </Option>
                 </Select>
               </div>
@@ -349,7 +464,7 @@ const TourRequests = () => {
         </Col>
       </Row>
 
-      {/* Details Modal */}
+      {/* Details Modal - الـ Modal القديم بالظبط */}
       <Modal
         title={
           <div className="flex items-center gap-3">
@@ -402,12 +517,19 @@ const TourRequests = () => {
                   </span>
                 </div>
               </div>
-              <Tag
-                color={getStatusColor(rowData.reservation?.status)}
-                className="absolute top-4 right-4 px-4 py-1 text-base font-bold"
-              >
-                {rowData.reservation?.status?.toUpperCase()}
-              </Tag>
+              <div className="absolute top-4 right-4 flex flex-col gap-2">
+                <Tag
+                  color={getStatusColor(rowData.reservation?.status)}
+                  className="px-4 py-1 text-base font-bold"
+                >
+                  {rowData.reservation?.status?.toUpperCase()}
+                </Tag>
+                {rowData.reservation?.manual === "1" && (
+                  <Tag color="gold" className="px-4 py-1 text-sm font-bold">
+                    <ToolOutlined className="mr-1" /> Manual
+                  </Tag>
+                )}
+              </div>
             </div>
 
             {/* Booking Summary Cards */}
@@ -482,21 +604,41 @@ const TourRequests = () => {
                     <Panel
                       key={index}
                       header={
-                        <div className="flex items-center gap-3">
-                          <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold">
-                            {day.day}
+                        <div className="flex items-center justify-between w-full pr-4">
+                          <div className="flex items-center gap-3">
+                            <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold">
+                              {day.day}
+                            </div>
+                            <div>
+                              <p className="font-semibold mb-0">{day.title}</p>
+                              <p className="text-xs text-gray-500 mb-0">
+                                Day {day.day} of Tour
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-semibold mb-0">{day.title}</p>
-                            <p className="text-xs text-gray-500 mb-0">
-                              Day {day.day} of Tour
-                            </p>
-                          </div>
+                          <Tooltip
+                            title={
+                              day.need_tour_guide == 1
+                                ? "Tour Guide Included"
+                                : "No Tour Guide"
+                            }
+                          >
+                            <Tag
+                              color={
+                                day.need_tour_guide == 1 ? "green" : "default"
+                              }
+                              className="flex items-center gap-1"
+                            >
+                              <SafetyCertificateOutlined />
+                              {day.need_tour_guide == 1
+                                ? "Guide ✓"
+                                : "No Guide"}
+                            </Tag>
+                          </Tooltip>
                         </div>
                       }
                     >
-                      <div className="space-y-4">
-                        {/* Day Description */}
+                      <div className="my-4">
                         <div
                           className="text-gray-600 text-sm bg-gray-50 p-3 rounded-lg"
                           dangerouslySetInnerHTML={{
@@ -504,8 +646,48 @@ const TourRequests = () => {
                           }}
                         />
 
-                        {/* Reserved Items Grid */}
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-4 gap-4">
+                          {/* Tour Guide */}
+                          <div className="border rounded-xl overflow-hidden hover:shadow-lg transition-shadow">
+                            <div className="bg-amber-50 px-3 py-2 border-b">
+                              <p className="font-semibold text-amber-700 mb-0 flex items-center gap-2">
+                                <SafetyCertificateOutlined /> Tour Guide
+                              </p>
+                            </div>
+                            <div className="p-4 text-center">
+                              {day.need_tour_guide == 1 ? (
+                                <div className="flex flex-col items-center">
+                                  <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center mb-3 shadow-lg">
+                                    <SafetyCertificateOutlined className="text-3xl text-white" />
+                                  </div>
+                                  <Tag
+                                    color="success"
+                                    className="text-sm font-medium"
+                                  >
+                                    <CheckCircleOutlined className="mr-1" />
+                                    Included
+                                  </Tag>
+                                  <p className="text-xs text-gray-500 mt-2">
+                                    Professional guide assigned
+                                  </p>
+                                </div>
+                              ) : (
+                                <div className="flex flex-col items-center text-gray-400">
+                                  <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-3">
+                                    <SafetyCertificateOutlined className="text-3xl text-gray-400" />
+                                  </div>
+                                  <Tag color="default" className="text-sm">
+                                    <CloseCircleOutlined className="mr-1" />
+                                    Not Included
+                                  </Tag>
+                                  <p className="text-xs text-gray-400 mt-2">
+                                    Self-guided day
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
                           {/* Hotel */}
                           <div className="border rounded-xl overflow-hidden hover:shadow-lg transition-shadow">
                             <div className="bg-blue-50 px-3 py-2 border-b">
@@ -518,16 +700,16 @@ const TourRequests = () => {
                                 <img
                                   src={getFirstImage(day.hotel_reserved.image)}
                                   alt={day.hotel_reserved.title}
-                                  className="w-full h-24 object-cover rounded-lg mb-2"
+                                  className="w-full h-20 object-cover rounded-lg mb-2"
                                   onError={(e) => {
                                     e.target.src =
                                       "https://via.placeholder.com/200x100?text=Hotel";
                                   }}
                                 />
-                                <p className="font-medium text-sm mb-1">
+                                <p className="font-medium text-xs mb-1 truncate">
                                   {day.hotel_reserved.title}
                                 </p>
-                                <div className="flex justify-between text-xs text-gray-500">
+                                <div className="flex flex-col text-xs text-gray-500">
                                   <span>
                                     Adult: ${day.hotel_reserved.adult_price}
                                   </span>
@@ -556,16 +738,16 @@ const TourRequests = () => {
                                 <img
                                   src={getFirstImage(day.car_reserved.image)}
                                   alt={day.car_reserved.title}
-                                  className="w-full h-24 object-cover rounded-lg mb-2"
+                                  className="w-full h-20 object-cover rounded-lg mb-2"
                                   onError={(e) => {
                                     e.target.src =
                                       "https://via.placeholder.com/200x100?text=Car";
                                   }}
                                 />
-                                <p className="font-medium text-sm mb-1">
+                                <p className="font-medium text-xs mb-1 truncate">
                                   {day.car_reserved.title}
                                 </p>
-                                <p className="text-green-600 font-bold text-sm">
+                                <p className="text-green-600 font-bold text-xs">
                                   ${day.car_reserved.price_current}/day
                                 </p>
                               </div>
@@ -591,16 +773,16 @@ const TourRequests = () => {
                                     day.activity_reserved.image
                                   )}
                                   alt={day.activity_reserved.title}
-                                  className="w-full h-24 object-cover rounded-lg mb-2"
+                                  className="w-full h-20 object-cover rounded-lg mb-2"
                                   onError={(e) => {
                                     e.target.src =
                                       "https://via.placeholder.com/200x100?text=Activity";
                                   }}
                                 />
-                                <p className="font-medium text-sm mb-1">
+                                <p className="font-medium text-xs mb-1 truncate">
                                   {day.activity_reserved.title}
                                 </p>
-                                <p className="text-purple-600 font-bold text-sm">
+                                <p className="text-purple-600 font-bold text-xs">
                                   ${day.activity_reserved.price_current}
                                 </p>
                               </div>
@@ -625,13 +807,12 @@ const TourRequests = () => {
             {(rowData.tour_details?.includes?.length > 0 ||
               rowData.tour_details?.excludes?.length > 0) && (
               <div className="grid grid-cols-2 gap-6">
-                {/* Includes */}
                 {rowData.tour_details?.includes?.length > 0 && (
                   <div className="bg-green-50 rounded-xl p-4">
                     <h4 className="font-bold text-green-700 mb-3 flex items-center gap-2">
                       <CheckCircleOutlined /> What's Included
                     </h4>
-                    <ul className="space-y-2">
+                    <ul className="my-2">
                       {rowData.tour_details.includes.map((item, index) => (
                         <li
                           key={index}
@@ -645,13 +826,12 @@ const TourRequests = () => {
                   </div>
                 )}
 
-                {/* Excludes */}
                 {rowData.tour_details?.excludes?.length > 0 && (
                   <div className="bg-red-50 rounded-xl p-4">
                     <h4 className="font-bold text-red-700 mb-3 flex items-center gap-2">
                       <CloseCircleOutlined /> What's Not Included
                     </h4>
-                    <ul className="space-y-2">
+                    <ul className="my-2">
                       {rowData.tour_details.excludes.map((item, index) => (
                         <li
                           key={index}
@@ -667,7 +847,7 @@ const TourRequests = () => {
               </div>
             )}
 
-            {/* Action Buttons */}
+            {/* Action Buttons - Only for pending */}
             {rowData.reservation?.status?.toLowerCase() === "pending" && (
               <div className="border-t pt-6">
                 <h3 className="font-semibold text-lg mb-4">Update Status</h3>
@@ -715,6 +895,120 @@ const TourRequests = () => {
             )}
           </div>
         )}
+      </Modal>
+
+      {/* Manual Status Update Modal */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2">
+            <ToolOutlined className="text-orange-500" />
+            <span>Manual Status Update</span>
+          </div>
+        }
+        open={isManualModalVisible}
+        onCancel={() => {
+          setIsManualModalVisible(false);
+          setSelectedStatus("");
+          setManualUpdateRecord(null);
+        }}
+        footer={null}
+        width={500}
+      >
+        <div className="flex flex-col gap-3">
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+            <p className="text-sm text-orange-700 mb-0">
+              <ToolOutlined className="mr-2" />
+              This will mark the status change as <strong>Manual Update</strong>
+            </p>
+          </div>
+
+          {manualUpdateRecord && (
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="text-sm text-gray-600 mb-1">
+                Reservation ID:{" "}
+                <strong>#{manualUpdateRecord.reservation_id}</strong>
+              </p>
+              <p className="text-sm text-gray-600 mb-0">
+                Current Status:{" "}
+                <Tag color={getStatusColor(manualUpdateRecord.status)}>
+                  {manualUpdateRecord.status?.toUpperCase()}
+                </Tag>
+              </p>
+            </div>
+          )}
+
+          <div>
+            <label className="block mb-2 font-medium">Select New Status:</label>
+            <Radio.Group
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="w-full "
+            >
+              <div className="flex flex-col gap-2">
+                <Radio
+                  value="upcoming"
+                  className="w-full !p-3 border rounded hover:bg-blue-50"
+                >
+                  <Tag color="blue">Upcoming</Tag>
+                  <span className="text-gray-500 text-xs ml-2">
+                    - Trip is scheduled
+                  </span>
+                </Radio>
+                <Radio
+                  value="in_progress"
+                  className="w-full !p-3 border rounded hover:bg-cyan-50"
+                >
+                  <Tag color="cyan">In Progress</Tag>
+                  <span className="text-gray-500 text-xs ml-2">
+                    - Trip is ongoing
+                  </span>
+                </Radio>
+                <Radio
+                  value="completed"
+                  className="w-full !p-3 border rounded hover:bg-purple-50"
+                >
+                  <Tag color="purple">Completed</Tag>
+                  <span className="text-gray-500 text-xs ml-2">
+                    - Trip finished
+                  </span>
+                </Radio>
+                <Radio
+                  value="rejected"
+                  className="w-full !p-3 border rounded hover:bg-red-50"
+                >
+                  <Tag color="red">Rejected</Tag>
+                  <span className="text-gray-500 text-xs ml-2">
+                    - Booking declined
+                  </span>
+                </Radio>
+              </div>
+            </Radio.Group>
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t">
+            <Button
+              type="primary"
+              icon={<CheckCircleOutlined />}
+              onClick={handleManualStatusUpdate}
+              loading={updatingStatus}
+              disabled={!selectedStatus}
+              className="bg-orange-500 hover:bg-orange-600 border-0"
+              size="large"
+            >
+              Update Status
+            </Button>
+            <Button
+              onClick={() => {
+                setIsManualModalVisible(false);
+                setSelectedStatus("");
+                setManualUpdateRecord(null);
+              }}
+              size="large"
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       {/* Custom Styles */}

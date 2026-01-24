@@ -1,0 +1,330 @@
+/* =============================
+   Reviews Table Styles
+============================= */
+
+/* Summary Cards */
+.summary-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
+}
+
+.summary-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.summary-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 18px;
+}
+
+.summary-icon.total {
+  background: linear-gradient(135deg, #295557, #1f4142);
+}
+
+.summary-icon.rating {
+  background: linear-gradient(135deg, #e29b4b, #c98a3f);
+}
+
+.summary-icon.approved {
+  background: linear-gradient(135deg, #52c41a, #389e0d);
+}
+
+.summary-icon.pending {
+  background: linear-gradient(135deg, #faad14, #d48806);
+}
+
+.summary-icon.rejected {
+  background: linear-gradient(135deg, #ff4d4f, #cf1322);
+}
+
+.summary-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.summary-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.summary-label {
+  font-size: 12px;
+  color: #666;
+}
+
+/* Status Chips */
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-chip.approved {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status-chip.rejected {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.status-chip.pending {
+  background: #fff8e1;
+  color: #f57f17;
+}
+
+/* Action Buttons */
+.action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.action-btn.view {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.action-btn.view:hover {
+  background: #bbdefb;
+}
+
+.action-btn.approve {
+  background: #e8f5e9;
+  color: #388e3c;
+}
+
+.action-btn.approve:hover {
+  background: #c8e6c9;
+}
+
+.action-btn.reject {
+  background: #ffebee;
+  color: #d32f2f;
+}
+
+.action-btn.reject:hover {
+  background: #ffcdd2;
+}
+
+/* Rating Cards in Details Modal */
+.rating-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  border-radius: 12px;
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  transition: all 0.3s ease;
+}
+
+.rating-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.rating-card .rating-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.rating-card .rating-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.rating-card .rating-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+/* Overall Rating Card */
+.rating-card.overall {
+  background: linear-gradient(135deg, #fff9f0 0%, #fff5e6 100%);
+  border-color: #f5d9b3;
+}
+
+.rating-card.overall .rating-icon {
+  color: #e29b4b;
+}
+
+.rating-card.overall .rating-value {
+  color: #e29b4b;
+}
+
+/* Transport Rating Card */
+.rating-card.transport {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  border-color: #90caf9;
+}
+
+.rating-card.transport .rating-icon {
+  color: #1976d2;
+}
+
+.rating-card.transport .rating-value {
+  color: #1976d2;
+}
+
+/* Hotel Rating Card */
+.rating-card.hotel {
+  background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+  border-color: #ce93d8;
+}
+
+.rating-card.hotel .rating-icon {
+  color: #7b1fa2;
+}
+
+.rating-card.hotel .rating-value {
+  color: #7b1fa2;
+}
+
+/* Activity Rating Card */
+.rating-card.activity {
+  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+  border-color: #a5d6a7;
+}
+
+.rating-card.activity .rating-icon {
+  color: #388e3c;
+}
+
+.rating-card.activity .rating-value {
+  color: #388e3c;
+}
+
+/* Table Enhancements */
+.TableData {
+  padding: 24px;
+}
+
+.TableData table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.TableData th {
+  background: #f8f9fa;
+  padding: 14px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #e0e0e0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.TableData td {
+  padding: 16px;
+  border-bottom: 1px solid #eee;
+  vertical-align: middle;
+}
+
+.TableData tr:hover td {
+  background: #fafafa;
+}
+
+.TableData tr:last-child td {
+  border-bottom: none;
+}
+
+/* Line Clamp Utility */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .summary-card {
+    padding: 12px;
+  }
+
+  .summary-value {
+    font-size: 20px;
+  }
+
+  .summary-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+
+  .rating-card {
+    padding: 12px;
+  }
+
+  .rating-card .rating-value {
+    font-size: 20px;
+  }
+
+  .rating-card .rating-icon {
+    font-size: 20px;
+  }
+
+  .TableData {
+    padding: 12px;
+  }
+
+  .TableData td {
+    padding: 12px 8px;
+  }
+
+  .action-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .summary-card {
+    flex-direction: column;
+    text-align: center;
+    gap: 8px;
+  }
+
+  .grid-cols-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

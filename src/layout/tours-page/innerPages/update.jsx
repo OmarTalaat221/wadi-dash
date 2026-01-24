@@ -52,8 +52,11 @@ function UpdateTourLayout() {
     route: "",
     price_current: "",
     price_original: "",
+    max_persons: "",
     per_adult: "",
     per_child: "",
+    video_link: "",
+
     price_currency: "$",
     price_note: "",
     highlights: [],
@@ -238,21 +241,24 @@ function UpdateTourLayout() {
           per_child: tourData.per_child,
           price_currency: tourData.price_currency,
           price_note: tourData.price_note,
+          max_persons: tourData.max_persons || "", // ✅ أضف هذا
+          video_link: tourData.video_link || "", // ✅ أضف هذا
+
           highlights: Array.isArray(tourData.highlights)
             ? tourData.highlights
             : typeof tourData.highlights === "string"
-            ? tourData.highlights.split("**").filter((h) => h.trim())
-            : [],
+              ? tourData.highlights.split("**").filter((h) => h.trim())
+              : [],
           includes: Array.isArray(tourData.includes)
             ? tourData.includes
             : typeof tourData.includes === "string"
-            ? tourData.includes.split("**").filter((i) => i.trim())
-            : [],
+              ? tourData.includes.split("**").filter((i) => i.trim())
+              : [],
           excludes: Array.isArray(tourData.excludes)
             ? tourData.excludes
             : typeof tourData.excludes === "string"
-            ? tourData.excludes.split("**").filter((e) => e.trim())
-            : [],
+              ? tourData.excludes.split("**").filter((e) => e.trim())
+              : [],
           gallery: galleryData,
           features: features,
           images: [],
@@ -529,6 +535,26 @@ function UpdateTourLayout() {
           name="category"
           value={formData.category}
           onChange={handleChange}
+        />
+
+        <TextField
+          fullWidth
+          label="Max Persons"
+          name="max_persons"
+          type="number"
+          value={formData.max_persons}
+          onChange={handleChange}
+          placeholder="Enter maximum number of persons"
+          onWheel={(e) => e.target.blur()}
+        />
+
+        <TextField
+          fullWidth
+          label="Video Link"
+          name="video_link"
+          value={formData.video_link}
+          onChange={handleChange}
+          placeholder="Enter video link"
         />
       </div>
 

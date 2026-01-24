@@ -3,14 +3,15 @@ import { useParams, useNavigate } from "react-router-dom";
 import Tabs from "../../../components/Tabs";
 import { RiDeleteBin6Line } from "react-icons/ri";
 import { FiPlus } from "react-icons/fi";
-import { FaEye } from "react-icons/fa";
-import { MdDelete } from "react-icons/md";
+import { FaEye, FaCheck } from "react-icons/fa";
+import { MdDelete, MdWallpaper } from "react-icons/md";
 import JoditEditor from "jodit-react";
 import editorConfig from "../../../data/joditConfig";
 import { message, Select } from "antd";
 import axios from "axios";
 import { base_url } from "../../../utils/base_url";
 import { uploadImageToServer } from "./../../../hooks/uploadImage";
+import TransferImages from "../../../components/Transfer/transferImages";
 
 const { Option } = Select;
 
@@ -40,7 +41,6 @@ function UpdateCarLayout() {
         const car = response.data.message.find((c) => c.id === product_id);
 
         if (car) {
-          // Convert image string to array
           const imagesArray = car.image
             ? car.image.split("//CAMP//").map((url, index) => ({
                 type: "url",
@@ -49,7 +49,6 @@ function UpdateCarLayout() {
               }))
             : [];
 
-          // Convert features array from API to component format
           const featuresArray = car.features.map((f) => ({
             feature_id: f.feature_id,
             feature: f.feature,
@@ -91,7 +90,6 @@ function UpdateCarLayout() {
       const fileArray = [];
 
       for (let file of files) {
-        // Upload each image to server
         const uploadedImageUrl = await uploadImageToServer(file);
 
         if (uploadedImageUrl) {
@@ -107,14 +105,12 @@ function UpdateCarLayout() {
       setRowData((prev) => {
         const updated = [...prev.images, ...fileArray];
 
-        // Set background_image to first image if not already set
         const newRowData = {
           ...prev,
           images: updated,
           background_image: prev.background_image || updated[0]?.preview || "",
         };
 
-        // Add zoomIn animation
         setTimeout(() => {
           fileArray.forEach((_, idx) => {
             const refIndex = prev.images.length + idx;
@@ -148,13 +144,14 @@ function UpdateCarLayout() {
       setTimeout(() => {
         setRowData((prev) => {
           const updatedImages = prev.images.filter((_, i) => i !== index);
+          const removedImageUrl =
+            prev.images[index]?.preview || prev.images[index]?.value;
 
           return {
             ...prev,
             images: updatedImages,
-            // Update background_image if we removed the first image
             background_image:
-              index === 0
+              prev.background_image === removedImageUrl
                 ? updatedImages[0]?.preview || ""
                 : prev.background_image,
           };
@@ -162,6 +159,11 @@ function UpdateCarLayout() {
         imgRef.classList.remove("zoomOut");
       }, 300);
     }
+  };
+
+  const setBackgroundImage = (imageUrl) => {
+    setRowData((prev) => ({ ...prev, background_image: imageUrl }));
+    message.success("Background image set!");
   };
 
   const handleFeatureFieldChange = (index, field, value) => {
@@ -189,13 +191,11 @@ function UpdateCarLayout() {
     setIsSubmitting(true);
 
     try {
-      // Convert features array to string with ** separator
       const featuresString = rowData.features
         .map((f) => f.feature || f.label || f.value || "")
         .filter((f) => f.trim() !== "")
         .join("**");
 
-      // Convert images array to string with //CAMP// separator
       const imagesString = rowData.images
         .map((img) => img.preview || img.value || "")
         .filter((img) => img.trim() !== "")
@@ -219,6 +219,7 @@ function UpdateCarLayout() {
         price_currency: rowData.price_currency,
         price_note: rowData.price_note,
         car_type: rowData.car_type,
+        max_people: rowData.max_people,
         features: featuresString,
       };
 
@@ -322,24 +323,6 @@ function UpdateCarLayout() {
                 className="w-full border border-gray-300 p-2 rounded"
               />
             </div>
-
-            {/* <div>
-              <label className="block mb-1 font-medium">Currency</label>
-              <Select
-                value={rowData.price_currency || "$"}
-                onChange={(value) =>
-                  handleSelectChange("price_currency", value)
-                }
-                className="w-full"
-                size="large"
-              >
-                <Option value="$">USD ($)</Option>
-                <Option value="AED">AED</Option>
-                <Option value="€">EUR (€)</Option>
-                <Option value="£">GBP (£)</Option>
-                <Option value="¥">JPY (¥)</Option>
-              </Select>
-            </div> */}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -366,43 +349,17 @@ function UpdateCarLayout() {
             </div>
           </div>
 
-          {/* <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block mb-1 font-medium">
-                Background Image URL (Auto-filled from first image)
-              </label>
-              <input
-                type="url"
-                name="background_image"
-                value={rowData.background_image || ""}
-                onChange={handleChange}
-                className="w-full border border-gray-300 p-2 rounded bg-gray-50"
-                readOnly
-              />
-            </div>
-
-            <div>
-              <label className="block mb-1 font-medium">CTA Button URL</label>
-              <input
-                type="url"
-                name="cta_button_url"
-                value={rowData.cta_button_url || ""}
-                onChange={handleChange}
-                className="w-full border border-gray-300 p-2 rounded"
-              />
-            </div>
-          </div> */}
-          {/* 
           <div>
-            <label className="block mb-1 font-medium">CTA Button Text</label>
+            <label className="block mb-1 font-medium">Max Pepole *</label>
             <input
-              type="text"
-              name="cta_button_text"
-              value={rowData.cta_button_text || ""}
+              type="number"
+              name="max_people"
+              value={rowData.max_people || ""}
               onChange={handleChange}
               className="w-full border border-gray-300 p-2 rounded"
+              onWheel={(e) => e.target.blur()}
             />
-          </div> */}
+          </div>
 
           <div>
             <label className="block mb-1 font-medium">Description</label>
@@ -475,102 +432,7 @@ function UpdateCarLayout() {
     }
 
     if (activeTab === "Images") {
-      return (
-        <fieldset className="border p-4 rounded">
-          <legend className="font-medium mb-2">Images</legend>
-          <div className="mb-3 text-sm text-gray-600">
-            Click on any image to set it as the background image. The background
-            image is marked with a "BG" badge.
-          </div>
-          <div className="space-y-2">
-            <div className="flex flex-wrap gap-3 m-auto">
-              <label
-                htmlFor="image-upload"
-                className={`cursor-pointer px-0 py-2 bg-[rgba(0,0,0,0.02)] border border-dashed border-[#d9d9d9] rounded-lg flex text-center text-[#555] w-[102px] h-[102px] text-xs flex-col gap-2 items-center justify-center hover:border-[#1677ff] transition duration-300 ease-in-out ${
-                  isUploading ? "opacity-50 pointer-events-none" : ""
-                }`}
-              >
-                {isUploading ? (
-                  <div className="flex flex-col items-center">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
-                    <span>Uploading...</span>
-                  </div>
-                ) : (
-                  <>
-                    <FiPlus className="text-[15px]" />
-                    Add Image
-                  </>
-                )}
-              </label>
-              <input
-                id="image-upload"
-                type="file"
-                accept="image/*"
-                multiple
-                ref={imageInputRef}
-                onChange={(e) => {
-                  if (e.target.files) {
-                    handleImageFilesChange(e.target.files);
-                  }
-                }}
-                className="hidden"
-                disabled={isUploading}
-              />
-              {rowData.images.map((img, index) => {
-                const imageUrl = img.preview || img.value;
-                const isBackgroundImage = rowData.background_image === imageUrl;
-
-                return (
-                  <div
-                    ref={(el) => {
-                      imageRefs.current[index] = el;
-                    }}
-                    key={index}
-                    onClick={() => {
-                      setRowData((prev) => ({
-                        ...prev,
-                        background_image: imageUrl,
-                      }));
-                      message.success("Background image updated!");
-                    }}
-                    className={`w-[102px] h-[102px] overflow-hidden relative cursor-pointer rounded-lg p-2 border hover:border-blue-400 transition-all ${
-                      isBackgroundImage
-                        ? "border-blue-500 border-2 shadow-lg"
-                        : "border-[#d9d9d9]"
-                    }`}
-                  >
-                    {isBackgroundImage && (
-                      <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full z-30 shadow">
-                        BG
-                      </div>
-                    )}
-                    <div className="w-full h-full relative group">
-                      <img
-                        src={imageUrl}
-                        alt={`uploaded-${index}`}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute top-0 left-0 w-full h-full bg-black/45 opacity-0 transition-all duration-300 group-hover:opacity-100 z-10" />
-                      <div className="absolute inset-0 flex justify-center items-center gap-2 text-white opacity-0 group-hover:opacity-100 z-20">
-                        <FaEye />
-                        <div
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeImage(index);
-                          }}
-                          className="cursor-pointer hover:text-red-500"
-                        >
-                          <MdDelete />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </fieldset>
-      );
+      return <TransferImages rowData={rowData} setRowData={setRowData} />;
     }
   };
 

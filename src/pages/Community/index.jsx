@@ -25,6 +25,8 @@ const Community = () => {
         const transformedBlogs = response?.data.message?.map((blog) => ({
           id: blog.blog_id,
           title: blog.title,
+          category_name: blog.category_name,
+
           description: blog.description,
           postImage: blog.cover_image,
           profileImage: blog.user_data.image,

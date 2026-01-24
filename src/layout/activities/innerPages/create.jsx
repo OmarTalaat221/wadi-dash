@@ -11,6 +11,7 @@ import { message, Select, Spin } from "antd";
 import { useNavigate } from "react-router-dom";
 import { base_url } from "../../../utils/base_url";
 import { uploadImageToServer } from "../../../hooks/uploadImage";
+import ActivityImages from "../../../components/Activities/activityImages";
 
 const { Option } = Select;
 
@@ -37,6 +38,8 @@ function CreateActivityLayout() {
     price_currency: "",
     per_adult: "",
     per_child: "",
+    max_people: "",
+    video_link: "",
     price_note: "PER PERSON",
     activity_type: "",
     features: [],
@@ -224,6 +227,8 @@ function CreateActivityLayout() {
         per_adult: formData.price_current,
         per_child: formData.per_child,
         price_note: formData.price_note,
+        max_people: formData.max_people,
+        video_link: formData.video_link,
         activity_type: formData.activity_type,
         features: featuresString,
       };
@@ -400,14 +405,40 @@ function CreateActivityLayout() {
           </div>
 
           <div>
-            <label className="block mb-1 font-medium">Price Note</label>
+            <label className="block mb-1 font-medium">Video Link</label>
             <input
               type="text"
-              name="price_note"
-              value={formData.price_note || ""}
+              name="video_link"
+              value={formData.video_link || ""}
               onChange={handleChange}
+              placeholder="Enter Video Link"
               className="w-full border border-gray-300 p-2 rounded"
             />
+          </div>
+
+          <div className="grid grid-cols-2  gap-4">
+            <div>
+              <label className="block mb-1 font-medium">Price Note</label>
+              <input
+                type="text"
+                name="price_note"
+                value={formData.price_note || ""}
+                onChange={handleChange}
+                className="w-full border border-gray-300 p-2 rounded"
+              />
+            </div>
+
+            <div>
+              <label className="block mb-1 font-medium">Max People*</label>
+              <input
+                type="number"
+                name="max_people"
+                value={formData.max_people || ""}
+                onChange={handleChange}
+                className="w-full border border-gray-300 p-2 rounded"
+                onWheel={(e) => e.target.blur()}
+              />
+            </div>
           </div>
 
           <div>
@@ -480,89 +511,7 @@ function CreateActivityLayout() {
     }
 
     if (activeTab === "Images") {
-      return (
-        <fieldset className="border p-4 rounded">
-          <legend className="font-medium mb-2">Activity Images</legend>
-
-          {uploadingImages && (
-            <div className="mb-4 flex items-center gap-2">
-              <Spin />
-              <span>Uploading images to server...</span>
-            </div>
-          )}
-
-          <div className="space-y-2 mb-4">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Enter image URL and press Enter"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && e.target.value) {
-                    handleImageUrlAdd(e.target.value);
-                    e.target.value = "";
-                  }
-                }}
-                className="border border-gray-300 p-2 rounded flex-1"
-                disabled={uploadingImages}
-              />
-              <label
-                htmlFor="file-upload"
-                className={`cursor-pointer px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors duration-200 flex items-center gap-2 ${
-                  uploadingImages ? "opacity-50 cursor-not-allowed" : ""
-                }`}
-              >
-                <FiPlus />
-                Upload Files
-              </label>
-              <input
-                id="file-upload"
-                type="file"
-                accept="image/*"
-                multiple
-                ref={imageInputRef}
-                onChange={(e) => {
-                  if (e.target.files && e.target.files.length > 0) {
-                    handleImageFilesChange(e.target.files);
-                    e.target.value = "";
-                  }
-                }}
-                className="hidden"
-                disabled={uploadingImages}
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            {formData.images.map((img, index) => (
-              <div
-                ref={(el) => {
-                  imageRefs.current[index] = el;
-                }}
-                key={index}
-                className="w-[102px] h-[102px] overflow-hidden relative cursor-pointer rounded-lg p-2 border border-[#d9d9d9]"
-              >
-                <div className="w-full h-full relative group">
-                  <img
-                    src={img.preview || img.value}
-                    alt={`uploaded-${index}`}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute top-0 left-0 w-full h-full bg-black/45 opacity-0 transition-all duration-300 group-hover:opacity-100 z-10" />
-                  <div className="absolute inset-0 flex justify-center items-center gap-2 text-white opacity-0 group-hover:opacity-100 z-20">
-                    <FaEye />
-                    <div
-                      onClick={() => removeImage(index)}
-                      className="cursor-pointer"
-                    >
-                      <MdDelete />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </fieldset>
-      );
+      return <ActivityImages rowData={formData} setRowData={setFormData} />;
     }
   };
 

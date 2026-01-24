@@ -46,6 +46,9 @@ function CreateTourLayout() {
     route: "",
     price_current: "",
     price_original: "",
+    max_persons: "",
+    video_link: "",
+
     per_adult: "",
     per_child: "",
     price_currency: "$",
@@ -367,6 +370,25 @@ function CreateTourLayout() {
           name="category"
           value={formData.category}
           onChange={handleChange}
+        />
+
+        <TextField
+          fullWidth
+          label="Max Persons"
+          name="max_persons"
+          type="number"
+          value={formData.max_persons}
+          onChange={handleChange}
+          placeholder="Enter maximum number of persons"
+          onWheel={(e) => e.target.blur()}
+        />
+        <TextField
+          fullWidth
+          label="Video Link"
+          name="video_link"
+          value={formData.video_link}
+          onChange={handleChange}
+          placeholder="Enter video link"
         />
       </div>
 

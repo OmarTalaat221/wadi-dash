@@ -89,7 +89,7 @@ export default function PostCard({
                 {post.category && (
                   <span className="text-xs text-gray-500 flex items-center">
                     <FaTag className="w-3 h-3 mr-1" />
-                    {post.category?.replaceAll("_", " ")}
+                    {post.category_name}
                   </span>
                 )}
               </div>
@@ -103,9 +103,9 @@ export default function PostCard({
                   <Menu.Item key="view" onClick={() => setSelectedPost(post)}>
                     <span>View Details</span>
                   </Menu.Item>
-                  <Menu.Item key="edit">
+                  {/* <Menu.Item key="edit">
                     <span>Edit Blog</span>
-                  </Menu.Item>
+                  </Menu.Item> */}
                 </Menu>
               }
               trigger={["click"]}

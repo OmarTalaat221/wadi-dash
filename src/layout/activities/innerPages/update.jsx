@@ -74,6 +74,8 @@ function UpdateActivityLayout() {
     per_adult: "",
     per_child: "",
     price_note: "",
+    max_people: "",
+    video_link: "",
     activity_type: "",
     features: [],
     images: [],
@@ -170,6 +172,8 @@ function UpdateActivityLayout() {
         per_adult: rowData.price_current,
         per_child: rowData.per_child,
         price_note: rowData.price_note,
+        max_people: rowData.max_people,
+        video_link: rowData.video_link,
         activity_type: rowData.activity_type,
       };
 
@@ -358,6 +362,17 @@ function UpdateActivityLayout() {
               className="w-full border border-gray-300 p-2 rounded"
             />
           </div>
+          <div>
+            <label className="block mb-1 font-medium">Video Link</label>
+            <input
+              type="text"
+              name="video_link"
+              value={rowData.video_link || ""}
+              onChange={handleChange}
+              placeholder="e.g., GREAT BARRIER REEF → CAIRNS"
+              className="w-full border border-gray-300 p-2 rounded"
+            />
+          </div>
 
           {/* <div>
             <label className="block mb-1 font-medium">
@@ -372,15 +387,29 @@ function UpdateActivityLayout() {
             />
           </div> */}
 
-          <div>
-            <label className="block mb-1 font-medium">Price Note</label>
-            <input
-              type="text"
-              name="price_note"
-              value={rowData.price_note || ""}
-              onChange={handleChange}
-              className="w-full border border-gray-300 p-2 rounded"
-            />
+          <div className="grid grid-cols-2  gap-4">
+            <div>
+              <label className="block mb-1 font-medium">Price Note</label>
+              <input
+                type="text"
+                name="price_note"
+                value={rowData.price_note || ""}
+                onChange={handleChange}
+                className="w-full border border-gray-300 p-2 rounded"
+              />
+            </div>
+
+            <div>
+              <label className="block mb-1 font-medium">Max People *</label>
+              <input
+                type="number"
+                name="max_people"
+                value={rowData.max_people || ""}
+                onChange={handleChange}
+                className="w-full border border-gray-300 p-2 rounded"
+                onWheel={(e) => e.target.blur()}
+              />
+            </div>
           </div>
 
           <div>
