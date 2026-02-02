@@ -23,6 +23,7 @@ import { MdDelete } from "react-icons/md";
 import { FaEye, FaPlus } from "react-icons/fa";
 import { FiPlus } from "react-icons/fi";
 import { base_url } from "../../../utils/base_url";
+import editorConfig from "../../../data/joditConfig";
 
 function CreateTourLayout() {
   const navigate = useNavigate();
@@ -64,45 +65,6 @@ function CreateTourLayout() {
 
   const [activeTab, setActiveTab] = useState("General");
   const [activeDay, setActiveDay] = useState(0);
-
-  const editorConfig = {
-    readonly: false,
-    height: 300,
-    toolbar: true,
-    spellcheck: true,
-    language: "en",
-    showCharsCounter: true,
-    showWordsCounter: true,
-    showXPathInStatusbar: false,
-    askBeforePasteHTML: true,
-    askBeforePasteFromWord: true,
-    buttons: [
-      "bold",
-      "italic",
-      "underline",
-      "strikethrough",
-      "|",
-      "ul",
-      "ol",
-      "|",
-      "font",
-      "fontsize",
-      "brush",
-      "paragraph",
-      "|",
-      "link",
-      "table",
-      "|",
-      "undo",
-      "redo",
-      "|",
-      "hr",
-      "eraser",
-      "copyformat",
-      "|",
-      "source",
-    ],
-  };
 
   useEffect(() => {
     loadInitialData();

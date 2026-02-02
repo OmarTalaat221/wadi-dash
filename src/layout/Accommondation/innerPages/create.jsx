@@ -8,6 +8,7 @@ import JoditEditor from "jodit-react";
 import axios from "axios";
 import { message, Select } from "antd";
 import { base_url } from "../../../utils/base_url";
+import editorConfig from "../../../data/joditConfig";
 
 const { Option } = Select;
 
@@ -39,45 +40,6 @@ function CreateAccomLayout() {
     features: "",
     amenities: [],
   });
-
-  const editorConfig = {
-    readonly: false,
-    height: 300,
-    toolbar: true,
-    spellcheck: true,
-    language: "en",
-    showCharsCounter: true,
-    showWordsCounter: true,
-    showXPathInStatusbar: false,
-    askBeforePasteHTML: true,
-    askBeforePasteFromWord: true,
-    buttons: [
-      "bold",
-      "italic",
-      "underline",
-      "strikethrough",
-      "|",
-      "ul",
-      "ol",
-      "|",
-      "font",
-      "fontsize",
-      "brush",
-      "paragraph",
-      "|",
-      "link",
-      "table",
-      "|",
-      "undo",
-      "redo",
-      "|",
-      "hr",
-      "eraser",
-      "copyformat",
-      "|",
-      "source",
-    ],
-  };
 
   const [activeTab, setActiveTab] = useState("General");
 

@@ -13,9 +13,7 @@ function GeneralSettingsEditor() {
   const [copyrightText, setCopyrightText] = useState(
     "© 2025 Sawani. All rights reserved."
   );
-  const [websiteLink, setWebsiteLink] = useState(
-    "https://www.sawani.ae"
-  );
+  const [websiteLink, setWebsiteLink] = useState("https://www.sawani.ae");
   const termsEditor = useRef(null);
   const privacyEditor = useRef(null);
 
