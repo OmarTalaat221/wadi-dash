@@ -147,12 +147,7 @@ function ToursTableData({ setOpenDelete, refreshTrigger }) {
           >
             Reviews
           </button>
-          <button
-            onClick={() => goToOrders(row.id)}
-            className="text-white bg-slate-400 hover:bg-slate-500 focus:ring-4 focus:ring-slate-300 font-medium transition-all duration-200 rounded-lg text-sm px-3 py-1.5"
-          >
-            Orders
-          </button>
+
           <button
             onClick={() => setOpenDelete(row)}
             className="text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:ring-red-300 font-medium transition-all duration-200 rounded-lg text-sm px-3 py-1.5"
