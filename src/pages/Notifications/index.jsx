@@ -5,7 +5,7 @@ import axios from "axios";
 import { base_url } from "../../utils/base_url";
 
 const tripStatusOptions = [
-  { label: "User has a trip", value: "have_trip" },
+  { label: "User had a trip", value: "have_trip" },
   { label: "User does not have a trip", value: "donot_have_trip" },
   { label: "User will make a trip", value: "will_have_trip" },
 ];

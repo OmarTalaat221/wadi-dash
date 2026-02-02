@@ -140,6 +140,7 @@ function UpdateTourLayout() {
         const days =
           tourData.itinerary?.map((item) => ({
             day: item.day,
+            day_id: item.day_id,
             title: item.title,
             description: item.description,
             hotel_id: item.hotel_options?.map((h) => Number(h.hotel_id)) || [],
@@ -357,6 +358,7 @@ function UpdateTourLayout() {
             const dayData = {
               tour_id: product_id,
               day: day.day,
+              day_id: day.day_id,
               title: day.title,
               description: day.description,
               hotel_id: Array.isArray(day.hotel_id)
@@ -378,6 +380,7 @@ function UpdateTourLayout() {
                   `Updating existing day ${index + 1} with data:`,
                   dayData
                 );
+
                 dayResponse = await axios.post(
                   `${base_url}/admin/tours/days/edit_tour_day.php`,
                   dayData
