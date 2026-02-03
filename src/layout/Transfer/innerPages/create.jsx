@@ -2,15 +2,17 @@ import React, { useState, useRef } from "react";
 import Tabs from "../../../components/Tabs";
 import { RiDeleteBin6Line } from "react-icons/ri";
 import { FiPlus } from "react-icons/fi";
-import { FaEye, FaCheck, FaImage } from "react-icons/fa";
+import { FaEye, FaCheck } from "react-icons/fa";
 import { MdDelete, MdWallpaper } from "react-icons/md";
 import JoditEditor from "jodit-react";
 import editorConfig from "../../../data/joditConfig";
 import { useNavigate } from "react-router-dom";
-import { message, Select } from "antd";
+import { message, Select, Spin } from "antd";
 import axios from "axios";
 import { base_url } from "../../../utils/base_url";
 import { uploadImageToServer } from "./../../../hooks/uploadImage";
+import useCountries from "../../../hooks/useCountries"; // 👈 Import hook
+import TransferImages from "../../../components/Transfer/transferImages";
 
 const { Option } = Select;
 
@@ -18,8 +20,11 @@ function CreateCarLayout() {
   const navigate = useNavigate();
   const imageRefs = useRef([]);
 
+  // 👇 استخدام الـ hook
+  const { countries, loading: countriesLoading } = useCountries();
+
   const [formData, setFormData] = useState({
-    country_id: "1",
+    country_id: "", // 👈 خليها فاضية في البداية
     title: "",
     subtitle: "",
     description: "",
@@ -33,7 +38,7 @@ function CreateCarLayout() {
     price_original: "",
     price_currency: "$",
     price_note: "PER DAY",
-    max_people: "PER DAY",
+    max_people: "",
     car_type: "",
     features: [],
     images: [],
@@ -158,6 +163,18 @@ function CreateCarLayout() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // 👇 Validation
+    if (!formData.country_id) {
+      message.error("Please select a country");
+      return;
+    }
+
+    if (!formData.title.trim()) {
+      message.error("Title is required");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -189,6 +206,7 @@ function CreateCarLayout() {
         price_note: formData.price_note,
         car_type: formData.car_type,
         features: featuresString,
+        max_people: formData.max_people,
       };
 
       const response = await axios.post(
@@ -210,7 +228,38 @@ function CreateCarLayout() {
     if (activeTab === "General") {
       return (
         <>
+          {/* 👇 Country Select - First Field */}
           <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block !mb-1 font-medium">Country *</label>
+              <Select
+                value={formData.country_id || undefined}
+                onChange={(value) => handleSelectChange("country_id", value)}
+                placeholder="Select Country"
+                className="w-full"
+                size="large"
+                loading={countriesLoading}
+                showSearch
+                optionFilterProp="children"
+                filterOption={(input, option) =>
+                  option.children.toLowerCase().includes(input.toLowerCase())
+                }
+                notFoundContent={
+                  countriesLoading ? (
+                    <Spin size="small" />
+                  ) : (
+                    "No countries found"
+                  )
+                }
+              >
+                {countries.map((country) => (
+                  <Option key={country.country_id} value={country.country_id}>
+                    {country.country_name}
+                  </Option>
+                ))}
+              </Select>
+            </div>
+
             <div>
               <label className="block !mb-1 font-medium">Title *</label>
               <input
@@ -222,7 +271,9 @@ function CreateCarLayout() {
                 className="w-full !border border-gray-300 !p-2 rounded"
               />
             </div>
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block !mb-1 font-medium">Subtitle</label>
               <input
@@ -233,9 +284,7 @@ function CreateCarLayout() {
                 className="w-full !border border-gray-300 !p-2 rounded"
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block mb-1 font-medium">Car Type *</label>
               <Select
@@ -253,7 +302,9 @@ function CreateCarLayout() {
                 <Option value="Electric">Electric</Option>
               </Select>
             </div>
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block mb-1 font-medium">Location *</label>
               <input
@@ -265,9 +316,7 @@ function CreateCarLayout() {
                 className="w-full border border-gray-300 p-2 rounded"
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block mb-1 font-medium">Current Price *</label>
               <input
@@ -281,7 +330,9 @@ function CreateCarLayout() {
                 className="w-full border border-gray-300 p-2 rounded"
               />
             </div>
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block mb-1 font-medium">Original Price</label>
               <input
@@ -294,9 +345,7 @@ function CreateCarLayout() {
                 className="w-full border border-gray-300 p-2 rounded"
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block mb-1 font-medium">Duration</label>
               <input
@@ -308,7 +357,9 @@ function CreateCarLayout() {
                 className="w-full border border-gray-300 p-2 rounded"
               />
             </div>
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block mb-1 font-medium">Price Note</label>
               <input
@@ -320,18 +371,18 @@ function CreateCarLayout() {
                 className="w-full border border-gray-300 p-2 rounded"
               />
             </div>
-          </div>
 
-          <div>
-            <label className="block mb-1 font-medium">Max People *</label>
-            <input
-              type="number"
-              name="max_people"
-              value={formData.max_people || ""}
-              onChange={handleChange}
-              className="w-full border border-gray-300 p-2 rounded"
-              onWheel={(e) => e.target.blur()}
-            />
+            <div>
+              <label className="block mb-1 font-medium">Max People *</label>
+              <input
+                type="number"
+                name="max_people"
+                value={formData.max_people || ""}
+                onChange={handleChange}
+                className="w-full border border-gray-300 p-2 rounded"
+                onWheel={(e) => e.target.blur()}
+              />
+            </div>
           </div>
 
           <div>
@@ -405,123 +456,7 @@ function CreateCarLayout() {
     }
 
     if (activeTab === "Images") {
-      return (
-        <fieldset className="border p-4 rounded">
-          <legend className="font-medium mb-2">Images</legend>
-          <div className="space-y-2">
-            <div className="flex flex-wrap gap-3 m-auto">
-              <label
-                htmlFor="image-upload"
-                className={`cursor-pointer px-0 py-2 bg-[rgba(0,0,0,0.02)] border border-dashed border-[#d9d9d9] rounded-lg flex text-center text-[#555] w-[102px] h-[102px] text-xs flex-col gap-2 items-center justify-center hover:border-[#1677ff] transition duration-300 ease-in-out ${
-                  isUploading ? "opacity-50 pointer-events-none" : ""
-                }`}
-              >
-                {isUploading ? (
-                  <div className="flex flex-col items-center">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
-                    <span>Uploading...</span>
-                  </div>
-                ) : (
-                  <>
-                    <FiPlus className="text-[15px]" />
-                    Add Image
-                  </>
-                )}
-              </label>
-              <input
-                id="image-upload"
-                type="file"
-                accept="image/*"
-                multiple
-                ref={imageInputRef}
-                onChange={(e) => {
-                  if (e.target.files) {
-                    handleImageFilesChange(e.target.files);
-                  }
-                }}
-                className="hidden"
-                disabled={isUploading}
-              />
-
-              {formData.images.map((img, index) => {
-                const imageUrl = img.preview || img.value;
-                const isBackgroundImage =
-                  formData.background_image === imageUrl;
-
-                return (
-                  <div
-                    ref={(el) => {
-                      imageRefs.current[index] = el;
-                    }}
-                    key={index}
-                    className={`w-[102px] h-[102px] overflow-hidden relative rounded-lg p-1 border-2 zoomIn transition-all duration-200 ${
-                      isBackgroundImage
-                        ? "border-green-500"
-                        : "border-[#d9d9d9]"
-                    }`}
-                  >
-                    {/* Image */}
-                    <img
-                      src={imageUrl}
-                      alt={`uploaded-${index}`}
-                      className="w-full h-full object-cover rounded"
-                    />
-
-                    {/* Top-Left: Set as Background Button */}
-                    {!isBackgroundImage ? (
-                      <button
-                        type="button"
-                        onClick={() => setBackgroundImage(imageUrl)}
-                        className="absolute top-1 left-1 w-6 h-6 rounded-full bg-black/50 hover:bg-green-500 flex items-center justify-center text-white text-xs shadow-md transition-all"
-                        title="Set as Background"
-                      >
-                        <MdWallpaper className="text-[10px]" />
-                      </button>
-                    ) : (
-                      <div className="absolute top-1 left-1 bg-green-500 text-white rounded-full px-2 py-0.5 text-[10px] shadow-md flex items-center gap-1">
-                        <FaCheck className="text-[8px]" />
-                        BG
-                      </div>
-                    )}
-
-                    {/* Top-Right: Preview Button */}
-                    <button
-                      type="button"
-                      onClick={() => window.open(imageUrl, "_blank")}
-                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/50 hover:bg-blue-500 flex items-center justify-center text-white text-xs shadow-md transition-all"
-                      title="Preview"
-                    >
-                      <FaEye className="text-[10px]" />
-                    </button>
-
-                    {/* Bottom-Right: Delete Button */}
-                    <button
-                      type="button"
-                      onClick={() => removeImage(index)}
-                      className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-black/50 hover:bg-red-500 flex items-center justify-center text-white text-xs shadow-md transition-all"
-                      title="Delete"
-                    >
-                      <MdDelete className="text-[10px]" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-
-            {formData.images.length > 0 && (
-              <div className="text-sm text-gray-600 mt-2">
-                <span className="font-medium">Total Images:</span>{" "}
-                {formData.images.length}
-                {formData.background_image && (
-                  <span className="ml-2 text-green-600">
-                    • Background image selected
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        </fieldset>
-      );
+      return <TransferImages rowData={formData} setRowData={setFormData} />;
     }
   };
 

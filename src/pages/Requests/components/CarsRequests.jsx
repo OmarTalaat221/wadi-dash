@@ -300,7 +300,7 @@ const CarsRequests = () => {
           >
             View
           </Button>
-          {record.status !== "pending" && (
+          {record.status !== "pending" && record.status !== "rejected" && (
             <Button
               icon={<EditOutlined />}
               onClick={() => openManualUpdateModal(record)}

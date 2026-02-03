@@ -100,10 +100,7 @@ const Notifications = () => {
       message.error("Please select user trip status");
       return false;
     }
-    if (!formData.title?.trim()) {
-      message.error("Please enter notification title");
-      return false;
-    }
+
     if (
       !formData.description?.trim() ||
       formData.description === "<p><br></p>"
@@ -136,7 +133,7 @@ const Notifications = () => {
         message.success(
           response.data.message || "Notification sent successfully!"
         );
-        setFormData({ title: "", description: "", tripStatus: undefined });
+        // setFormData({ title: "", description: "", tripStatus: undefined });
       } else {
         message.error(response.data.message || "Failed to send notification");
       }

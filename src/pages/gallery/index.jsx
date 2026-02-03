@@ -497,9 +497,6 @@ const Gallery = () => {
                   <Tooltip title="Preview Image" key="preview">
                     <EyeOutlined onClick={() => handlePreviewPhoto(photo)} />
                   </Tooltip>,
-                  <Tooltip title="Edit Photo" key="edit">
-                    <EditOutlined onClick={() => handleEditPhoto(photo)} />
-                  </Tooltip>,
                   <Tooltip title={visibilityInfo.tooltipText} key="toggle">
                     <VisibilityIcon
                       onClick={() => handleToggleVisibility(photo)}

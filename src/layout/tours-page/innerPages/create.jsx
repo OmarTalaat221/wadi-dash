@@ -5,7 +5,7 @@ import axios from "axios";
 import Tabs from "../../../components/Tabs";
 import TourFeatures from "../../../components/tours-page/TourFeatures";
 import TourImages from "../../../components/tours-page/tour-images";
-import GallerySelector from "../../../components/tours-page/GallerySelector"; // Add this import
+import GallerySelector from "../../../components/tours-page/GallerySelector";
 import JoditEditor from "jodit-react";
 import {
   Box,
@@ -17,6 +17,8 @@ import {
   Select as MuiSelect,
   MenuItem,
   InputLabel,
+  Switch,
+  FormControlLabel,
 } from "@mui/material";
 import { Select, Space, message } from "antd";
 import { MdDelete } from "react-icons/md";
@@ -49,7 +51,6 @@ function CreateTourLayout() {
     price_original: "",
     max_persons: "",
     video_link: "",
-
     per_adult: "",
     per_child: "",
     price_currency: "$",
@@ -57,7 +58,7 @@ function CreateTourLayout() {
     highlights: [],
     includes: [],
     excludes: [],
-    gallary: [], // This will store selected gallery image IDs
+    gallary: [],
     features: [],
     images: [],
     days: [],
@@ -110,6 +111,7 @@ function CreateTourLayout() {
       hotel_id: [],
       car_id: [],
       activity_id: [],
+      isTourguide: 0, // Add isTourguide field with default value 0
     };
     setFormData((prev) => ({ ...prev, days: [...prev.days, newDay] }));
     setActiveDay(formData.days.length);
@@ -132,7 +134,11 @@ function CreateTourLayout() {
     setFormData((prev) => ({ ...prev, days: updatedDays }));
   };
 
-  // Handle gallery selection change
+  // Handle tour guide toggle
+  const handleTourguideToggle = (index, checked) => {
+    handleDayChange(index, "isTourguide", checked ? 1 : 0);
+  };
+
   const handleGallerySelectionChange = (selectedImageIds) => {
     setFormData((prev) => ({ ...prev, gallary: selectedImageIds }));
   };
@@ -161,7 +167,6 @@ function CreateTourLayout() {
     try {
       setLoading(true);
 
-      // Step 1: Create the main tour
       const apiData = prepareDataForAPI(formData);
       const { features, days, images, ...tourData } = apiData;
 
@@ -175,7 +180,6 @@ function CreateTourLayout() {
       console.log("Tour creation response:", tourResponse.data);
 
       if (tourResponse.data.status === "success") {
-        // Step 2: Extract tour ID from response
         let tourId = null;
 
         if (tourResponse.data.tour_id) {
@@ -200,7 +204,6 @@ function CreateTourLayout() {
           return;
         }
 
-        // Step 3: Create days if any exist
         if (formData.days && formData.days.length > 0) {
           console.log("Creating days for tour ID:", tourId);
 
@@ -219,6 +222,7 @@ function CreateTourLayout() {
               activity_id: Array.isArray(day.activity_id)
                 ? day.activity_id.join(",")
                 : day.activity_id,
+              isTourguide: day.isTourguide || 0, // Include isTourguide in API call
             };
 
             console.log(`Creating day ${index + 1} with data:`, dayData);
@@ -409,7 +413,6 @@ function CreateTourLayout() {
 
   const renderFeaturesTab = () => (
     <div className="!space-y-4">
-      {/* Highlights */}
       <div>
         <label className="block mb-2 font-medium">Highlights</label>
         <Select
@@ -427,7 +430,6 @@ function CreateTourLayout() {
         </div>
       </div>
 
-      {/* Includes */}
       <div>
         <label className="block mb-2 font-medium">Includes</label>
         <Select
@@ -445,7 +447,6 @@ function CreateTourLayout() {
         </div>
       </div>
 
-      {/* Excludes */}
       <div>
         <label className="block mb-2 font-medium">Excludes</label>
         <Select
@@ -463,7 +464,6 @@ function CreateTourLayout() {
         </div>
       </div>
 
-      {/* Gallery Selector - Updated */}
       <GallerySelector
         selectedImages={formData.gallary}
         onSelectionChange={handleGallerySelectionChange}
@@ -525,6 +525,29 @@ function CreateTourLayout() {
               config={editorConfig}
               onBlur={(content) =>
                 handleDayChange(activeDay, "description", content)
+              }
+            />
+          </div>
+
+          {/* Tour Guide Toggle Switch */}
+          <div className="bg-gray-50 p-4 rounded-lg border">
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={formData.days[activeDay]?.isTourguide === 1}
+                  onChange={(e) =>
+                    handleTourguideToggle(activeDay, e.target.checked)
+                  }
+                  color="primary"
+                />
+              }
+              label={
+                <div className="flex flex-col">
+                  <span className="font-medium">Tour Guide Required</span>
+                  <span className="text-sm text-gray-500">
+                    Enable if this day requires a tour guide
+                  </span>
+                </div>
               }
             />
           </div>

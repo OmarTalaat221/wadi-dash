@@ -1,4 +1,3 @@
-// src/pages/Accommodation/CreateAccomLayout.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Tabs from "../../../components/Tabs";
@@ -6,15 +5,19 @@ import AccommodationFeatures from "../../../components/Accommodation/accomFeatur
 import AccomImages from "../../../components/Accommodation/accomImages";
 import JoditEditor from "jodit-react";
 import axios from "axios";
-import { message, Select } from "antd";
+import { message, Select, Spin } from "antd";
 import { base_url } from "../../../utils/base_url";
 import editorConfig from "../../../data/joditConfig";
+import useCountries from "../../../hooks/useCountries"; // 👈 Import hook
 
 const { Option } = Select;
 
 function CreateAccomLayout() {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
+
+  // 👇 استخدام الـ hook
+  const { countries, loading: countriesLoading } = useCountries();
 
   const [formData, setFormData] = useState({
     title: "",
@@ -24,7 +27,7 @@ function CreateAccomLayout() {
     price_original: "",
     price_currency: "USD",
     price_note: "",
-    country_id: "1",
+    country_id: "", // 👈 خليها فاضية
     category: "hotel",
     duration: "",
     route: "",
@@ -59,6 +62,12 @@ function CreateAccomLayout() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // 👇 Validation
+    if (!formData.country_id) {
+      message.error("Please select a country");
+      return;
+    }
+
     if (!formData.title.trim()) {
       message.error("Title is required!");
       return;
@@ -77,7 +86,6 @@ function CreateAccomLayout() {
     setSubmitting(true);
 
     try {
-      // Get background image from first uploaded image
       const backgroundImage = formData.image.split("//CAMP//")[0] || "";
 
       const payload = {
@@ -92,7 +100,6 @@ function CreateAccomLayout() {
           : "",
       };
 
-      // Remove amenities from payload as API expects 'features' field
       delete payload.amenities;
 
       console.log("Submitting payload:", payload);
@@ -125,7 +132,38 @@ function CreateAccomLayout() {
     if (activeTab === "General") {
       return (
         <>
+          {/* 👇 First Row - Country & Title */}
           <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block mb-1 font-medium">Country *</label>
+              <Select
+                value={formData.country_id || undefined}
+                onChange={(value) => handleSelectChange("country_id", value)}
+                className="w-full"
+                size="large"
+                placeholder="Select Country"
+                loading={countriesLoading}
+                showSearch
+                optionFilterProp="children"
+                filterOption={(input, option) =>
+                  option.children.toLowerCase().includes(input.toLowerCase())
+                }
+                notFoundContent={
+                  countriesLoading ? (
+                    <Spin size="small" />
+                  ) : (
+                    "No countries found"
+                  )
+                }
+              >
+                {countries.map((country) => (
+                  <Option key={country.country_id} value={country.country_id}>
+                    {country.country_name}
+                  </Option>
+                ))}
+              </Select>
+            </div>
+
             <div>
               <label className="block mb-1 font-medium">Title *</label>
               <input
@@ -137,7 +175,9 @@ function CreateAccomLayout() {
                 required
               />
             </div>
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block mb-1 font-medium">Subtitle</label>
               <input
@@ -149,6 +189,24 @@ function CreateAccomLayout() {
               />
             </div>
 
+            <div>
+              <label className="block mb-1 font-medium">Category</label>
+              <Select
+                value={formData.category || "hotel"}
+                onChange={(value) => handleSelectChange("category", value)}
+                className="w-full"
+                size="large"
+              >
+                <Option value="hotel">Hotel</Option>
+                <Option value="Luxury Resort">Luxury Resort</Option>
+                <Option value="trip_package">Trip Package</Option>
+                <Option value="activity">Activity</Option>
+                <Option value="car">Car Rental</Option>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block mb-1 font-medium">Current Price *</label>
               <input
@@ -177,7 +235,9 @@ function CreateAccomLayout() {
                 onWheel={(e) => e.target.blur()}
               />
             </div>
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block mb-1 font-medium">Price Note</label>
               <input
@@ -191,22 +251,6 @@ function CreateAccomLayout() {
             </div>
 
             <div>
-              <label className="block mb-1 font-medium">Category</label>
-              <Select
-                value={formData.category || "hotel"}
-                onChange={(value) => handleSelectChange("category", value)}
-                className="w-full"
-                size="large"
-              >
-                <Option value="hotel">Hotel</Option>
-                <Option value="Luxury Resort">Luxury Resort</Option>
-                <Option value="trip_package">Trip Package</Option>
-                <Option value="activity">Activity</Option>
-                <Option value="car">Car Rental</Option>
-              </Select>
-            </div>
-
-            <div>
               <label className="block mb-1 font-medium">Duration</label>
               <input
                 type="text"
@@ -217,7 +261,9 @@ function CreateAccomLayout() {
                 placeholder="e.g., 3 Nights, 5 Days"
               />
             </div>
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block mb-1 font-medium">Location</label>
               <input
@@ -240,7 +286,9 @@ function CreateAccomLayout() {
                 placeholder="e.g., Cairo - Hurghada - Cairo"
               />
             </div>
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block mb-1 font-medium">Max People</label>
               <input
@@ -267,31 +315,10 @@ function CreateAccomLayout() {
                 onWheel={(e) => e.target.blur()}
               />
             </div>
-
-            <div>
-              <label className="block mb-1 font-medium">Country ID</label>
-              <Select
-                value={formData.country_id || "1"}
-                onChange={(value) => handleSelectChange("country_id", value)}
-                className="w-full"
-                size="large"
-                showSearch
-                placeholder="Select Country"
-                optionFilterProp="children"
-                filterOption={(input, option) =>
-                  option.children.toLowerCase().indexOf(input.toLowerCase()) >=
-                  0
-                }
-              >
-                <Option value="1">Country 1</Option>
-                <Option value="2">Country 2</Option>
-                <Option value="3">Country 3</Option>
-              </Select>
-            </div>
           </div>
 
           <div className="col-span-2 mt-4">
-            <label className="block mb-1 font-medium">video_link</label>
+            <label className="block mb-1 font-medium">Video Link</label>
             <input
               name="video_link"
               value={formData.video_link || ""}
@@ -299,6 +326,7 @@ function CreateAccomLayout() {
               className="w-full border border-gray-300 p-2 rounded"
             />
           </div>
+
           <div className="col-span-2 mt-4">
             <label className="block mb-1 font-medium">Description</label>
             <JoditEditor
@@ -312,11 +340,13 @@ function CreateAccomLayout() {
         </>
       );
     }
+
     if (activeTab === "Features") {
       return (
         <AccommodationFeatures rowData={formData} setRowData={setFormData} />
       );
     }
+
     if (activeTab === "Images") {
       return <AccomImages rowData={formData} setRowData={setFormData} />;
     }

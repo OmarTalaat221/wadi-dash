@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Tabs from "../../../components/Tabs";
-// import ActivityFeatures from "../../../components/Activities/ActivityFeatures";
 import ActivityImages from "../../../components/Activities/activityImages";
 import JoditEditor from "jodit-react";
 import axios from "axios";
@@ -17,6 +16,8 @@ function UpdateActivityLayout() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
+  const [countries, setCountries] = useState([]);
+  const [countriesLoading, setCountriesLoading] = useState(false);
 
   const [rowData, setRowData] = useState({
     id: "",
@@ -45,48 +46,67 @@ function UpdateActivityLayout() {
 
   const [activeTab, setActiveTab] = useState("General");
 
-  // Fetch activity data
   useEffect(() => {
-    const fetchActivity = async () => {
-      try {
-        const response = await axios.get(
-          `${base_url}/admin/activities/select_activities.php`
+    fetchActivity();
+    fetchCountries();
+  }, [product_id]);
+
+  const fetchCountries = async () => {
+    setCountriesLoading(true);
+    try {
+      const response = await axios.get(
+        `${base_url}/user/countries/select_countries.php`
+      );
+
+      if (response.data.status === "success") {
+        setCountries(response.data.message || []);
+      } else {
+        console.error("Failed to fetch countries");
+      }
+    } catch (error) {
+      console.error("Error fetching countries:", error);
+    } finally {
+      setCountriesLoading(false);
+    }
+  };
+
+  const fetchActivity = async () => {
+    try {
+      const response = await axios.get(
+        `${base_url}/admin/activities/select_activities.php`
+      );
+
+      if (response.data.status === "success") {
+        const activity = response.data.message?.find(
+          (item) => item.id === product_id
         );
 
-        if (response.data.status === "success") {
-          const activity = response.data.message?.find(
-            (item) => item.id === product_id
-          );
+        if (activity) {
+          // Parse features
+          const featuresArray = activity?.features;
 
-          if (activity) {
-            // Parse features
-            const featuresArray = activity?.features;
+          // Parse images
+          const imagesArray = activity.image
+            ? activity.image.split("//CAMP//").map((img) => ({
+                type: "url",
+                value: img,
+              }))
+            : [];
 
-            // Parse images
-            const imagesArray = activity.image
-              ? activity.image.split("//CAMP//").map((img) => ({
-                  type: "url",
-                  value: img,
-                }))
-              : [];
-
-            setRowData({
-              ...activity,
-              features: featuresArray,
-              images: imagesArray,
-            });
-          }
+          setRowData({
+            ...activity,
+            features: featuresArray,
+            images: imagesArray,
+          });
         }
-      } catch (error) {
-        console.error("Error fetching activity:", error);
-        message.error("Error loading activity");
-      } finally {
-        setFetchLoading(false);
       }
-    };
-
-    fetchActivity();
-  }, [product_id]);
+    } catch (error) {
+      console.error("Error fetching activity:", error);
+      message.error("Error loading activity");
+    } finally {
+      setFetchLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -164,17 +184,28 @@ function UpdateActivityLayout() {
         <>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block mb-1 font-medium">Country*</label>
+              <label className="block mb-1 font-medium">Country *</label>
               <Select
-                value={rowData.country_id}
+                value={rowData.country_id || undefined}
                 onChange={(value) =>
                   setRowData((prev) => ({ ...prev, country_id: value }))
                 }
                 className="w-full"
+                size="large"
+                showSearch
                 placeholder="Select Country"
+                optionFilterProp="children"
+                loading={countriesLoading}
+                filterOption={(input, option) =>
+                  option.children.toLowerCase().indexOf(input.toLowerCase()) >=
+                  0
+                }
               >
-                <Option value="1">Country 1</Option>
-                <Option value="2">Country 2</Option>
+                {countries.map((country) => (
+                  <Option key={country.country_id} value={country.country_id}>
+                    {country.country_name}
+                  </Option>
+                ))}
               </Select>
             </div>
 
@@ -186,6 +217,7 @@ function UpdateActivityLayout() {
                   setRowData((prev) => ({ ...prev, category: value }))
                 }
                 className="w-full"
+                size="large"
               >
                 <Option value="activity">Activity</Option>
                 <Option value="adventure">Adventure</Option>
@@ -196,7 +228,7 @@ function UpdateActivityLayout() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block mb-1 font-medium">Title*</label>
+              <label className="block mb-1 font-medium">Title *</label>
               <input
                 type="text"
                 name="title"
@@ -221,7 +253,7 @@ function UpdateActivityLayout() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block mb-1 font-medium">Current Price*</label>
+              <label className="block mb-1 font-medium">Current Price *</label>
               <input
                 type="number"
                 step="0.01"
@@ -229,6 +261,7 @@ function UpdateActivityLayout() {
                 value={rowData.price_current || ""}
                 onChange={handleChange}
                 className="w-full border border-gray-300 p-2 rounded"
+                onWheel={(e) => e.target.blur()}
                 required
               />
             </div>
@@ -242,37 +275,12 @@ function UpdateActivityLayout() {
                 value={rowData.price_original || ""}
                 onChange={handleChange}
                 className="w-full border border-gray-300 p-2 rounded"
+                onWheel={(e) => e.target.blur()}
               />
             </div>
-
-            {/* <div>
-              <label className="block mb-1 font-medium">Currency</label>
-              <select
-                name="price_currency"
-                value={rowData.price_currency || "$"}
-                onChange={handleChange}
-                className="w-full border border-gray-300 p-2 rounded"
-              >
-                <option value="$">USD ($)</option>
-                <option value="€">EUR (€)</option>
-                <option value="£">GBP (£)</option>
-                <option value="OMR">OMR</option>
-              </select>
-            </div> */}
           </div>
 
           <div className="grid grid-cols-1 gap-4">
-            {/* <div>
-              <label className="block mb-1 font-medium">Price per Adult</label>
-              <input
-                type="number"
-                name="per_adult"
-                value={rowData.per_adult || ""}
-                onChange={handleChange}
-                className="w-full border border-gray-300 p-2 rounded"
-              />
-            </div> */}
-
             <div>
               <label className="block mb-1 font-medium">Price per Child</label>
               <input
@@ -281,13 +289,14 @@ function UpdateActivityLayout() {
                 value={rowData.per_child || ""}
                 onChange={handleChange}
                 className="w-full border border-gray-300 p-2 rounded"
+                onWheel={(e) => e.target.blur()}
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block mb-1 font-medium">Duration*</label>
+              <label className="block mb-1 font-medium">Duration *</label>
               <input
                 type="text"
                 name="duration"
@@ -300,7 +309,7 @@ function UpdateActivityLayout() {
             </div>
 
             <div>
-              <label className="block mb-1 font-medium">Activity Type*</label>
+              <label className="block mb-1 font-medium">Activity Type *</label>
               <input
                 type="text"
                 name="activity_type"
@@ -324,6 +333,7 @@ function UpdateActivityLayout() {
               className="w-full border border-gray-300 p-2 rounded"
             />
           </div>
+
           <div>
             <label className="block mb-1 font-medium">Video Link</label>
             <input
@@ -331,25 +341,12 @@ function UpdateActivityLayout() {
               name="video_link"
               value={rowData.video_link || ""}
               onChange={handleChange}
-              placeholder="e.g., GREAT BARRIER REEF → CAIRNS"
+              placeholder="e.g., https://youtube.com/..."
               className="w-full border border-gray-300 p-2 rounded"
             />
           </div>
 
-          {/* <div>
-            <label className="block mb-1 font-medium">
-              Background Image URL
-            </label>
-            <input
-              type="text"
-              name="background_image"
-              value={rowData.background_image || ""}
-              onChange={handleChange}
-              className="w-full border border-gray-300 p-2 rounded"
-            />
-          </div> */}
-
-          <div className="grid grid-cols-2  gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block mb-1 font-medium">Price Note</label>
               <input
@@ -397,8 +394,8 @@ function UpdateActivityLayout() {
 
   if (fetchLoading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        Loading...
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
       </div>
     );
   }

@@ -1,9 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import Tabs from "../../../components/Tabs";
 import { RiDeleteBin6Line } from "react-icons/ri";
-import { FiPlus } from "react-icons/fi";
-import { FaEye } from "react-icons/fa";
-import { MdDelete } from "react-icons/md";
 import JoditEditor from "jodit-react";
 import editorConfig from "../../../data/joditConfig";
 import axios from "axios";
@@ -12,18 +9,22 @@ import { useNavigate } from "react-router-dom";
 import { base_url } from "../../../utils/base_url";
 import { uploadImageToServer } from "../../../hooks/uploadImage";
 import ActivityImages from "../../../components/Activities/activityImages";
+import useCountries from "../../../hooks/useCountries"; // 👈 Import hook
 
 const { Option } = Select;
 
 function CreateActivityLayout() {
   const navigate = useNavigate();
   const imageRefs = useRef([]);
-  const [countries, setCountries] = useState([]);
+
+  // 👇 استخدام الـ hook
+  const { countries, loading: countriesLoading } = useCountries();
+
   const [loading, setLoading] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
 
   const [formData, setFormData] = useState({
-    country_id: "",
+    country_id: "", // 👈 خليها فاضية
     title: "",
     subtitle: "",
     description: "",
@@ -49,12 +50,12 @@ function CreateActivityLayout() {
   const [activeTab, setActiveTab] = useState("General");
   const imageInputRef = useRef(null);
 
-  useEffect(() => {
-    // fetchCountries();
-  }, []);
-
   const handleChange = (e) => {
     const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSelectChange = (name, value) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -68,10 +69,7 @@ function CreateActivityLayout() {
         const file = fileArray[i];
 
         try {
-          // Upload image to server
           const response = await uploadImageToServer(file);
-
-          // Assuming response contains the image URL
           const imageUrl =
             response.url ||
             response.image_url ||
@@ -120,50 +118,6 @@ function CreateActivityLayout() {
     }
   };
 
-  const handleImageUrlAdd = (url) => {
-    if (!url.trim()) return;
-
-    const imageData = {
-      type: "url",
-      value: url,
-      preview: url,
-    };
-
-    setFormData((prev) => {
-      const updated = [...prev.images, imageData];
-
-      setTimeout(() => {
-        const refIndex = prev.images.length;
-        const imgRef = imageRefs.current[refIndex];
-        if (imgRef) {
-          imgRef.classList.add("zoomIn");
-          setTimeout(() => imgRef.classList.remove("zoomIn"), 300);
-        }
-      }, 10);
-
-      return { ...prev, images: updated };
-    });
-
-    message.success("Image URL added");
-  };
-
-  const removeImage = (index) => {
-    const imgRef = imageRefs.current[index];
-
-    if (imgRef) {
-      imgRef.classList.remove("zoomIn");
-      imgRef.classList.add("zoomOut");
-
-      setTimeout(() => {
-        setFormData((prev) => ({
-          ...prev,
-          images: prev.images.filter((_, i) => i !== index),
-        }));
-        imgRef.classList.remove("zoomOut");
-      }, 300);
-    }
-  };
-
   const handleFeatureFieldChange = (index, field, value) => {
     const updatedFeatures = [...formData.features];
     updatedFeatures[index] = { ...updatedFeatures[index], [field]: value };
@@ -187,7 +141,13 @@ function CreateActivityLayout() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.title || !formData.country_id) {
+    // 👇 Validation
+    if (!formData.country_id) {
+      message.error("Please select a country");
+      return;
+    }
+
+    if (!formData.title) {
       message.error("Please fill in all required fields");
       return;
     }
@@ -214,7 +174,7 @@ function CreateActivityLayout() {
         title: formData.title,
         subtitle: formData.subtitle,
         description: formData.description,
-        background_image: formData.images[0].value,
+        background_image: formData.images[0]?.value || "",
         cta_button_text: formData.cta_button_text,
         cta_button_url: formData.cta_button_url,
         duration: formData.duration,
@@ -256,19 +216,35 @@ function CreateActivityLayout() {
     if (activeTab === "General") {
       return (
         <>
+          {/* 👇 Country & Category Row */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block !mb-1 font-medium">Country*</label>
+              <label className="block !mb-1 font-medium">Country *</label>
               <Select
-                value={formData.country_id}
-                onChange={(value) =>
-                  setFormData((prev) => ({ ...prev, country_id: value }))
-                }
+                value={formData.country_id || undefined}
+                onChange={(value) => handleSelectChange("country_id", value)}
                 className="w-full"
+                size="large"
                 placeholder="Select Country"
+                loading={countriesLoading}
+                showSearch
+                optionFilterProp="children"
+                filterOption={(input, option) =>
+                  option.children.toLowerCase().includes(input.toLowerCase())
+                }
+                notFoundContent={
+                  countriesLoading ? (
+                    <Spin size="small" />
+                  ) : (
+                    "No countries found"
+                  )
+                }
               >
-                <Option value="1">Country 1</Option>
-                <Option value="2">Country 2</Option>
+                {countries.map((country) => (
+                  <Option key={country.country_id} value={country.country_id}>
+                    {country.country_name}
+                  </Option>
+                ))}
               </Select>
             </div>
 
@@ -276,10 +252,9 @@ function CreateActivityLayout() {
               <label className="block !mb-1 font-medium">Category</label>
               <Select
                 value={formData.category}
-                onChange={(value) =>
-                  setFormData((prev) => ({ ...prev, category: value }))
-                }
+                onChange={(value) => handleSelectChange("category", value)}
                 className="w-full"
+                size="large"
               >
                 <Option value="activity">Activity</Option>
                 <Option value="adventure">Adventure</Option>
@@ -290,7 +265,7 @@ function CreateActivityLayout() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block !mb-1 font-medium">Title*</label>
+              <label className="block !mb-1 font-medium">Title *</label>
               <input
                 type="text"
                 name="title"
@@ -315,7 +290,7 @@ function CreateActivityLayout() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block mb-1 font-medium">Current Price*</label>
+              <label className="block mb-1 font-medium">Current Price *</label>
               <input
                 type="number"
                 step="0.01"
@@ -324,6 +299,7 @@ function CreateActivityLayout() {
                 onChange={handleChange}
                 className="w-full border border-gray-300 p-2 rounded"
                 required
+                onWheel={(e) => e.target.blur()}
               />
             </div>
 
@@ -336,22 +312,12 @@ function CreateActivityLayout() {
                 value={formData.price_original || ""}
                 onChange={handleChange}
                 className="w-full border border-gray-300 p-2 rounded"
+                onWheel={(e) => e.target.blur()}
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4">
-            {/* <div>
-              <label className="block mb-1 font-medium">Price per Adult</label>
-              <input
-                type="number"
-                name="per_adult"
-                value={formData.per_adult || ""}
-                onChange={handleChange}
-                className="w-full border border-gray-300 p-2 rounded"
-              />
-            </div> */}
-
             <div>
               <label className="block mb-1 font-medium">Price per Child</label>
               <input
@@ -360,13 +326,14 @@ function CreateActivityLayout() {
                 value={formData.per_child || ""}
                 onChange={handleChange}
                 className="w-full border border-gray-300 p-2 rounded"
+                onWheel={(e) => e.target.blur()}
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block mb-1 font-medium">Duration*</label>
+              <label className="block mb-1 font-medium">Duration *</label>
               <input
                 type="text"
                 name="duration"
@@ -379,7 +346,7 @@ function CreateActivityLayout() {
             </div>
 
             <div>
-              <label className="block mb-1 font-medium">Activity Type*</label>
+              <label className="block mb-1 font-medium">Activity Type *</label>
               <input
                 type="text"
                 name="activity_type"
@@ -416,7 +383,7 @@ function CreateActivityLayout() {
             />
           </div>
 
-          <div className="grid grid-cols-2  gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block mb-1 font-medium">Price Note</label>
               <input
@@ -429,7 +396,7 @@ function CreateActivityLayout() {
             </div>
 
             <div>
-              <label className="block mb-1 font-medium">Max People*</label>
+              <label className="block mb-1 font-medium">Max People *</label>
               <input
                 type="number"
                 name="max_people"
@@ -481,6 +448,7 @@ function CreateActivityLayout() {
               <path d="M12 16V8" strokeWidth="1.5"></path>
             </svg>
           </button>
+
           <div className="grid grid-cols-3 gap-[10px]">
             {formData.features.map((feature, index) => (
               <div key={index} className="mb-3 space-y-2 border p-2 rounded">

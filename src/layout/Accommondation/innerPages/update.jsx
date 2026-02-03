@@ -20,10 +20,32 @@ function UpdateAccomLayout() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState("General");
+  const [countries, setCountries] = useState([]);
+  const [countriesLoading, setCountriesLoading] = useState(false);
 
   useEffect(() => {
     fetchAccommodation();
+    fetchCountries();
   }, [product_id]);
+
+  const fetchCountries = async () => {
+    setCountriesLoading(true);
+    try {
+      const response = await axios.get(
+        `${base_url}/user/countries/select_countries.php`
+      );
+
+      if (response.data.status === "success") {
+        setCountries(response.data.message || []);
+      } else {
+        console.error("Failed to fetch countries");
+      }
+    } catch (error) {
+      console.error("Error fetching countries:", error);
+    } finally {
+      setCountriesLoading(false);
+    }
+  };
 
   const fetchAccommodation = async () => {
     setLoading(true);
@@ -274,29 +296,32 @@ function UpdateAccomLayout() {
             </div>
 
             <div>
-              <label className="block mb-1 font-medium">Country ID</label>
+              <label className="block mb-1 font-medium">Country *</label>
               <Select
-                value={rowData.country_id || "1"}
+                value={rowData.country_id || undefined}
                 onChange={(value) => handleSelectChange("country_id", value)}
                 className="w-full"
                 size="large"
                 showSearch
                 placeholder="Select Country"
                 optionFilterProp="children"
+                loading={countriesLoading}
                 filterOption={(input, option) =>
                   option.children.toLowerCase().indexOf(input.toLowerCase()) >=
                   0
                 }
               >
-                <Option value="1">Country 1</Option>
-                <Option value="2">Country 2</Option>
-                <Option value="3">Country 3</Option>
+                {countries.map((country) => (
+                  <Option key={country.country_id} value={country.country_id}>
+                    {country.country_name}
+                  </Option>
+                ))}
               </Select>
             </div>
           </div>
 
           <div className="col-span-2 mt-4">
-            <label className="block mb-1 font-medium">video_link</label>
+            <label className="block mb-1 font-medium">Video Link</label>
             <input
               name="video_link"
               value={rowData.video_link || ""}

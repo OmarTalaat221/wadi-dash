@@ -377,16 +377,17 @@ const TourRequests = () => {
           >
             View
           </Button>
-          {record.reservation?.status !== "pending" && (
-            <Button
-              icon={<EditOutlined />}
-              onClick={() => openManualUpdateModal(record.reservation)}
-              className="border-orange-400 text-orange-600 hover:bg-orange-50"
-              size="small"
-            >
-              Change Status
-            </Button>
-          )}
+          {record.reservation?.status !== "pending" &&
+            record.reservation?.status !== "rejected" && (
+              <Button
+                icon={<EditOutlined />}
+                onClick={() => openManualUpdateModal(record.reservation)}
+                className="border-orange-400 text-orange-600 hover:bg-orange-50"
+                size="small"
+              >
+                Change Status
+              </Button>
+            )}
         </div>
       ),
     },

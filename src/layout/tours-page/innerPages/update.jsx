@@ -5,7 +5,6 @@ import axios from "axios";
 import Tabs from "../../../components/Tabs";
 import TourFeatures from "../../../components/tours-page/TourFeatures";
 import GallerySelector from "../../../components/tours-page/GallerySelector";
-
 import JoditEditor from "jodit-react";
 import {
   Box,
@@ -19,6 +18,8 @@ import {
   Select as MuiSelect,
   MenuItem,
   InputLabel,
+  Switch,
+  FormControlLabel,
 } from "@mui/material";
 import { Select, Space, message } from "antd";
 import { MdDelete } from "react-icons/md";
@@ -57,7 +58,6 @@ function UpdateTourLayout() {
     per_adult: "",
     per_child: "",
     video_link: "",
-
     price_currency: "$",
     price_note: "",
     highlights: [],
@@ -136,7 +136,7 @@ function UpdateTourLayout() {
         console.log("Tour data received:", tourData);
         console.log("Raw gallery data:", tourData.gallery);
 
-        // Convert itinerary to days format for form
+        // Convert itinerary to days format for form - include isTourguide
         const days =
           tourData.itinerary?.map((item) => ({
             day: item.day,
@@ -147,32 +147,29 @@ function UpdateTourLayout() {
             car_id: item.cars_options?.map((c) => Number(c.car_id)) || [],
             activity_id:
               item.activities_options?.map((a) => Number(a.activity_id)) || [],
+            isTourguide: item.isTourguide ? Number(item.isTourguide) : 0, // Parse isTourguide from API
             isExisting: true,
           })) || [];
 
         console.log("Converted days:", days);
 
-        // UPDATED: Parse gallery data - handle array of objects
+        // Parse gallery data
         let galleryData = [];
 
         if (tourData.gallery) {
           if (Array.isArray(tourData.gallery)) {
-            // Check if it's an array of objects with id property
             if (
               tourData.gallery.length > 0 &&
               typeof tourData.gallery[0] === "object" &&
               tourData.gallery[0].id
             ) {
-              // Extract IDs from objects: [{id: "1", image: "..."}, ...] -> ["1", ...]
               galleryData = tourData.gallery.map((item) => String(item.id));
               console.log("Parsed gallery from array of objects:", galleryData);
             } else {
-              // Simple array of IDs
               galleryData = tourData.gallery.map((id) => String(id));
               console.log("Parsed gallery from simple array:", galleryData);
             }
           } else if (typeof tourData.gallery === "string") {
-            // String separated by **
             galleryData = tourData.gallery
               .split("**")
               .filter((id) => id.trim())
@@ -204,9 +201,8 @@ function UpdateTourLayout() {
           per_child: tourData.per_child,
           price_currency: tourData.price_currency,
           price_note: tourData.price_note,
-          max_persons: tourData.max_persons || "", // ✅ أضف هذا
-          video_link: tourData.video_link || "", // ✅ أضف هذا
-
+          max_persons: tourData.max_persons || "",
+          video_link: tourData.video_link || "",
           highlights: Array.isArray(tourData.highlights)
             ? tourData.highlights
             : typeof tourData.highlights === "string"
@@ -244,7 +240,6 @@ function UpdateTourLayout() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Handler for gallery selection
   const handleGallerySelection = (selectedIds) => {
     console.log("Gallery selection changed:", selectedIds);
     setFormData((prev) => ({ ...prev, gallery: selectedIds }));
@@ -258,6 +253,7 @@ function UpdateTourLayout() {
       hotel_id: [],
       car_id: [],
       activity_id: [],
+      isTourguide: 0, // Add isTourguide field with default value 0
       isExisting: false,
     };
     setFormData((prev) => ({ ...prev, days: [...prev.days, newDay] }));
@@ -311,6 +307,11 @@ function UpdateTourLayout() {
     const updatedDays = [...formData.days];
     updatedDays[index] = { ...updatedDays[index], [field]: value };
     setFormData((prev) => ({ ...prev, days: updatedDays }));
+  };
+
+  // Handle tour guide toggle
+  const handleTourguideToggle = (index, checked) => {
+    handleDayChange(index, "isTourguide", checked ? 1 : 0);
   };
 
   const prepareDataForAPI = (data) => {
@@ -370,6 +371,7 @@ function UpdateTourLayout() {
               activity_id: Array.isArray(day.activity_id)
                 ? day.activity_id.join(",")
                 : day.activity_id,
+              isTourguide: day.isTourguide || 0, // Include isTourguide in API call
             };
 
             try {
@@ -661,6 +663,7 @@ function UpdateTourLayout() {
           >
             Day {day.day}{" "}
             {!day.isExisting && <span className="ml-1 text-xs">(New)</span>}
+            {day.isTourguide === 1 && <span className="ml-1 text-xs">🎯</span>}
             <IconButton
               size="small"
               onClick={(e) => {
@@ -693,6 +696,29 @@ function UpdateTourLayout() {
               config={editorConfig}
               onBlur={(content) =>
                 handleDayChange(activeDay, "description", content)
+              }
+            />
+          </div>
+
+          {/* Tour Guide Toggle Switch */}
+          <div className="bg-gray-50 p-4 rounded-lg border">
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={formData.days[activeDay]?.isTourguide === 1}
+                  onChange={(e) =>
+                    handleTourguideToggle(activeDay, e.target.checked)
+                  }
+                  color="primary"
+                />
+              }
+              label={
+                <div className="flex flex-col">
+                  <span className="font-medium">Tour Guide Required</span>
+                  <span className="text-sm text-gray-500">
+                    Enable if this day requires a tour guide
+                  </span>
+                </div>
               }
             />
           </div>

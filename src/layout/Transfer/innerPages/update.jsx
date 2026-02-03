@@ -2,9 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Tabs from "../../../components/Tabs";
 import { RiDeleteBin6Line } from "react-icons/ri";
-import { FiPlus } from "react-icons/fi";
-import { FaEye, FaCheck } from "react-icons/fa";
-import { MdDelete, MdWallpaper } from "react-icons/md";
 import JoditEditor from "jodit-react";
 import editorConfig from "../../../data/joditConfig";
 import { message, Select } from "antd";
@@ -19,17 +16,38 @@ function UpdateCarLayout() {
   const { product_id } = useParams();
   const navigate = useNavigate();
   const imageRefs = useRef([]);
-  const imageInputRef = useRef(null);
 
   const [rowData, setRowData] = useState(null);
   const [activeTab, setActiveTab] = useState("General");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [countries, setCountries] = useState([]);
+  const [countriesLoading, setCountriesLoading] = useState(false);
 
   useEffect(() => {
     fetchCarData();
+    fetchCountries();
   }, [product_id]);
+
+  const fetchCountries = async () => {
+    setCountriesLoading(true);
+    try {
+      const response = await axios.get(
+        `${base_url}/user/countries/select_countries.php`
+      );
+
+      if (response.data.status === "success") {
+        setCountries(response.data.message || []);
+      } else {
+        console.error("Failed to fetch countries");
+      }
+    } catch (error) {
+      console.error("Error fetching countries:", error);
+    } finally {
+      setCountriesLoading(false);
+    }
+  };
 
   const fetchCarData = async () => {
     try {
@@ -349,16 +367,42 @@ function UpdateCarLayout() {
             </div>
           </div>
 
-          <div>
-            <label className="block mb-1 font-medium">Max Pepole *</label>
-            <input
-              type="number"
-              name="max_people"
-              value={rowData.max_people || ""}
-              onChange={handleChange}
-              className="w-full border border-gray-300 p-2 rounded"
-              onWheel={(e) => e.target.blur()}
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block mb-1 font-medium">Max People *</label>
+              <input
+                type="number"
+                name="max_people"
+                value={rowData.max_people || ""}
+                onChange={handleChange}
+                className="w-full border border-gray-300 p-2 rounded"
+                onWheel={(e) => e.target.blur()}
+              />
+            </div>
+
+            <div>
+              <label className="block mb-1 font-medium">Country *</label>
+              <Select
+                value={rowData.country_id || undefined}
+                onChange={(value) => handleSelectChange("country_id", value)}
+                className="w-full"
+                size="large"
+                showSearch
+                placeholder="Select Country"
+                optionFilterProp="children"
+                loading={countriesLoading}
+                filterOption={(input, option) =>
+                  option.children.toLowerCase().indexOf(input.toLowerCase()) >=
+                  0
+                }
+              >
+                {countries.map((country) => (
+                  <Option key={country.country_id} value={country.country_id}>
+                    {country.country_name}
+                  </Option>
+                ))}
+              </Select>
+            </div>
           </div>
 
           <div>
@@ -437,7 +481,11 @@ function UpdateCarLayout() {
   };
 
   if (isLoading) {
-    return <div className="container mx-auto p-4">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
+      </div>
+    );
   }
 
   if (!rowData) {
