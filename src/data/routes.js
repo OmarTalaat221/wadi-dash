@@ -56,6 +56,7 @@ import Blogs from "../pages/adminBlogs";
 import OfferBanners from "../pages/OfferBanners";
 import HomePageManagement from "../pages/HomePage/HomePage";
 import BlogCategories from "../pages/BlogCategories/BlogCategories";
+import GalleryCategories from "../pages/GalleryCategories";
 
 export const publicRoutes = [
   {
@@ -193,6 +194,13 @@ export const publicRoutes = [
     hidden: false,
     route: "/gallery",
     element: Gallery,
+  },
+  {
+    title: "Gallery Categories",
+    icon: FaImages,
+    hidden: true,
+    route: "/gallery/categories",
+    element: GalleryCategories,
   },
 
   {

@@ -64,6 +64,7 @@ function UpdateTourLayout() {
     includes: [],
     excludes: [],
     gallery: [],
+    extra_images: [],
     features: [],
     images: [],
     days: [],
@@ -136,6 +137,18 @@ function UpdateTourLayout() {
         console.log("Tour data received:", tourData);
         console.log("Raw gallery data:", tourData.gallery);
 
+        let extraImagesData = [];
+
+        if (tourData.extra_images) {
+          if (Array.isArray(tourData.extra_images)) {
+            extraImagesData = tourData.extra_images;
+          } else if (typeof tourData.extra_images === "string") {
+            extraImagesData = tourData.extra_images
+              .split("**")
+              .filter((url) => url.trim());
+          }
+        }
+
         // Convert itinerary to days format for form - include isTourguide
         const days =
           tourData.itinerary?.map((item) => ({
@@ -195,6 +208,8 @@ function UpdateTourLayout() {
           category: tourData.category,
           image: tourData.image,
           route: tourData.route,
+          extra_images: extraImagesData,
+
           price_current: tourData.price_current,
           price_original: tourData.price_original,
           per_adult: tourData.per_adult,
@@ -243,6 +258,11 @@ function UpdateTourLayout() {
   const handleGallerySelection = (selectedIds) => {
     console.log("Gallery selection changed:", selectedIds);
     setFormData((prev) => ({ ...prev, gallery: selectedIds }));
+  };
+
+  const handleExtraImagesChange = (imageUrls) => {
+    console.log("Extra images changed:", imageUrls);
+    setFormData((prev) => ({ ...prev, extra_images: imageUrls }));
   };
 
   const addDay = () => {
@@ -329,6 +349,9 @@ function UpdateTourLayout() {
       gallery: Array.isArray(data.gallery)
         ? data.gallery.join("**")
         : data.gallery,
+      extra_images: Array.isArray(data.extra_images)
+        ? data.extra_images.join("**")
+        : data.extra_images,
     };
   };
 
@@ -558,6 +581,14 @@ function UpdateTourLayout() {
 
       <div className="grid grid-cols-2 gap-4">
         <TextField
+          label="Per Adult"
+          name="per_adult"
+          type="number"
+          value={formData.per_adult}
+          onChange={handleChange}
+          onWheel={(e) => e.target.blur()}
+        />
+        <TextField
           label="Per Child"
           name="per_child"
           type="number"
@@ -565,16 +596,16 @@ function UpdateTourLayout() {
           onChange={handleChange}
           onWheel={(e) => e.target.blur()}
         />
-        <TextField
-          fullWidth
-          label="Price Note"
-          name="price_note"
-          value={formData.price_note}
-          onChange={handleChange}
-          multiline
-          rows={2}
-        />
       </div>
+      <TextField
+        fullWidth
+        label="Price Note"
+        name="price_note"
+        value={formData.price_note}
+        onChange={handleChange}
+        multiline
+        rows={2}
+      />
     </div>
   );
 
@@ -635,6 +666,8 @@ function UpdateTourLayout() {
         <GallerySelector
           selectedImages={formData.gallery}
           onSelectionChange={handleGallerySelection}
+          extraImages={formData.extra_images}
+          onExtraImagesChange={handleExtraImagesChange}
         />
       </div>
     </div>

@@ -23,10 +23,12 @@ import {
   ReloadOutlined,
   EditOutlined,
   GlobalOutlined,
+  FolderOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
 import { base_url } from "../../utils/base_url";
 import { uploadImageToServer } from "../../hooks/uploadImage";
+import { useNavigate } from "react-router-dom";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -34,6 +36,7 @@ const { Option } = Select;
 const Gallery = () => {
   const [photos, setPhotos] = useState([]);
   const [countries, setCountries] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
@@ -42,13 +45,49 @@ const Gallery = () => {
   const [editFileList, setEditFileList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [countriesLoading, setCountriesLoading] = useState(false);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [toggling, setToggling] = useState(null);
 
+  const navigate = useNavigate();
+
   // Forms
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
+
+  // Fetch categories
+  const fetchCategories = async () => {
+    setCategoriesLoading(true);
+    try {
+      const response = await axios.get(
+        `${base_url}/admin/gallary/categories/select_category.php`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.data && response.data.status === "success") {
+        // Filter out hidden categories for selection
+        const visibleCategories = response.data.message.filter(
+          (cat) => cat.hidden === "0"
+        );
+        setCategories(response.data.message || []);
+      } else {
+        message.error("Failed to fetch categories");
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      message.error(
+        error.response?.data?.message ||
+          "Failed to load categories. Please try again."
+      );
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
 
   // Fetch countries
   const fetchCountries = async () => {
@@ -108,10 +147,11 @@ const Gallery = () => {
     }
   };
 
-  // Load gallery and countries on component mount
+  // Load gallery, countries, and categories on component mount
   useEffect(() => {
     fetchGallery();
     fetchCountries();
+    fetchCategories();
   }, []);
 
   // Get country name by ID
@@ -120,6 +160,15 @@ const Gallery = () => {
       (c) => c.country_id === countryId || c.country_id === String(countryId)
     );
     return country ? country.country_name : "Unknown";
+  };
+
+  // Get category name by ID
+  const getCategoryName = (categoryId) => {
+    const category = categories.find(
+      (c) =>
+        c.category_id === categoryId || c.category_id === String(categoryId)
+    );
+    return category ? category.category : "Unknown";
   };
 
   const handleAddPhoto = () => {
@@ -134,6 +183,7 @@ const Gallery = () => {
     editForm.setFieldsValue({
       title: photo.title,
       country_id: photo.country_id ? String(photo.country_id) : undefined,
+      category_id: photo.category_id ? String(photo.category_id) : undefined,
     });
     setEditModalOpen(true);
   };
@@ -221,6 +271,11 @@ const Gallery = () => {
       return;
     }
 
+    if (!values.category_id) {
+      message.error("Please select a category");
+      return;
+    }
+
     setUploading(true);
     try {
       const file = fileList[0].originFileObj || fileList[0];
@@ -236,7 +291,7 @@ const Gallery = () => {
 
       const payload = {
         image: imageUrl,
-        title: values.title,
+        category_id: parseInt(values.category_id),
         country_id: parseInt(values.country_id),
       };
 
@@ -297,15 +352,16 @@ const Gallery = () => {
 
       const payload = {
         id: parseInt(currentPhoto.id),
-        image: imageUrl,
-        title: values.title,
+        category_id: parseInt(values.category_id),
         country_id: parseInt(values.country_id),
+        title: values.title || "",
+        image: imageUrl,
       };
 
       console.log("Updating photo with payload:", payload);
 
       const response = await axios.post(
-        `${base_url}/admin/gallary/update_gallary.php`,
+        `${base_url}/admin/gallary/edit_galary.php`,
         payload,
         {
           headers: {
@@ -413,6 +469,7 @@ const Gallery = () => {
   const handleRefresh = () => {
     fetchGallery();
     fetchCountries();
+    fetchCategories();
   };
 
   return (
@@ -420,6 +477,14 @@ const Gallery = () => {
       <div className="flex justify-between items-center mb-6">
         <Title level={2}>Photo Gallery</Title>
         <Space>
+          <Button
+            type="default"
+            icon={<GlobalOutlined />}
+            onClick={() => navigate("/gallery/categories")}
+          >
+            Manage Categories
+          </Button>
+
           <Button
             icon={<ReloadOutlined />}
             onClick={handleRefresh}
@@ -479,23 +544,37 @@ const Gallery = () => {
                         {visibilityInfo.text}
                       </Tag>
                     </div>
-                    {/* Country Tag */}
-                    {photo.country_id && (
-                      <div className="absolute top-2 left-2">
-                        <Tag
-                          color="blue"
-                          icon={<GlobalOutlined />}
-                          className="m-0"
-                        >
-                          {getCountryName(photo.country_id)}
-                        </Tag>
-                      </div>
-                    )}
+                    {/* Tags */}
+                    <div className="absolute top-2 left-2">
+                      <Space direction="vertical" size="small">
+                        {photo.category_id && (
+                          <Tag
+                            color="purple"
+                            icon={<FolderOutlined />}
+                            className="m-0"
+                          >
+                            {getCategoryName(photo.category_id)}
+                          </Tag>
+                        )}
+                        {photo.country_id && (
+                          <Tag
+                            color="blue"
+                            icon={<GlobalOutlined />}
+                            className="m-0"
+                          >
+                            {getCountryName(photo.country_id)}
+                          </Tag>
+                        )}
+                      </Space>
+                    </div>
                   </div>
                 }
                 actions={[
                   <Tooltip title="Preview Image" key="preview">
                     <EyeOutlined onClick={() => handlePreviewPhoto(photo)} />
+                  </Tooltip>,
+                  <Tooltip title="Edit Image" key="edit">
+                    <EditOutlined onClick={() => handleEditPhoto(photo)} />
                   </Tooltip>,
                   <Tooltip title={visibilityInfo.tooltipText} key="toggle">
                     <VisibilityIcon
@@ -529,6 +608,12 @@ const Gallery = () => {
                   }
                   description={
                     <div className="text-center">
+                      {photo.category_id && (
+                        <p className="text-xs text-purple-600 mb-1">
+                          <FolderOutlined className="mr-1" />
+                          {getCategoryName(photo.category_id)}
+                        </p>
+                      )}
                       {photo.country_id && (
                         <p className="text-xs text-blue-600 mb-1">
                           <GlobalOutlined className="mr-1" />
@@ -563,12 +648,33 @@ const Gallery = () => {
           onFinish={handleUploadPhoto}
           className="py-4"
         >
-          <Form.Item name="title" label="Photo Title">
-            <Input
-              placeholder="Enter a descriptive title for your photo"
-              showCount
-              maxLength={100}
-            />
+          <Form.Item
+            name="category_id"
+            label="Category"
+            rules={[{ required: true, message: "Please select a category" }]}
+          >
+            <Select
+              placeholder="Select a category"
+              loading={categoriesLoading}
+              showSearch
+              optionFilterProp="children"
+              filterOption={(input, option) =>
+                (option?.children ?? "")
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
+              }
+            >
+              {categories
+                .filter((cat) => cat.hidden === "0")
+                .map((category) => (
+                  <Option
+                    key={category.category_id}
+                    value={category.category_id}
+                  >
+                    {category.category}
+                  </Option>
+                ))}
+            </Select>
           </Form.Item>
 
           <Form.Item
@@ -679,6 +785,35 @@ const Gallery = () => {
           </Form.Item>
 
           <Form.Item
+            name="category_id"
+            label="Category"
+            rules={[{ required: true, message: "Please select a category" }]}
+          >
+            <Select
+              placeholder="Select a category"
+              loading={categoriesLoading}
+              showSearch
+              optionFilterProp="children"
+              filterOption={(input, option) =>
+                (option?.children ?? "")
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
+              }
+            >
+              {categories
+                .filter((cat) => cat.hidden === "0")
+                .map((category) => (
+                  <Option
+                    key={category.category_id}
+                    value={category.category_id}
+                  >
+                    {category.category}
+                  </Option>
+                ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item
             name="country_id"
             label="Country"
             rules={[{ required: true, message: "Please select a country" }]}
@@ -777,13 +912,22 @@ const Gallery = () => {
                 <p className="text-base font-medium text-gray-900 mb-2">
                   {currentPhoto?.title || "Untitled"}
                 </p>
-                <Space>
+                <Space wrap>
                   <Tag
                     color={getVisibilityInfo(currentPhoto?.hidden).color}
                     className="text-sm"
                   >
                     {getVisibilityInfo(currentPhoto?.hidden).text}
                   </Tag>
+                  {currentPhoto?.category_id && (
+                    <Tag
+                      color="purple"
+                      icon={<FolderOutlined />}
+                      className="text-sm"
+                    >
+                      {getCategoryName(currentPhoto?.category_id)}
+                    </Tag>
+                  )}
                   {currentPhoto?.country_id && (
                     <Tag
                       color="blue"

@@ -40,14 +40,12 @@ const editorConfig = {
     "italic",
     "underline",
     "strikethrough",
-    "|",
-    "ul",
-    "ol",
+
     "|",
     "font",
     "fontsize",
     "brush",
-    "paragraph",
+
     "|",
     "align",
     "outdent",
@@ -72,9 +70,7 @@ const editorConfig = {
     "bold",
     "italic",
     "underline",
-    "|",
-    "ul",
-    "ol",
+
     "|",
     "font",
     "fontsize",
@@ -86,18 +82,7 @@ const editorConfig = {
     "redo",
   ],
 
-  buttonsSM: [
-    "bold",
-    "italic",
-    "|",
-    "ul",
-    "ol",
-    "|",
-    "link",
-    "|",
-    "undo",
-    "redo",
-  ],
+  buttonsSM: ["bold", "italic", "|", "link", "|", "undo", "redo"],
 
   buttonsXS: ["bold", "italic", "|", "link", "|", "undo", "redo"],
 

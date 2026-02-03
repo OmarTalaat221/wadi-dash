@@ -469,7 +469,7 @@ const TourRequests = () => {
       <Modal
         title={
           <div className="flex items-center gap-3">
-            <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg">
+            <div className="bg-[#295557] text-white p-2 rounded-lg">
               <GlobalOutlined className="text-white text-xl" />
             </div>
             <div>

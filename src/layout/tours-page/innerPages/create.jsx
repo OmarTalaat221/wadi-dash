@@ -59,6 +59,7 @@ function CreateTourLayout() {
     includes: [],
     excludes: [],
     gallary: [],
+    extra_images: [],
     features: [],
     images: [],
     days: [],
@@ -143,6 +144,9 @@ function CreateTourLayout() {
     setFormData((prev) => ({ ...prev, gallary: selectedImageIds }));
   };
 
+  const handleExtraImagesChange = (imageUrls) => {
+    setFormData((prev) => ({ ...prev, extra_images: imageUrls }));
+  };
   const prepareDataForAPI = (data) => {
     return {
       ...data,
@@ -158,6 +162,9 @@ function CreateTourLayout() {
       gallary: Array.isArray(data.gallary)
         ? data.gallary.join("**")
         : data.gallary,
+      extra_images: Array.isArray(data.extra_images)
+        ? data.extra_images.join("**")
+        : data.extra_images,
     };
   };
 
@@ -391,6 +398,14 @@ function CreateTourLayout() {
 
       <div className="grid grid-cols-2 gap-4">
         <TextField
+          label="Per Adult"
+          name="per_adult"
+          type="number"
+          value={formData.per_adult}
+          onChange={handleChange}
+          onWheel={(e) => e.target.blur()}
+        />
+        <TextField
           label="Per Child"
           name="per_child"
           type="number"
@@ -398,16 +413,16 @@ function CreateTourLayout() {
           onChange={handleChange}
           onWheel={(e) => e.target.blur()}
         />
-        <TextField
-          fullWidth
-          label="Price Note"
-          name="price_note"
-          value={formData.price_note}
-          onChange={handleChange}
-          multiline
-          rows={2}
-        />
       </div>
+      <TextField
+        fullWidth
+        label="Price Note"
+        name="price_note"
+        value={formData.price_note}
+        onChange={handleChange}
+        multiline
+        rows={2}
+      />
     </div>
   );
 
@@ -467,6 +482,8 @@ function CreateTourLayout() {
       <GallerySelector
         selectedImages={formData.gallary}
         onSelectionChange={handleGallerySelectionChange}
+        extraImages={formData.extra_images}
+        onExtraImagesChange={handleExtraImagesChange}
       />
     </div>
   );

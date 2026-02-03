@@ -1,5 +1,5 @@
 // components/tours-page/GallerySelector.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -16,14 +16,28 @@ import {
   IconButton,
   CircularProgress,
   Chip,
+  LinearProgress,
 } from "@mui/material";
 import { message } from "antd";
-import { FaEye, FaImages, FaTimes, FaCheck } from "react-icons/fa";
-import { MdClose, MdCheckCircle } from "react-icons/md";
+import {
+  FaEye,
+  FaImages,
+  FaTimes,
+  FaCheck,
+  FaCloudUploadAlt,
+  FaTrash,
+} from "react-icons/fa";
+import { MdClose, MdCheckCircle, MdAddPhotoAlternate } from "react-icons/md";
 import axios from "axios";
 import { base_url } from "../../utils/base_url";
+import { uploadImageToServer } from "../../hooks/uploadImage";
 
-const GallerySelector = ({ selectedImages, onSelectionChange }) => {
+const GallerySelector = ({
+  selectedImages,
+  onSelectionChange,
+  extraImages = [],
+  onExtraImagesChange,
+}) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [currentPreview, setCurrentPreview] = useState(null);
@@ -31,18 +45,21 @@ const GallerySelector = ({ selectedImages, onSelectionChange }) => {
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
 
+  // Extra images state
+  const [uploadedImages, setUploadedImages] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef(null);
+
   // Sync selectedIds with selectedImages prop
   useEffect(() => {
     console.log("GallerySelector - selectedImages prop:", selectedImages);
 
     if (Array.isArray(selectedImages)) {
-      // Handle both simple array of IDs and array of objects
       const normalizedIds = selectedImages.map((item) => {
-        // If it's an object with id property, extract the id
         if (typeof item === "object" && item !== null && item.id) {
           return String(item.id);
         }
-        // Otherwise treat it as a simple ID
         return String(item);
       });
 
@@ -52,6 +69,28 @@ const GallerySelector = ({ selectedImages, onSelectionChange }) => {
       setSelectedIds([]);
     }
   }, [selectedImages]);
+
+  // Sync uploadedImages with extraImages prop
+  useEffect(() => {
+    console.log("GallerySelector - extraImages prop:", extraImages);
+
+    if (Array.isArray(extraImages) && extraImages.length > 0) {
+      // Handle both string array and already parsed array
+      const images = extraImages.map((img, index) => {
+        if (typeof img === "object" && img.url) {
+          return img;
+        }
+        return {
+          id: `extra-${index}-${Date.now()}`,
+          url: img,
+          name: `Extra Image ${index + 1}`,
+        };
+      });
+      setUploadedImages(images);
+    } else {
+      setUploadedImages([]);
+    }
+  }, [extraImages]);
 
   const fetchGalleryImages = async () => {
     setLoading(true);
@@ -90,7 +129,6 @@ const GallerySelector = ({ selectedImages, onSelectionChange }) => {
 
   const handleCloseModal = () => {
     setModalOpen(false);
-    // Reset to original selection on cancel
     if (Array.isArray(selectedImages)) {
       const normalizedIds = selectedImages.map((item) => {
         if (typeof item === "object" && item !== null && item.id) {
@@ -155,6 +193,107 @@ const GallerySelector = ({ selectedImages, onSelectionChange }) => {
     message.success("Image removed from selection");
   };
 
+  // ============ Extra Images Upload Functions ============
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelect = async (event) => {
+    const files = Array.from(event.target.files);
+
+    if (files.length === 0) return;
+
+    // Validate file types
+    const validTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    const invalidFiles = files.filter(
+      (file) => !validTypes.includes(file.type)
+    );
+
+    if (invalidFiles.length > 0) {
+      message.error("Only image files (JPEG, PNG, GIF, WebP) are allowed");
+      return;
+    }
+
+    // Validate file sizes (max 5MB each)
+    const maxSize = 5 * 1024 * 1024;
+    const oversizedFiles = files.filter((file) => file.size > maxSize);
+
+    if (oversizedFiles.length > 0) {
+      message.error("Each image must be less than 5MB");
+      return;
+    }
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    const newUploadedImages = [...uploadedImages];
+    const totalFiles = files.length;
+    let uploadedCount = 0;
+
+    for (const file of files) {
+      try {
+        console.log("Uploading file:", file.name);
+
+        const imageUrl = await uploadImageToServer(file);
+
+        console.log("Upload successful:", imageUrl);
+
+        const newImage = {
+          id: `extra-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          url: imageUrl,
+          name: file.name,
+        };
+
+        newUploadedImages.push(newImage);
+        uploadedCount++;
+        setUploadProgress((uploadedCount / totalFiles) * 100);
+      } catch (error) {
+        console.error("Error uploading file:", file.name, error);
+        message.error(`Failed to upload ${file.name}`);
+      }
+    }
+
+    setUploadedImages(newUploadedImages);
+
+    // Notify parent component
+    const imageUrls = newUploadedImages.map((img) => img.url);
+    onExtraImagesChange?.(imageUrls);
+
+    setUploading(false);
+    setUploadProgress(0);
+
+    // Clear file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+
+    if (uploadedCount > 0) {
+      message.success(`Successfully uploaded ${uploadedCount} image(s)`);
+    }
+  };
+
+  const handleRemoveUploadedImage = (imageId) => {
+    const newImages = uploadedImages.filter((img) => img.id !== imageId);
+    setUploadedImages(newImages);
+
+    // Notify parent component
+    const imageUrls = newImages.map((img) => img.url);
+    onExtraImagesChange?.(imageUrls);
+
+    message.success("Image removed");
+  };
+
+  const handlePreviewUploadedImage = (image) => {
+    setCurrentPreview({
+      id: image.id,
+      image: image.url,
+      title: image.name,
+      created_at: new Date().toISOString(),
+    });
+    setPreviewModalOpen(true);
+  };
+
   const getSelectedImagesInfo = () => {
     console.log("Getting selected images info...");
     console.log("selectedIds:", selectedIds);
@@ -164,14 +303,13 @@ const GallerySelector = ({ selectedImages, onSelectionChange }) => {
       return { count: 0, previews: [] };
     }
 
-    // Filter gallery images that match selected IDs
     const previews = galleryImages
       .filter((img) => {
         const imgIdStr = String(img.id);
         const isSelected = selectedIds.includes(imgIdStr);
         return isSelected;
       })
-      .slice(0, 4); // Show max 4 preview thumbnails
+      .slice(0, 4);
 
     console.log("Selected previews:", previews);
 
@@ -184,101 +322,239 @@ const GallerySelector = ({ selectedImages, onSelectionChange }) => {
   const selectedInfo = getSelectedImagesInfo();
 
   return (
-    <div className="w-full">
-      <label className="block mb-2 text-sm font-medium text-gray-700">
-        Gallery Images
-      </label>
+    <div className="w-full space-y-6">
+      {/* ============ Gallery Selection Section ============ */}
+      <div>
+        <label className="block mb-2 text-sm font-medium text-gray-700">
+          <FaImages className="inline mr-2" />
+          Gallery Images
+        </label>
 
-      {/* Selection Display */}
-      <div className="border border-gray-300 rounded-lg p-4 bg-white">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">
-              {selectedInfo.count} image{selectedInfo.count !== 1 ? "s" : ""}{" "}
-              selected
-            </span>
-            {selectedInfo.count > 0 && (
-              <Chip
-                label={selectedInfo.count}
-                size="small"
-                color="primary"
-                sx={{ height: "20px", fontSize: "11px" }}
-              />
-            )}
+        <div className="border border-gray-300 rounded-lg p-4 bg-white">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">
+                {selectedInfo.count} image{selectedInfo.count !== 1 ? "s" : ""}{" "}
+                selected from gallery
+              </span>
+              {selectedInfo.count > 0 && (
+                <Chip
+                  label={selectedInfo.count}
+                  size="small"
+                  color="primary"
+                  sx={{ height: "20px", fontSize: "11px" }}
+                />
+              )}
+            </div>
+            <Button
+              variant="outlined"
+              startIcon={<FaImages />}
+              onClick={handleOpenModal}
+              size="small"
+              sx={{
+                textTransform: "none",
+                borderColor: "#d1d5db",
+                color: "#374151",
+                "&:hover": {
+                  borderColor: "#9ca3af",
+                  backgroundColor: "#f9fafb",
+                },
+              }}
+            >
+              Browse Gallery
+            </Button>
           </div>
-          <Button
-            variant="outlined"
-            startIcon={<FaImages />}
-            onClick={handleOpenModal}
-            size="small"
-            sx={{
-              textTransform: "none",
-              borderColor: "#d1d5db",
-              color: "#374151",
-              "&:hover": {
-                borderColor: "#9ca3af",
-                backgroundColor: "#f9fafb",
-              },
-            }}
-          >
-            Browse Gallery
-          </Button>
-        </div>
 
-        {selectedInfo.count > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {selectedInfo.previews.map((img) => (
-              <div key={img.id} className="relative group">
-                <div className="relative w-20 h-20 rounded-md overflow-hidden border border-gray-200 shadow-sm">
-                  <img
-                    src={img.image}
-                    alt={img.title || "Gallery image"}
-                    className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                    onClick={() => handlePreview(img)}
-                  />
+          {selectedInfo.count > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {selectedInfo.previews.map((img) => (
+                <div key={img.id} className="relative group">
+                  <div className="relative w-20 h-20 rounded-md overflow-hidden border border-gray-200 shadow-sm">
+                    <img
+                      src={img.image}
+                      alt={img.title || "Gallery image"}
+                      className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => handlePreview(img)}
+                    />
 
-                  {/* Remove button */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemoveImage(String(img.id));
-                    }}
-                    className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md z-10"
-                  >
-                    <FaTimes size={10} />
-                  </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveImage(String(img.id));
+                      }}
+                      className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md z-10"
+                    >
+                      <FaTimes size={10} />
+                    </button>
 
-                  {/* Selected indicator */}
-                  <div className="absolute bottom-1 right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                    <FaCheck size={8} className="text-white" />
+                    <div className="absolute bottom-1 right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                      <FaCheck size={8} className="text-white" />
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
 
-            {selectedInfo.count > 4 && (
-              <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-md flex flex-col items-center justify-center text-sm font-medium text-gray-700 border border-gray-300 shadow-sm">
-                <span className="text-lg font-bold">
-                  +{selectedInfo.count - 4}
-                </span>
-                <span className="text-xs">more</span>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="text-center py-8 bg-gray-50 rounded-md border-2 border-dashed border-gray-200">
-            <FaImages className="mx-auto text-gray-300 mb-2" size={32} />
-            <Typography variant="body2" className="text-gray-500">
-              No images selected
-            </Typography>
-            <Typography variant="caption" className="text-gray-400 block mt-1">
-              Click "Browse Gallery" to select images
-            </Typography>
-          </div>
-        )}
+              {selectedInfo.count > 4 && (
+                <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-md flex flex-col items-center justify-center text-sm font-medium text-gray-700 border border-gray-300 shadow-sm">
+                  <span className="text-lg font-bold">
+                    +{selectedInfo.count - 4}
+                  </span>
+                  <span className="text-xs">more</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-6 bg-gray-50 rounded-md border-2 border-dashed border-gray-200">
+              <FaImages className="mx-auto text-gray-300 mb-2" size={28} />
+              <Typography variant="body2" className="text-gray-500">
+                No gallery images selected
+              </Typography>
+              <Typography
+                variant="caption"
+                className="text-gray-400 block mt-1"
+              >
+                Click "Browse Gallery" to select images
+              </Typography>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Selection Modal */}
+      {/* ============ Extra Images Upload Section ============ */}
+      <div>
+        <label className="block mb-2 text-sm font-medium text-gray-700">
+          <MdAddPhotoAlternate className="inline mr-2" />
+          Extra Images (Upload)
+        </label>
+
+        <div className="border border-gray-300 rounded-lg p-4 bg-white">
+          {/* Upload Area */}
+          <div
+            className={`border-2 border-dashed rounded-lg p-6 text-center transition-all cursor-pointer ${
+              uploading
+                ? "border-blue-400 bg-blue-50"
+                : "border-gray-300 hover:border-blue-400 hover:bg-gray-50"
+            }`}
+            onClick={!uploading ? handleUploadClick : undefined}
+          >
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              multiple
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              onChange={handleFileSelect}
+              disabled={uploading}
+            />
+
+            {uploading ? (
+              <div className="space-y-3">
+                <CircularProgress size={40} />
+                <Typography variant="body2" className="text-blue-600">
+                  Uploading images...
+                </Typography>
+                <Box sx={{ width: "100%", maxWidth: 300, mx: "auto" }}>
+                  <LinearProgress
+                    variant="determinate"
+                    value={uploadProgress}
+                  />
+                </Box>
+                <Typography variant="caption" className="text-gray-500">
+                  {Math.round(uploadProgress)}% complete
+                </Typography>
+              </div>
+            ) : (
+              <>
+                <FaCloudUploadAlt
+                  className="mx-auto text-gray-400 mb-3"
+                  size={40}
+                />
+                <Typography
+                  variant="body1"
+                  className="text-gray-700 font-medium mb-1"
+                >
+                  Click to upload images
+                </Typography>
+                <Typography variant="caption" className="text-gray-500 block">
+                  JPEG, PNG, GIF, WebP up to 5MB each
+                </Typography>
+                <Button
+                  variant="outlined"
+                  startIcon={<FaCloudUploadAlt />}
+                  size="small"
+                  sx={{
+                    mt: 2,
+                    textTransform: "none",
+                    borderColor: "#3b82f6",
+                    color: "#3b82f6",
+                    "&:hover": {
+                      borderColor: "#2563eb",
+                      backgroundColor: "#eff6ff",
+                    },
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleUploadClick();
+                  }}
+                >
+                  Select Files
+                </Button>
+              </>
+            )}
+          </div>
+
+          {/* Uploaded Images Preview */}
+          {uploadedImages.length > 0 && (
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-3">
+                <Typography variant="body2" className="text-gray-600">
+                  {uploadedImages.length} extra image
+                  {uploadedImages.length !== 1 ? "s" : ""} uploaded
+                </Typography>
+                <Chip
+                  label={uploadedImages.length}
+                  size="small"
+                  color="success"
+                  sx={{ height: "20px", fontSize: "11px" }}
+                />
+              </div>
+
+              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+                {uploadedImages.map((img) => (
+                  <div key={img.id} className="relative group">
+                    <div className="relative aspect-square rounded-md overflow-hidden border border-gray-200 shadow-sm">
+                      <img
+                        src={img.url}
+                        alt={img.name || "Uploaded image"}
+                        className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => handlePreviewUploadedImage(img)}
+                      />
+
+                      {/* Remove button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveUploadedImage(img.id);
+                        }}
+                        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md z-10"
+                      >
+                        <FaTimes size={10} />
+                      </button>
+
+                      {/* Upload indicator */}
+                      <div className="absolute bottom-1 right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                        <FaCloudUploadAlt size={8} className="text-white" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ============ Gallery Selection Modal ============ */}
       <Dialog
         open={modalOpen}
         onClose={handleCloseModal}
@@ -383,7 +659,6 @@ const GallerySelector = ({ selectedImages, onSelectionChange }) => {
                             className="h-32 object-cover"
                           />
 
-                          {/* Checkbox */}
                           <div className="absolute top-2 left-2">
                             <Checkbox
                               checked={isSelected}
@@ -405,7 +680,6 @@ const GallerySelector = ({ selectedImages, onSelectionChange }) => {
                             />
                           </div>
 
-                          {/* Selected badge */}
                           {isSelected && (
                             <div className="absolute top-2 right-2">
                               <div className="bg-green-500 text-white rounded-full p-1">
@@ -431,7 +705,6 @@ const GallerySelector = ({ selectedImages, onSelectionChange }) => {
                               ID: {image.id}
                             </Typography>
 
-                            {/* Preview button */}
                             <IconButton
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -485,7 +758,7 @@ const GallerySelector = ({ selectedImages, onSelectionChange }) => {
         </DialogActions>
       </Dialog>
 
-      {/* Preview Modal */}
+      {/* ============ Preview Modal ============ */}
       <Dialog
         open={previewModalOpen}
         onClose={() => setPreviewModalOpen(false)}
