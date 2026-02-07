@@ -5,6 +5,7 @@ import axios from "axios";
 import Tabs from "../../../components/Tabs";
 import TourFeatures from "../../../components/tours-page/TourFeatures";
 import GallerySelector from "../../../components/tours-page/GallerySelector";
+import MapLocationPicker from "../../../components/tours-page/MapLocationPicker";
 import JoditEditor from "jodit-react";
 import {
   Box,
@@ -20,11 +21,14 @@ import {
   InputLabel,
   Switch,
   FormControlLabel,
+  Divider,
+  Chip,
+  Tooltip,
 } from "@mui/material";
 import { Select, Space, message } from "antd";
-import { MdDelete } from "react-icons/md";
-import { FaEye, FaPlus } from "react-icons/fa";
-import { FiPlus } from "react-icons/fi";
+import { MdDelete, MdLocationOn, MdEdit } from "react-icons/md";
+import { FaEye, FaPlus, FaMapMarkerAlt } from "react-icons/fa";
+import { FiPlus, FiMap } from "react-icons/fi";
 import { base_url } from "../../../utils/base_url";
 import TourImages from "../../../components/tours-page/tour-images";
 import editorConfig from "../../../data/joditConfig";
@@ -38,6 +42,11 @@ function UpdateTourLayout() {
   const [hotels, setHotels] = useState([]);
   const [cars, setCars] = useState([]);
   const [activities, setActivities] = useState([]);
+
+  // Map Picker State
+  const [mapPickerOpen, setMapPickerOpen] = useState(false);
+  const [editingLocationIndex, setEditingLocationIndex] = useState(null);
+  const [editingDayIndex, setEditingDayIndex] = useState(null);
 
   const [formData, setFormData] = useState({
     id: product_id,
@@ -121,9 +130,7 @@ function UpdateTourLayout() {
 
       const response = await axios.post(
         `${base_url}/admin/tours/tour_details.php`,
-        {
-          id: product_id,
-        }
+        { id: product_id }
       );
 
       console.log("Tour details response:", response.data);
@@ -135,10 +142,8 @@ function UpdateTourLayout() {
         const tourData = response.data.message[0];
 
         console.log("Tour data received:", tourData);
-        console.log("Raw gallery data:", tourData.gallery);
 
         let extraImagesData = [];
-
         if (tourData.extra_images) {
           if (Array.isArray(tourData.extra_images)) {
             extraImagesData = tourData.extra_images;
@@ -149,26 +154,41 @@ function UpdateTourLayout() {
           }
         }
 
-        // Convert itinerary to days format for form - include isTourguide
+        // Convert itinerary to days format - handle day_locations
         const days =
-          tourData.itinerary?.map((item) => ({
-            day: item.day,
-            day_id: item.day_id,
-            title: item.title,
-            description: item.description,
-            hotel_id: item.hotel_options?.map((h) => Number(h.hotel_id)) || [],
-            car_id: item.cars_options?.map((c) => Number(c.car_id)) || [],
-            activity_id:
-              item.activities_options?.map((a) => Number(a.activity_id)) || [],
-            isTourguide: item.isTourguide ? Number(item.isTourguide) : 0, // Parse isTourguide from API
-            isExisting: true,
-          })) || [];
+          tourData.itinerary?.map((item) => {
+            console.log(`Day ${item.day} locations:`, item.day_locations);
 
-        console.log("Converted days:", days);
+            return {
+              day: item.day,
+              day_id: item.day_id,
+              title: item.title,
+              description: item.description,
+              hotel_id:
+                item.hotel_options?.map((h) => Number(h.hotel_id)) || [],
+              car_id: item.cars_options?.map((c) => Number(c.car_id)) || [],
+              activity_id:
+                item.activities_options?.map((a) => Number(a.activity_id)) ||
+                [],
+              isTourguide: item.isTourguide ? Number(item.isTourguide) : 0,
+              // Parse day_locations from API
+              locations:
+                item.day_locations?.map((loc) => ({
+                  location_id: loc.location_id,
+                  itinerary_id: loc.itinerary_id,
+                  latitude: loc.latitude,
+                  longitude: loc.longitude,
+                  description: loc.description || "",
+                  isExisting: true,
+                })) || [],
+              isExisting: true,
+            };
+          }) || [];
+
+        console.log("Converted days with locations:", days);
 
         // Parse gallery data
         let galleryData = [];
-
         if (tourData.gallery) {
           if (Array.isArray(tourData.gallery)) {
             if (
@@ -177,21 +197,16 @@ function UpdateTourLayout() {
               tourData.gallery[0].id
             ) {
               galleryData = tourData.gallery.map((item) => String(item.id));
-              console.log("Parsed gallery from array of objects:", galleryData);
             } else {
               galleryData = tourData.gallery.map((id) => String(id));
-              console.log("Parsed gallery from simple array:", galleryData);
             }
           } else if (typeof tourData.gallery === "string") {
             galleryData = tourData.gallery
               .split("**")
               .filter((id) => id.trim())
               .map((id) => String(id.trim()));
-            console.log("Parsed gallery from string:", galleryData);
           }
         }
-
-        console.log("Final parsed gallery data:", galleryData);
 
         const features = tourData.features || [];
 
@@ -209,7 +224,6 @@ function UpdateTourLayout() {
           image: tourData.image,
           route: tourData.route,
           extra_images: extraImagesData,
-
           price_current: tourData.price_current,
           price_original: tourData.price_original,
           per_adult: tourData.per_adult,
@@ -239,8 +253,7 @@ function UpdateTourLayout() {
           days: days,
         });
 
-        console.log("Form data set successfully");
-        console.log("Gallery in formData:", galleryData);
+        console.log("Form data set successfully with days:", days);
       }
     } catch (error) {
       console.error("Error loading tour data:", error);
@@ -256,15 +269,14 @@ function UpdateTourLayout() {
   };
 
   const handleGallerySelection = (selectedIds) => {
-    console.log("Gallery selection changed:", selectedIds);
     setFormData((prev) => ({ ...prev, gallery: selectedIds }));
   };
 
   const handleExtraImagesChange = (imageUrls) => {
-    console.log("Extra images changed:", imageUrls);
     setFormData((prev) => ({ ...prev, extra_images: imageUrls }));
   };
 
+  // ============ Day Functions ============
   const addDay = () => {
     const newDay = {
       day: formData.days.length + 1,
@@ -273,7 +285,8 @@ function UpdateTourLayout() {
       hotel_id: [],
       car_id: [],
       activity_id: [],
-      isTourguide: 0, // Add isTourguide field with default value 0
+      isTourguide: 0,
+      locations: [],
       isExisting: false,
     };
     setFormData((prev) => ({ ...prev, days: [...prev.days, newDay] }));
@@ -294,11 +307,9 @@ function UpdateTourLayout() {
           }
         );
 
-        console.log("Delete day response:", deleteResponse.data);
-
         if (deleteResponse.data.status !== "success") {
           message.warning(
-            `Failed to delete day from server: ${deleteResponse.data.message}`
+            `Failed to delete day: ${deleteResponse.data.message}`
           );
           setLoading(false);
           return;
@@ -329,9 +340,144 @@ function UpdateTourLayout() {
     setFormData((prev) => ({ ...prev, days: updatedDays }));
   };
 
-  // Handle tour guide toggle
   const handleTourguideToggle = (index, checked) => {
     handleDayChange(index, "isTourguide", checked ? 1 : 0);
+  };
+
+  // ============ Location Functions ============
+
+  const openMapPickerForNewLocation = (dayIndex) => {
+    setEditingDayIndex(dayIndex);
+    setEditingLocationIndex(null);
+    setMapPickerOpen(true);
+  };
+
+  const openMapPickerForEdit = (dayIndex, locationIndex) => {
+    setEditingDayIndex(dayIndex);
+    setEditingLocationIndex(locationIndex);
+    setMapPickerOpen(true);
+  };
+
+  const getCurrentLocationForEdit = () => {
+    if (editingLocationIndex !== null && editingDayIndex !== null) {
+      return formData.days[editingDayIndex]?.locations[editingLocationIndex];
+    }
+    return null;
+  };
+
+  // تأكيد اختيار الموقع من الخريطة
+  const handleMapConfirm = async (locationData) => {
+    const updatedDays = [...formData.days];
+
+    if (!updatedDays[editingDayIndex].locations) {
+      updatedDays[editingDayIndex].locations = [];
+    }
+
+    if (editingLocationIndex !== null) {
+      // تعديل موقع موجود
+      const existingLocation =
+        updatedDays[editingDayIndex].locations[editingLocationIndex];
+
+      if (existingLocation.isExisting && existingLocation.location_id) {
+        // إذا كان موقع موجود في قاعدة البيانات، نحدثه عبر API
+        try {
+          setLoading(true);
+          const response = await axios.post(
+            `${base_url}/admin/tours/map/edit_map_locations.php`,
+            {
+              location_id: existingLocation.location_id,
+              latitude: locationData.latitude,
+              longitude: locationData.longitude,
+              description: locationData.description,
+            }
+          );
+
+          console.log("Edit location response:", response.data);
+
+          if (response.data.status === "success") {
+            updatedDays[editingDayIndex].locations[editingLocationIndex] = {
+              ...existingLocation,
+              latitude: locationData.latitude,
+              longitude: locationData.longitude,
+              description: locationData.description,
+            };
+            message.success("Location updated successfully!");
+          } else {
+            message.error(
+              "Failed to update location: " + response.data.message
+            );
+            setLoading(false);
+            return;
+          }
+        } catch (error) {
+          console.error("Error updating location:", error);
+          message.error("Failed to update location");
+          setLoading(false);
+          return;
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        // موقع جديد لم يُحفظ بعد
+        updatedDays[editingDayIndex].locations[editingLocationIndex] = {
+          ...locationData,
+          isExisting: false,
+        };
+        message.success("Location updated!");
+      }
+    } else {
+      // إضافة موقع جديد
+      updatedDays[editingDayIndex].locations.push({
+        ...locationData,
+        isExisting: false,
+      });
+      message.success("Location added!");
+    }
+
+    setFormData((prev) => ({ ...prev, days: updatedDays }));
+    setMapPickerOpen(false);
+    setEditingLocationIndex(null);
+    setEditingDayIndex(null);
+  };
+
+  // حذف موقع
+  const removeLocation = async (dayIndex, locationIndex) => {
+    const location = formData.days[dayIndex].locations[locationIndex];
+
+    // إذا كان الموقع موجود في قاعدة البيانات، نحذفه عبر API
+    if (location.isExisting && location.location_id) {
+      try {
+        setLoading(true);
+        const response = await axios.post(
+          `${base_url}/admin/tours/map/delete_location.php`,
+          {
+            location_id: location.location_id,
+          }
+        );
+
+        console.log("Delete location response:", response.data);
+
+        if (response.data.status !== "success") {
+          message.error("Failed to delete location: " + response.data.message);
+          setLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.error("Error deleting location:", error);
+        message.error("Failed to delete location");
+        setLoading(false);
+        return;
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    const updatedDays = [...formData.days];
+    updatedDays[dayIndex].locations = updatedDays[dayIndex].locations.filter(
+      (_, i) => i !== locationIndex
+    );
+    setFormData((prev) => ({ ...prev, days: updatedDays }));
+    message.success("Location removed!");
   };
 
   const prepareDataForAPI = (data) => {
@@ -365,7 +511,6 @@ function UpdateTourLayout() {
       const { features, days, images, ...tourData } = apiData;
 
       console.log("Updating tour with data:", tourData);
-      console.log("Gallery being sent:", tourData.gallery);
 
       const tourResponse = await axios.post(
         `${base_url}/admin/tours/edit_tour.php`,
@@ -394,55 +539,92 @@ function UpdateTourLayout() {
               activity_id: Array.isArray(day.activity_id)
                 ? day.activity_id.join(",")
                 : day.activity_id,
-              isTourguide: day.isTourguide || 0, // Include isTourguide in API call
+              isTourguide: day.isTourguide || 0,
             };
 
             try {
               let dayResponse;
+              let itineraryId = day.day_id;
 
               if (day.isExisting) {
-                console.log(
-                  `Updating existing day ${index + 1} with data:`,
-                  dayData
-                );
-
+                console.log(`Updating existing day ${index + 1}:`, dayData);
                 dayResponse = await axios.post(
                   `${base_url}/admin/tours/days/edit_tour_day.php`,
                   dayData
                 );
               } else {
-                console.log(`Adding new day ${index + 1} with data:`, dayData);
+                console.log(`Adding new day ${index + 1}:`, dayData);
                 dayResponse = await axios.post(
                   `${base_url}/admin/tours/days/add_tour_day.php`,
                   dayData
                 );
+
+                // Extract itinerary_id from new day response
+                if (dayResponse.data.status === "success") {
+                  itineraryId =
+                    dayResponse.data.itinerary_id ||
+                    dayResponse.data.day_id ||
+                    dayResponse.data.id ||
+                    dayResponse.data.message?.itinerary_id ||
+                    dayResponse.data.data?.itinerary_id;
+                }
               }
 
-              console.log(
-                `Day ${index + 1} ${
-                  day.isExisting ? "update" : "add"
-                } response:`,
-                dayResponse.data
-              );
+              console.log(`Day ${index + 1} response:`, dayResponse.data);
 
               if (dayResponse.data.status !== "success") {
-                console.error(
-                  `Failed to ${day.isExisting ? "update" : "add"} day ${
-                    index + 1
-                  }:`,
-                  dayResponse.data
-                );
                 message.warning(
-                  `Day ${index + 1} ${
-                    day.isExisting ? "update" : "add"
-                  } failed: ${dayResponse.data.message || "Unknown error"}`
+                  `Day ${index + 1} failed: ${dayResponse.data.message}`
                 );
+                continue;
+              }
+
+              // Process new locations for this day (only add new ones)
+              if (day.locations && day.locations.length > 0 && itineraryId) {
+                for (const [locIndex, location] of day.locations.entries()) {
+                  // Only add NEW locations (not existing ones)
+                  if (
+                    !location.isExisting &&
+                    location.latitude &&
+                    location.longitude
+                  ) {
+                    try {
+                      const locationData = {
+                        tour_id: product_id,
+                        itinerary_id: itineraryId,
+                        latitude: location.latitude,
+                        longitude: location.longitude,
+                        description: location.description || "",
+                      };
+
+                      console.log(
+                        `Adding new location for day ${index + 1}:`,
+                        locationData
+                      );
+
+                      const locationResponse = await axios.post(
+                        `${base_url}/admin/tours/map/add_map_locations.php`,
+                        locationData
+                      );
+
+                      console.log(`Location response:`, locationResponse.data);
+
+                      if (locationResponse.data.status === "success") {
+                        message.success(`Location added to Day ${index + 1}`);
+                      } else {
+                        message.warning(
+                          `Failed to add location to Day ${index + 1}`
+                        );
+                      }
+                    } catch (locationError) {
+                      console.error(`Error adding location:`, locationError);
+                    }
+                  }
+                }
               }
             } catch (dayError) {
               console.error(`Error processing day ${index + 1}:`, dayError);
-              message.warning(
-                `Failed to process day ${index + 1}: ${dayError.message}`
-              );
+              message.warning(`Failed to process day ${index + 1}`);
             }
           }
         }
@@ -450,18 +632,11 @@ function UpdateTourLayout() {
         message.success("Tour updated successfully!");
         navigate("/tours");
       } else {
-        console.error("Tour update failed:", tourResponse.data);
-        message.error(
-          `Failed to update tour: ${
-            tourResponse.data.message || "Unknown error"
-          }`
-        );
+        message.error(`Failed to update tour: ${tourResponse.data.message}`);
       }
     } catch (error) {
       console.error("Error updating tour:", error);
-      message.error(
-        `An error occurred while updating the tour: ${error.message}`
-      );
+      message.error(`An error occurred: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -526,7 +701,6 @@ function UpdateTourLayout() {
           value={formData.category}
           onChange={handleChange}
         />
-
         <TextField
           fullWidth
           label="Max Persons"
@@ -534,17 +708,14 @@ function UpdateTourLayout() {
           type="number"
           value={formData.max_persons}
           onChange={handleChange}
-          placeholder="Enter maximum number of persons"
           onWheel={(e) => e.target.blur()}
         />
-
         <TextField
           fullWidth
           label="Video Link"
           name="video_link"
           value={formData.video_link}
           onChange={handleChange}
-          placeholder="Enter video link"
         />
       </div>
 
@@ -616,16 +787,13 @@ function UpdateTourLayout() {
         <Select
           mode="tags"
           style={{ width: "100%" }}
-          placeholder="Add highlights (press Enter to add each one)"
+          placeholder="Add highlights"
           value={formData.highlights}
           onChange={(values) =>
             setFormData((prev) => ({ ...prev, highlights: values }))
           }
           tokenSeparators={[","]}
         />
-        <div className="text-sm text-gray-500 mt-1">
-          Type and press Enter to add each highlight
-        </div>
       </div>
 
       <div>
@@ -633,16 +801,13 @@ function UpdateTourLayout() {
         <Select
           mode="tags"
           style={{ width: "100%" }}
-          placeholder="Add what's included (press Enter to add each one)"
+          placeholder="Add what's included"
           value={formData.includes}
           onChange={(values) =>
             setFormData((prev) => ({ ...prev, includes: values }))
           }
           tokenSeparators={[","]}
         />
-        <div className="text-sm text-gray-500 mt-1">
-          Type and press Enter to add each item
-        </div>
       </div>
 
       <div>
@@ -650,26 +815,21 @@ function UpdateTourLayout() {
         <Select
           mode="tags"
           style={{ width: "100%" }}
-          placeholder="Add what's excluded (press Enter to add each one)"
+          placeholder="Add what's excluded"
           value={formData.excludes}
           onChange={(values) =>
             setFormData((prev) => ({ ...prev, excludes: values }))
           }
           tokenSeparators={[","]}
         />
-        <div className="text-sm text-gray-500 mt-1">
-          Type and press Enter to add each item
-        </div>
       </div>
 
-      <div>
-        <GallerySelector
-          selectedImages={formData.gallery}
-          onSelectionChange={handleGallerySelection}
-          extraImages={formData.extra_images}
-          onExtraImagesChange={handleExtraImagesChange}
-        />
-      </div>
+      <GallerySelector
+        selectedImages={formData.gallery}
+        onSelectionChange={handleGallerySelection}
+        extraImages={formData.extra_images}
+        onExtraImagesChange={handleExtraImagesChange}
+      />
     </div>
   );
 
@@ -677,6 +837,7 @@ function UpdateTourLayout() {
     <TourImages rowData={formData} setRowData={setFormData} />
   );
 
+  // ============ Render Days Tab ============
   const renderDaysTab = () => (
     <div className="border p-4 rounded">
       <div className="flex justify-between items-center mb-4">
@@ -686,17 +847,26 @@ function UpdateTourLayout() {
         </Button>
       </div>
 
-      <div className="flex gap-2 mb-4 overflow-x-auto">
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
         {formData.days.map((day, index) => (
           <Button
             key={index}
             variant={activeDay === index ? "contained" : "outlined"}
             onClick={() => setActiveDay(index)}
-            className="min-w-[120px]"
+            className="min-w-[120px] flex-shrink-0"
           >
-            Day {day.day}{" "}
+            Day {day.day}
             {!day.isExisting && <span className="ml-1 text-xs">(New)</span>}
-            {day.isTourguide === 1 && <span className="ml-1 text-xs">🎯</span>}
+            {day.isTourguide === 1 && <span className="ml-1">🎯</span>}
+            {day.locations && day.locations.length > 0 && (
+              <Chip
+                size="small"
+                label={`📍${day.locations.length}`}
+                color="secondary"
+                className="ml-1"
+                sx={{ height: 18, fontSize: 10 }}
+              />
+            )}
             <IconButton
               size="small"
               onClick={(e) => {
@@ -733,7 +903,7 @@ function UpdateTourLayout() {
             />
           </div>
 
-          {/* Tour Guide Toggle Switch */}
+          {/* Tour Guide Toggle */}
           <div className="bg-gray-50 p-4 rounded-lg border">
             <FormControlLabel
               control={
@@ -756,13 +926,150 @@ function UpdateTourLayout() {
             />
           </div>
 
+          {/* ============ Map Locations Section ============ */}
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-2">
+                <FaMapMarkerAlt className="text-blue-600 text-xl" />
+                <h4 className="font-bold text-blue-800">Map Locations</h4>
+                {formData.days[activeDay]?.locations?.length > 0 && (
+                  <Chip
+                    label={`${formData.days[activeDay].locations.length} location(s)`}
+                    size="small"
+                    color="primary"
+                  />
+                )}
+              </div>
+              {formData.days[activeDay]?.locations?.length < 1 && (
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<FiMap />}
+                  onClick={() => openMapPickerForNewLocation(activeDay)}
+                  sx={{ backgroundColor: "#2563eb" }}
+                >
+                  Add from Map
+                </Button>
+              )}
+            </div>
+
+            {formData.days[activeDay]?.locations &&
+            formData.days[activeDay].locations.length > 0 ? (
+              <div className="space-y-3">
+                {formData.days[activeDay].locations.map(
+                  (location, locIndex) => (
+                    <div
+                      key={locIndex}
+                      className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-start gap-3 flex-1">
+                          <div className="bg-red-100 p-2 rounded-full">
+                            <MdLocationOn className="text-red-500 text-xl" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <span className="font-semibold text-gray-800">
+                                Location {locIndex + 1}
+                              </span>
+                              {location.isExisting && (
+                                <Chip
+                                  size="small"
+                                  label="Saved"
+                                  color="success"
+                                  sx={{ fontSize: 10, height: 20 }}
+                                />
+                              )}
+                              {!location.isExisting && (
+                                <Chip
+                                  size="small"
+                                  label="New"
+                                  color="warning"
+                                  sx={{ fontSize: 10, height: 20 }}
+                                />
+                              )}
+                              <Chip
+                                size="small"
+                                label={`${parseFloat(location.latitude).toFixed(4)}, ${parseFloat(location.longitude).toFixed(4)}`}
+                                variant="outlined"
+                                sx={{ fontSize: 10 }}
+                              />
+                            </div>
+                            {location.description && (
+                              <p className="text-gray-600 text-sm mb-1">
+                                {location.description}
+                              </p>
+                            )}
+                            <a
+                              href={`https://www.google.com/maps?q=${location.latitude},${location.longitude}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                            >
+                              <FaEye size={10} />
+                              View on Google Maps
+                            </a>
+                          </div>
+                        </div>
+                        <div className="flex gap-1">
+                          <Tooltip title="Edit Location">
+                            <IconButton
+                              size="small"
+                              onClick={() =>
+                                openMapPickerForEdit(activeDay, locIndex)
+                              }
+                              color="primary"
+                            >
+                              <MdEdit />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Remove Location">
+                            <IconButton
+                              size="small"
+                              onClick={() =>
+                                removeLocation(activeDay, locIndex)
+                              }
+                              color="error"
+                              disabled={loading}
+                            >
+                              <MdDelete />
+                            </IconButton>
+                          </Tooltip>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500 bg-white rounded-lg border-2 border-dashed border-gray-300">
+                <FiMap className="text-4xl mx-auto mb-2 text-gray-300" />
+                <p className="font-medium">No locations added yet</p>
+                <p className="text-sm mb-3">
+                  Click "Add from Map" to select locations
+                </p>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<FiMap />}
+                  onClick={() => openMapPickerForNewLocation(activeDay)}
+                >
+                  Open Map
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <Divider className="my-4" />
+
+          {/* Hotels, Cars, Activities Selection */}
           <FormControl fullWidth>
             <label className="block mb-1 font-medium">Select Hotels</label>
             <Select
               mode="multiple"
               allowClear
               style={{ width: "100%" }}
-              placeholder="Please select hotels for this day"
+              placeholder="Select hotels for this day"
               value={formData.days[activeDay]?.hotel_id || []}
               onChange={(value) =>
                 handleDayChange(activeDay, "hotel_id", value)
@@ -785,7 +1092,7 @@ function UpdateTourLayout() {
               mode="multiple"
               allowClear
               style={{ width: "100%" }}
-              placeholder="Please select cars for this day"
+              placeholder="Select cars for this day"
               value={formData.days[activeDay]?.car_id || []}
               onChange={(value) => handleDayChange(activeDay, "car_id", value)}
               filterOption={(input, option) =>
@@ -806,7 +1113,7 @@ function UpdateTourLayout() {
               mode="multiple"
               allowClear
               style={{ width: "100%" }}
-              placeholder="Please select activities for this day"
+              placeholder="Select activities for this day"
               value={formData.days[activeDay]?.activity_id || []}
               onChange={(value) =>
                 handleDayChange(activeDay, "activity_id", value)
@@ -822,6 +1129,19 @@ function UpdateTourLayout() {
               }))}
             />
           </FormControl>
+        </div>
+      )}
+
+      {formData.days.length === 0 && (
+        <div className="text-center py-12 text-gray-500 border-2 border-dashed rounded-lg">
+          <FaPlus className="text-4xl mx-auto mb-3 text-gray-300" />
+          <p className="text-lg font-medium">No days added yet</p>
+          <p className="text-sm mb-4">
+            Click "Add Day" to start building your itinerary
+          </p>
+          <Button variant="contained" startIcon={<FaPlus />} onClick={addDay}>
+            Add First Day
+          </Button>
         </div>
       )}
     </div>
@@ -867,11 +1187,18 @@ function UpdateTourLayout() {
 
       <form
         onSubmit={handleSubmit}
-        className="space-y-6 bg-white p-5 rounded-lg"
+        className="space-y-6 bg-white p-5 rounded-lg shadow"
       >
         {renderTabContent()}
 
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-3">
+          <Button
+            type="button"
+            variant="outlined"
+            onClick={() => navigate("/tours")}
+          >
+            Cancel
+          </Button>
           <Button
             type="submit"
             variant="contained"
@@ -882,6 +1209,18 @@ function UpdateTourLayout() {
           </Button>
         </div>
       </form>
+
+      {/* Map Location Picker Modal */}
+      <MapLocationPicker
+        open={mapPickerOpen}
+        onClose={() => {
+          setMapPickerOpen(false);
+          setEditingLocationIndex(null);
+          setEditingDayIndex(null);
+        }}
+        onConfirm={handleMapConfirm}
+        initialLocation={getCurrentLocationForEdit()}
+      />
     </div>
   );
 }
