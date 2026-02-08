@@ -1,7 +1,6 @@
-import React from 'react';
-import SideBar from '../sidebar';
-import Header from '../header';
-import BreadCrumbs from '../../components/bread-crumbs';
+import React from "react";
+import SideBar from "../sidebar";
+import Header from "../header";
 
 function DefaultLayout({ children }) {
   return (
@@ -9,7 +8,6 @@ function DefaultLayout({ children }) {
       <SideBar />
       <div className="body-layout">
         <Header />
-        
         <div className="content-layout">{children}</div>
       </div>
     </div>

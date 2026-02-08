@@ -1,13 +1,14 @@
-import DashboardRoutes from './components/routes';
-import DefaultLayout from './layout/default';
-import 'react-quill/dist/quill.snow.css';
-
+import { BrowserRouter } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
+import DashboardRoutes from "./components/routes";
+import "react-quill/dist/quill.snow.css";
 
 function App() {
   return (
-    <DefaultLayout>
+    <>
+      <Toaster position="top-center" />
       <DashboardRoutes />
-    </DefaultLayout>
+    </>
   );
 }
 

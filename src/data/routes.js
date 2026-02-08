@@ -33,6 +33,7 @@ import {
   FaNewspaper,
   FaQuestionCircle,
   FaRunning,
+  FaUser,
   FaUserFriends,
   FaUsers,
 } from "react-icons/fa";
@@ -57,18 +58,19 @@ import OfferBanners from "../pages/OfferBanners";
 import HomePageManagement from "../pages/HomePage/HomePage";
 import BlogCategories from "../pages/BlogCategories/BlogCategories";
 import GalleryCategories from "../pages/GalleryCategories";
-
+import { AiOutlineProduct } from "react-icons/ai";
+import AdminUsers from "../pages/AdminUsers/AdminUsers";
 export const publicRoutes = [
   {
     title: "Dashboard",
-    icon: "/space_dashboard.svg",
+    icon: FaHome,
     hidden: false,
     route: "/",
     element: Home,
   },
   {
     title: "Tours",
-    icon: "/Product.svg",
+    icon: AiOutlineProduct,
     hidden: false,
     route: "/tours",
     element: Tours,
@@ -178,6 +180,14 @@ export const publicRoutes = [
         element: UpdateActivity,
       },
     ],
+  },
+
+  {
+    title: "Admins",
+    icon: FaUser,
+    hidden: false,
+    route: "/admins",
+    element: AdminUsers,
   },
 
   {
@@ -341,9 +351,9 @@ export const publicRoutes = [
 export const authRoutes = [
   {
     title: "Login",
-    icon: "",
+    icon: null,
     hidden: true,
-    route: "*",
+    route: "/login",
     element: Login,
   },
 ];
