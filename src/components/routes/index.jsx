@@ -21,10 +21,10 @@ function DashboardRoutes() {
 
       {/* Protected Routes - WITH Sidebar */}
       {publicRoutes?.map((item, index) => {
-        if (item?.hidden) return null;
-
+        // Skip routes that are hidden from menu (but still render them if they have a route)
         return (
           <React.Fragment key={`route-${index}`}>
+            {/* Main Route */}
             <Route
               path={item.route}
               element={
@@ -37,9 +37,9 @@ function DashboardRoutes() {
                 )
               }
             />
-            {item?.subLinks?.map((sub_item, sub_index) => {
-              if (sub_item?.hidden) return null;
 
+            {/* Sub Routes - Render ALL sub routes, even if hidden */}
+            {item?.subLinks?.map((sub_item, sub_index) => {
               return (
                 <Route
                   key={`sub-${index}-${sub_index}`}
@@ -60,7 +60,7 @@ function DashboardRoutes() {
         );
       })}
 
-      {/* Default redirect */}
+      {/* Catch all - redirect to login */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
