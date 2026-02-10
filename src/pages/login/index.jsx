@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import axios from "axios";
 import { base_url } from "../../utils/base_url";
-import Logo from "../../components/sidebar/logo";
 
 function Login() {
   const navigate = useNavigate();
