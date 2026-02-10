@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import axios from "axios";
 import { base_url } from "../../utils/base_url";
+import Logo from "../../components/sidebar/logo";
 
 function Login() {
   const navigate = useNavigate();
@@ -68,12 +69,13 @@ function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-[#295557] rounded-full mb-4">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="white">
-              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
-            </svg>
-          </div>
+        <div className="text-center mb-8 p-2">
+          <img
+            src="https://res.cloudinary.com/dkc5klynm/image/upload/v1769242456/W_eaaxsn.png"
+            alt=""
+            className="w-20 h-20 mx-auto mb-4"
+          />
+
           <h1 className="text-2xl font-bold text-gray-900">Wady Way Admin</h1>
           <p className="text-gray-600 mt-2">Sign in to your account</p>
         </div>
