@@ -51,14 +51,15 @@ function UpdateAccomLayout() {
     setLoading(true);
 
     try {
-      const response = await axios.get(
-        `${base_url}/admin/hotels/select_hotels.php`
+      const response = await axios.post(
+        `${base_url}/admin/hotels/hotel_by_id.php`,
+        {
+          hotel_id: product_id,
+        }
       );
 
       if (response.data.status === "success") {
-        const hotel = response.data.message.find(
-          (h) => h.id === product_id.toString()
-        );
+        const hotel = response.data.message[0];
 
         if (hotel) {
           setRowData(hotel);
@@ -232,8 +233,8 @@ function UpdateAccomLayout() {
                 <Option value="hotel">Hotel</Option>
                 <Option value="Luxury Resort">Luxury Resort</Option>
                 <Option value="trip_package">Trip Package</Option>
-                <Option value="activity">Activity</Option>
-                <Option value="car">Car Rental</Option>
+                {/* <Option value="activity">Activity</Option> */}
+                {/* <Option value="car">Car Rental</Option> */}
               </Select>
             </div>
 

@@ -1,9 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Button,
-  Card,
-  Col,
-  Row,
   Modal,
   Select,
   message,
@@ -12,6 +9,8 @@ import {
   Divider,
   Radio,
   Tooltip,
+  Table,
+  Input,
 } from "antd";
 import {
   CheckCircleOutlined,
@@ -19,71 +18,105 @@ import {
   EyeOutlined,
   EditOutlined,
   ToolOutlined,
-  ThunderboltOutlined,
+  SearchOutlined,
 } from "@ant-design/icons";
-import DataTable from "../../../layout/DataTable";
 import axios from "axios";
 import { base_url } from "../../../utils/base_url";
+import useTabPagination from "../../../hooks/useTabPagination";
 
 const { Option } = Select;
 
 const CarsRequests = () => {
+  const {
+    currentPage,
+    currentPageSize,
+    currentStatus,
+    currentManual,
+    currentSearch,
+    setPage,
+    setStatus,
+    setManual,
+    setSearch,
+  } = useTabPagination("car", 10);
+
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState([]);
-  const [filteredData, setFilteredData] = useState([]);
+  const [total, setTotal] = useState(0);
   const [rowData, setRowData] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isManualModalVisible, setIsManualModalVisible] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [manualFilter, setManualFilter] = useState("all");
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState("");
   const [manualUpdateRecord, setManualUpdateRecord] = useState(null);
+  const [searchDebounce, setSearchDebounce] = useState(currentSearch);
 
-  // Fetch cars requests
-  const fetchCarsRequests = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get(
-        `${base_url}/admin/cars/select_cars_requests.php`
-      );
-
-      if (response.data.status === "success") {
-        setData(response.data.message);
-        setFilteredData(response.data.message);
-      } else {
-        message.error("Failed to fetch cars requests");
-      }
-    } catch (error) {
-      console.error("Error fetching cars requests:", error);
-      message.error("Error fetching data");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Sync searchDebounce with URL on mount
   useEffect(() => {
-    fetchCarsRequests();
+    setSearchDebounce(currentSearch);
   }, []);
 
-  // Filter data based on status and manual
+  // Debounce search
   useEffect(() => {
-    let filtered = data;
+    const timer = setTimeout(() => {
+      if (searchDebounce !== currentSearch) {
+        setSearch(searchDebounce);
+      }
+    }, 500);
 
-    if (statusFilter !== "all") {
-      filtered = filtered.filter(
-        (item) => item.status?.toLowerCase() === statusFilter
-      );
-    }
+    return () => clearTimeout(timer);
+  }, [searchDebounce, currentSearch, setSearch]);
 
-    if (manualFilter !== "all") {
-      filtered = filtered.filter((item) => item.manual === manualFilter);
-    }
+  const fetchCarsRequests = useCallback(
+    async (page, pageSize, status, manual, search, showLoading = true) => {
+      if (showLoading) setLoading(true);
+      try {
+        const params = { page, limit: pageSize };
+        if (status !== "all") params.status = status;
+        if (manual !== "all") params.manual = manual;
+        if (search) params.search = search;
 
-    setFilteredData(filtered);
-  }, [statusFilter, manualFilter, data]);
+        const response = await axios.get(
+          `${base_url}/admin/cars/select_cars_requests.php`,
+          { params }
+        );
 
-  // Update status - Automatic (Accept/Reject)
+        if (response.data.status === "success") {
+          setData(response.data.message || []);
+          const pg = response.data.pagination;
+          setTotal(pg?.total_records || response.data.message?.length || 0);
+        } else {
+          message.error("Failed to fetch cars requests");
+        }
+      } catch (error) {
+        console.error("Error fetching cars requests:", error);
+        message.error("Error fetching data");
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    fetchCarsRequests(
+      currentPage,
+      currentPageSize,
+      currentStatus,
+      currentManual,
+      currentSearch
+    );
+  }, [
+    currentPage,
+    currentPageSize,
+    currentStatus,
+    currentManual,
+    currentSearch,
+  ]);
+
+  const handleTableChange = (newPagination) => {
+    setPage(newPagination.current, newPagination.pageSize);
+  };
+
   const handleStatusUpdate = async (reserving_id, status) => {
     setUpdatingStatus(true);
     try {
@@ -92,36 +125,38 @@ const CarsRequests = () => {
         status: status === "accepted" ? "upcoming" : status,
         manual: "0",
       };
-
       const response = await axios.post(
         `${base_url}/admin/cars/update_status.php`,
         payload
       );
-
       if (response.data.status === "success") {
         message.success(
           `Status updated to ${status === "accepted" ? "upcoming" : status}`
         );
-        fetchCarsRequests();
+        fetchCarsRequests(
+          currentPage,
+          currentPageSize,
+          currentStatus,
+          currentManual,
+          currentSearch,
+          false
+        );
         setIsModalVisible(false);
       } else {
         message.error(response.data.message);
       }
     } catch (error) {
-      console.error("Error updating status:", error);
       message.error("Error updating status");
     } finally {
       setUpdatingStatus(false);
     }
   };
 
-  // Manual status update
   const handleManualStatusUpdate = async () => {
     if (!selectedStatus) {
       message.warning("Please select a status");
       return;
     }
-
     setUpdatingStatus(true);
     try {
       const payload = {
@@ -129,15 +164,20 @@ const CarsRequests = () => {
         status: selectedStatus,
         manual: "1",
       };
-
       const response = await axios.post(
         `${base_url}/admin/cars/update_status.php`,
         payload
       );
-
       if (response.data.status === "success") {
         message.success(`Status manually updated to ${selectedStatus}`);
-        fetchCarsRequests();
+        fetchCarsRequests(
+          currentPage,
+          currentPageSize,
+          currentStatus,
+          currentManual,
+          currentSearch,
+          false
+        );
         setIsManualModalVisible(false);
         setSelectedStatus("");
         setManualUpdateRecord(null);
@@ -145,30 +185,24 @@ const CarsRequests = () => {
         message.error(response.data.message);
       }
     } catch (error) {
-      console.error("Error updating status:", error);
       message.error("Error updating status");
     } finally {
       setUpdatingStatus(false);
     }
   };
 
-  // Open manual update modal
   const openManualUpdateModal = (record) => {
     setManualUpdateRecord(record);
     setSelectedStatus(record.status || "");
     setIsManualModalVisible(true);
   };
 
-  // Calculate rental duration
   const calculateDuration = (startDate, endDate) => {
     const start = new Date(startDate);
     const end = new Date(endDate);
-    const diffTime = Math.abs(end - start);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+    return Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
   };
 
-  // Get status color
   const getStatusColor = (status) => {
     const colors = {
       upcoming: "blue",
@@ -180,7 +214,7 @@ const CarsRequests = () => {
     return colors[status?.toLowerCase()] || "default";
   };
 
-  const headers = [
+  const columns = [
     {
       title: "Car Name",
       dataIndex: "title",
@@ -207,17 +241,16 @@ const CarsRequests = () => {
       key: "full_name",
       render: (text, record) => (
         <div>
-          <p className="font-medium">{text}</p>
-          <p className="text-xs text-gray-500">{record.email}</p>
-          <p className="text-xs text-gray-500">{record.phone}</p>
+          <p className="font-medium">{text || "N/A"}</p>
+          <p className="text-xs text-gray-500">{record.email || "N/A"}</p>
+          <p className="text-xs text-gray-500">{record.phone || "N/A"}</p>
         </div>
       ),
     },
     {
       title: "Rental Period",
-      dataIndex: "start_date",
       key: "rental_period",
-      render: (text, record) => {
+      render: (_, record) => {
         const duration = calculateDuration(record.start_date, record.end_date);
         return (
           <div>
@@ -248,14 +281,7 @@ const CarsRequests = () => {
       title: "Total Amount",
       dataIndex: "total_amount",
       key: "total_amount",
-      render: (text, record) => (
-        <div>
-          <p className="font-bold text-green-600">
-            {record.price_currency || "$"}
-            {text}
-          </p>
-        </div>
-      ),
+      render: (text) => <p className="font-bold text-green-600">{text}</p>,
     },
     {
       title: "Status",
@@ -269,14 +295,10 @@ const CarsRequests = () => {
           >
             {text?.toUpperCase()}
           </Tag>
-          {record.manual === "1" && (
+          {record.manual == "1" && (
             <Tooltip title="Manually Updated">
-              <Tag
-                color="gold"
-                className="flex items-center gap-1 justify-center w-fit"
-              >
-                <ToolOutlined />
-                Manual
+              <Tag color="gold" className="w-fit">
+                <ToolOutlined /> Manual
               </Tag>
             </Tooltip>
           )}
@@ -284,12 +306,27 @@ const CarsRequests = () => {
       ),
     },
     {
+      title: "Commission",
+      dataIndex: "admins",
+      key: "admins",
+      render: (text, record) => (
+        <div className="flex flex-col gap-1">
+          <p className="text-xs mb-1">{record.admins?.admin_name || "N/A"}</p>
+          <p className="font-bold text-green-600">
+            {record?.admins?.public_commission
+              ? record.admins?.public_commission + "%"
+              : ""}
+          </p>
+        </div>
+      ),
+    },
+    {
       title: "Actions",
       key: "actions",
-      render: (text, record) => (
+      width: 160,
+      render: (_, record) => (
         <div className="flex flex-col gap-2">
           <Button
-            className="bg-primary text-white"
             type="primary"
             icon={<EyeOutlined />}
             size="small"
@@ -304,7 +341,7 @@ const CarsRequests = () => {
             <Button
               icon={<EditOutlined />}
               onClick={() => openManualUpdateModal(record)}
-              className="border-orange-400 text-orange-600 hover:bg-orange-50"
+              className="border-orange-400 text-orange-600"
               size="small"
             >
               Change Status
@@ -317,72 +354,66 @@ const CarsRequests = () => {
 
   return (
     <>
-      <Row className="">
-        <Col xs="24" xl={24} className="!w-full">
-          <Card
-            bordered={false}
-            className="!w-full mb-24"
-            title="Cars Requests"
-            extra={
-              <div className="flex items-center gap-3">
-                <span className="text-gray-500 text-sm">Status:</span>
-                <Select
-                  value={statusFilter}
-                  style={{ width: 150 }}
-                  onChange={(value) => setStatusFilter(value)}
-                >
-                  <Option value="all">All Status</Option>
-                  <Option value="pending">
-                    <>Pending</>
-                  </Option>
-                  <Option value="upcoming">
-                    <>Upcoming</>
-                  </Option>
-                  <Option value="in_progress">
-                    <>In Progress</>
-                  </Option>
-                  <Option value="completed">
-                    <>Completed</>
-                  </Option>
-                  <Option value="rejected">
-                    <>Rejected</>
-                  </Option>
-                </Select>
+      {/* Filters */}
+      <div className="flex items-center gap-3 flex-wrap mb-4 p-4 bg-gray-50 rounded-lg">
+        <Input
+          placeholder="Search cars..."
+          prefix={<SearchOutlined />}
+          value={searchDebounce}
+          onChange={(e) => setSearchDebounce(e.target.value)}
+          style={{ width: 200 }}
+          allowClear
+          onClear={() => {
+            setSearchDebounce("");
+            setSearch("");
+          }}
+        />
+        <Divider type="vertical" />
+        <span className="text-gray-500 text-sm">Status:</span>
+        <Select
+          value={currentStatus}
+          style={{ width: 150 }}
+          onChange={(value) => setStatus(value)}
+        >
+          <Option value="all">All Status</Option>
+          <Option value="pending">Pending</Option>
+          <Option value="upcoming">Upcoming</Option>
+          <Option value="in_progress">In Progress</Option>
+          <Option value="completed">Completed</Option>
+          <Option value="rejected">Rejected</Option>
+        </Select>
+        <Divider type="vertical" />
+        <span className="text-gray-500 text-sm">Type:</span>
+        <Select
+          value={currentManual}
+          style={{ width: 150 }}
+          onChange={(value) => setManual(value)}
+        >
+          <Option value="all">All Types</Option>
+          <Option value="0">Automatic</Option>
+          <Option value="1">Manual</Option>
+        </Select>
+      </div>
 
-                <Divider type="vertical" />
-
-                <span className="text-gray-500 text-sm">Type:</span>
-                <Select
-                  value={manualFilter}
-                  style={{ width: 150 }}
-                  onChange={(value) => setManualFilter(value)}
-                >
-                  <Option value="all">All Types</Option>
-                  <Option value="0">
-                    <>Automatic</>
-                  </Option>
-                  <Option value="1">
-                    <>Manual</>
-                  </Option>
-                </Select>
-              </div>
-            }
-          >
-            <div className="">
-              <DataTable
-                loading={loading}
-                addBtn={false}
-                searchPlaceholder={"Search for Cars Requests"}
-                table={{ header: headers, rows: filteredData }}
-                bordered={true}
-                onSearchChabnge={() => {}}
-                onAddClick={() => {}}
-                btnText=""
-              />
-            </div>
-          </Card>
-        </Col>
-      </Row>
+      {/* Table */}
+      <Table
+        columns={columns}
+        dataSource={data}
+        loading={loading}
+        rowKey="reserving_id"
+        pagination={{
+          current: currentPage,
+          pageSize: currentPageSize,
+          total: total,
+          showSizeChanger: true,
+          pageSizeOptions: ["10", "20", "50", "100"],
+          showTotal: (t, range) => `${range[0]}-${range[1]} of ${t} requests`,
+          showQuickJumper: true,
+        }}
+        onChange={handleTableChange}
+        scroll={{ x: 1200 }}
+        bordered
+      />
 
       {/* Details Modal */}
       <Modal
@@ -394,7 +425,6 @@ const CarsRequests = () => {
       >
         {rowData && (
           <div className="space-y-4">
-            {/* Status Badge */}
             <div className="flex items-center gap-2">
               <Tag
                 color={getStatusColor(rowData.status)}
@@ -409,66 +439,52 @@ const CarsRequests = () => {
               )}
             </div>
 
-            {/* Car Image */}
             {rowData.image && (
-              <div className="flex justify-center">
-                <img
-                  src={rowData.image?.split("//CAMP//")[0]}
-                  alt={rowData.title || "Car"}
-                  className="w-full h-64 object-cover rounded-lg"
-                  onError={(e) => {
-                    e.target.src = "https://via.placeholder.com/800x400";
-                  }}
-                />
-              </div>
+              <img
+                src={rowData.image?.split("//CAMP//")[0]}
+                alt={rowData.title || "Car"}
+                className="w-full h-64 object-cover rounded-lg"
+                onError={(e) => {
+                  e.target.src = "https://via.placeholder.com/800x400";
+                }}
+              />
             )}
 
             <div className="grid grid-cols-2 gap-6">
-              {/* Car Details */}
               <div>
                 <h3 className="font-semibold text-lg mb-3 border-b pb-2">
                   Car Information
                 </h3>
-                <div className="space-y-2">
-                  {rowData.title ? (
-                    <>
-                      <p>
-                        <span className="font-medium">Title:</span>{" "}
-                        {rowData.title}
-                      </p>
-                      <p>
-                        <span className="font-medium">Subtitle:</span>{" "}
-                        {rowData.subtitle}
-                      </p>
-                      <p>
-                        <span className="font-medium">Car Type:</span>{" "}
-                        <Tag color="blue">{rowData.car_type}</Tag>
-                      </p>
-                      <p>
-                        <span className="font-medium">Price per Day:</span>{" "}
+                {rowData.title ? (
+                  <div className="space-y-2">
+                    <p>
+                      <span className="font-medium">Title:</span>{" "}
+                      {rowData.title}
+                    </p>
+                    <p>
+                      <span className="font-medium">Subtitle:</span>{" "}
+                      {rowData.subtitle}
+                    </p>
+                    <p>
+                      <span className="font-medium">Car Type:</span>{" "}
+                      <Tag color="blue">{rowData.car_type}</Tag>
+                    </p>
+                    <p>
+                      <span className="font-medium">Price/Day:</span>{" "}
+                      {rowData.price_currency}
+                      {rowData.price_current}{" "}
+                      <span className="line-through text-gray-400">
                         {rowData.price_currency}
-                        {rowData.price_current}{" "}
-                        <span className="line-through text-gray-400">
-                          {rowData.price_currency}
-                          {rowData.price_original}
-                        </span>
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {rowData.price_note}
-                      </p>
-                    </>
-                  ) : (
-                    <div className="bg-orange-50 p-3 rounded">
-                      <Tag color="orange">Custom Booking Request</Tag>
-                      <p className="text-sm mt-2">
-                        Customer requested a custom car rental
-                      </p>
-                    </div>
-                  )}
-                </div>
+                        {rowData.price_original}
+                      </span>
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-orange-50 p-3 rounded">
+                    <Tag color="orange">Custom Booking Request</Tag>
+                  </div>
+                )}
               </div>
-
-              {/* Customer Information */}
               <div>
                 <h3 className="font-semibold text-lg mb-3 border-b pb-2">
                   Customer Information
@@ -476,32 +492,32 @@ const CarsRequests = () => {
                 <div className="space-y-2">
                   <p>
                     <span className="font-medium">Name:</span>{" "}
-                    {rowData.full_name}
+                    {rowData.full_name || "N/A"}
                   </p>
                   <p>
-                    <span className="font-medium">Email:</span> {rowData.email}
+                    <span className="font-medium">Email:</span>{" "}
+                    {rowData.email || "N/A"}
                   </p>
                   <p>
-                    <span className="font-medium">Phone:</span> {rowData.phone}
+                    <span className="font-medium">Phone:</span>{" "}
+                    {rowData.phone || "N/A"}
                   </p>
                   <p>
                     <span className="font-medium">Country:</span>{" "}
-                    {rowData.country}
+                    {rowData.country || "N/A"}
                   </p>
-
-                  {/* Driving License */}
                   {rowData.driving_license &&
-                    rowData?.type === "self_riding" && (
+                    rowData.type === "self_riding" && (
                       <div className="mt-3">
                         <p className="font-medium mb-2">Driving License:</p>
                         <Image
                           src={rowData.driving_license}
-                          alt="Driving License"
-                          className="rounded border"
+                          alt="License"
                           width={200}
                           height={120}
                           style={{ objectFit: "cover" }}
-                          fallback="https://via.placeholder.com/200x120?text=License"
+                          className="rounded border"
+                          fallback="https://via.placeholder.com/200x120"
                         />
                       </div>
                     )}
@@ -509,7 +525,6 @@ const CarsRequests = () => {
               </div>
             </div>
 
-            {/* Booking Details */}
             <div className="border-t pt-4">
               <h3 className="font-semibold text-lg mb-3">Booking Details</h3>
               <div className="grid grid-cols-3 gap-4">
@@ -523,17 +538,14 @@ const CarsRequests = () => {
                       : "With Driver"}
                   </Tag>
                 </div>
-
                 <div className="bg-purple-50 p-3 rounded">
                   <p className="text-xs text-gray-600 mb-1">Start Date</p>
                   <p className="font-semibold">{rowData.start_date}</p>
                 </div>
-
                 <div className="bg-purple-50 p-3 rounded">
                   <p className="text-xs text-gray-600 mb-1">End Date</p>
                   <p className="font-semibold">{rowData.end_date}</p>
                 </div>
-
                 <div className="bg-yellow-50 p-3 rounded">
                   <p className="text-xs text-gray-600 mb-1">Duration</p>
                   <p className="font-semibold">
@@ -541,18 +553,15 @@ const CarsRequests = () => {
                     Days
                   </p>
                 </div>
-
                 <div className="bg-green-50 p-3 rounded col-span-2">
                   <p className="text-xs text-gray-600 mb-1">Total Amount</p>
                   <p className="font-bold text-green-600 text-xl">
-                    {rowData.price_currency || "$"}
                     {rowData.total_amount}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Status Update Actions - Only for pending */}
             {rowData?.status === "pending" && (
               <div className="border-t pt-4">
                 <h3 className="font-semibold text-lg mb-3">Update Status</h3>
@@ -615,7 +624,6 @@ const CarsRequests = () => {
               This will mark the status change as <strong>Manual Update</strong>
             </p>
           </div>
-
           {manualUpdateRecord && (
             <div className="bg-gray-50 rounded-lg p-3">
               <p className="text-sm text-gray-600 mb-1">
@@ -623,62 +631,58 @@ const CarsRequests = () => {
                 <strong>{manualUpdateRecord.title || "Custom Booking"}</strong>
               </p>
               <p className="text-sm text-gray-600 mb-0">
-                Current Status:{" "}
+                Current:{" "}
                 <Tag color={getStatusColor(manualUpdateRecord.status)}>
                   {manualUpdateRecord.status?.toUpperCase()}
                 </Tag>
               </p>
             </div>
           )}
-
-          <div>
-            <label className="block mb-2 font-medium">Select New Status:</label>
-            <Radio.Group
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full"
-            >
-              <div className="space-y-2">
+          <Radio.Group
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+            className="w-full"
+          >
+            <div className="flex flex-col gap-3">
+              {[
+                {
+                  value: "upcoming",
+                  label: "Upcoming",
+                  desc: "Car is reserved",
+                  color: "blue",
+                },
+                {
+                  value: "in_progress",
+                  label: "In Progress",
+                  desc: "Rental is active",
+                  color: "cyan",
+                },
+                {
+                  value: "completed",
+                  label: "Completed",
+                  desc: "Car returned",
+                  color: "purple",
+                },
+                {
+                  value: "rejected",
+                  label: "Rejected",
+                  desc: "Booking declined",
+                  color: "red",
+                },
+              ].map((opt) => (
                 <Radio
-                  value="upcoming"
-                  className="w-full p-3 border rounded hover:bg-blue-50"
+                  key={opt.value}
+                  value={opt.value}
+                  className="w-full !p-3 border rounded hover:bg-gray-50"
                 >
-                  <Tag color="blue">Upcoming</Tag>
+                  <Tag color={opt.color}>{opt.label}</Tag>
                   <span className="text-gray-500 text-xs ml-2">
-                    - Car is reserved
+                    - {opt.desc}
                   </span>
                 </Radio>
-                <Radio
-                  value="in_progress"
-                  className="w-full p-3 border rounded hover:bg-cyan-50"
-                >
-                  <Tag color="cyan">In Progress</Tag>
-                  <span className="text-gray-500 text-xs ml-2">
-                    - Rental is active
-                  </span>
-                </Radio>
-                <Radio
-                  value="completed"
-                  className="w-full p-3 border rounded hover:bg-purple-50"
-                >
-                  <Tag color="purple">Completed</Tag>
-                  <span className="text-gray-500 text-xs ml-2">
-                    - Car returned
-                  </span>
-                </Radio>
-                <Radio
-                  value="rejected"
-                  className="w-full p-3 border rounded hover:bg-red-50"
-                >
-                  <Tag color="red">Rejected</Tag>
-                  <span className="text-gray-500 text-xs ml-2">
-                    - Booking declined
-                  </span>
-                </Radio>
-              </div>
-            </Radio.Group>
-          </div>
-
+              ))}
+            </div>
+          </Radio.Group>
           <div className="flex gap-3 pt-4 border-t">
             <Button
               type="primary"

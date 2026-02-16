@@ -14,19 +14,39 @@ function Cars() {
   const [cars, setCars] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Pagination state
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
+
   useEffect(() => {
     fetchCars();
   }, []);
 
-  const fetchCars = async (loading = true) => {
+  const fetchCars = async (page = 1, pageSize = 10, loading = true) => {
     if (loading) setIsLoading(true);
     try {
       const response = await axios.get(
-        `${base_url}/admin/cars/select_cars.php`
+        `${base_url}/admin/cars/select_cars.php`,
+        {
+          params: {
+            page: page,
+            limit: pageSize,
+          },
+        }
       );
 
       if (response.data.status === "success") {
         setCars(response.data.message);
+
+        const paginationData = response.data.pagination;
+        setPagination({
+          current: paginationData.current_page,
+          pageSize: paginationData.per_page,
+          total: paginationData.total_records || response.data.message.length,
+        });
       } else {
         message.error("Failed to load cars");
       }
@@ -36,6 +56,15 @@ function Cars() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handlePaginationChange = (page, pageSize) => {
+    setPagination({
+      current: page,
+      pageSize,
+      total: pagination.total,
+    });
+    fetchCars(page, pageSize);
   };
 
   const handleToggle = async (carId) => {
@@ -48,7 +77,7 @@ function Cars() {
       );
 
       message.success("Car visibility toggled successfully");
-      fetchCars(false); // Refresh the list
+      fetchCars(pagination.current, pagination.pageSize, false); // Refresh the list
     } catch (error) {
       message.error("Failed to toggle car visibility");
       console.error(error);
@@ -68,7 +97,7 @@ function Cars() {
 
       message.success("Car deleted successfully");
       setOpenDelete(false);
-      fetchCars(); // Refresh the list
+      fetchCars(pagination.current, pagination.pageSize, false); // Refresh the list
     } catch (error) {
       message.error("Failed to delete car");
       console.error(error);
@@ -93,6 +122,8 @@ function Cars() {
           cars={cars}
           onToggle={handleToggle}
           isLoading={isLoading}
+          pagination={pagination}
+          onPaginationChange={handlePaginationChange}
         />
       )}
       <ImportCarExcel

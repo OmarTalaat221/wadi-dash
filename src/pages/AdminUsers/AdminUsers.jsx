@@ -28,12 +28,16 @@ import {
   CopyOutlined,
   ReloadOutlined,
   KeyOutlined,
+  PercentageOutlined,
+  DollarOutlined,
+  CustomerServiceOutlined,
 } from "@ant-design/icons";
 import DataTable from "../../layout/DataTable";
 import axios from "axios";
 import dayjs from "dayjs";
 import { base_url } from "../../utils/base_url";
 import { TbListDetails } from "react-icons/tb";
+import { ROLES } from "../../data/routes";
 
 const { Option } = Select;
 const { Text, Paragraph } = Typography;
@@ -135,6 +139,8 @@ const AdminUsers = () => {
           role: values.role,
           admin_name: values.admin_name,
           invitation_code: invitationCode,
+          public_commission: parseFloat(values.public_commission) || 0,
+          tour_commission: parseFloat(values.tour_commission) || 0,
         }
       );
 
@@ -165,6 +171,8 @@ const AdminUsers = () => {
         admin_name: values.admin_name,
         admin_email: values.admin_email,
         role: values.role,
+        public_commission: parseFloat(values.public_commission) || 0,
+        tour_commission: parseFloat(values.tour_commission) || 0,
       };
 
       // Only include password if it's provided
@@ -236,6 +244,8 @@ const AdminUsers = () => {
       role: record.role,
       admin_password: "",
       invitation_code: record.invitation_code?.trim() || "",
+      public_commission: record.public_commission,
+      tour_commission: record.tour_commission,
     });
     setIsEditModalVisible(true);
   };
@@ -261,33 +271,39 @@ const AdminUsers = () => {
     }
   };
 
-  // ============================================
-  // Get Role Config
-  // ============================================
   const getRoleConfig = (role) => {
     const configs = {
-      manager: {
-        color: "purple",
-        icon: <CrownOutlined />,
-        label: "Manager",
-      },
-      seller: {
-        color: "blue",
-        icon: <ShopOutlined />,
-        label: "Seller",
-      },
-      admin: {
+      super_admin: {
         color: "red",
         icon: <SafetyOutlined />,
-        label: "Admin",
+        label: "Super Admin",
+      },
+      operation_manager: {
+        color: "purple",
+        icon: <CrownOutlined />,
+        label: "Operation Manager",
+      },
+      accountant: {
+        color: "green",
+        icon: <DollarOutlined />,
+        label: "Accountant",
+      },
+      customer_support: {
+        color: "blue",
+        icon: <CustomerServiceOutlined />,
+        label: "Customer Support",
+      },
+      content_editor: {
+        color: "orange",
+        icon: <EditOutlined />,
+        label: "Content Editor",
       },
     };
-    return configs[role?.toLowerCase()] || configs.admin;
+    return (
+      configs[role] || { color: "gray", icon: <UserOutlined />, label: role }
+    );
   };
 
-  // ============================================
-  // Search Handler
-  // ============================================
   const handleSearch = (searchValue) => {
     if (!searchValue) {
       setFilteredData(data);
@@ -378,6 +394,29 @@ const AdminUsers = () => {
             <span className="text-gray-400 italic text-sm">No code</span>
           )}
         </div>
+      ),
+    },
+
+    {
+      title: "Public Commission",
+      dataIndex: "public_commission",
+      key: "public_commission",
+      width: 150,
+      render: (value) => (
+        <Tag color="green" className="font-semibold">
+          {value || 0}%
+        </Tag>
+      ),
+    },
+    {
+      title: "Tour Commission",
+      dataIndex: "tour_commission",
+      key: "tour_commission",
+      width: 150,
+      render: (value) => (
+        <Tag color="blue" className="font-semibold">
+          {value || 0}%
+        </Tag>
       ),
     },
     {
@@ -761,7 +800,11 @@ const AdminUsers = () => {
           form={addForm}
           layout="vertical"
           onFinish={handleAddAdmin}
-          initialValues={{ role: "seller" }}
+          initialValues={{
+            role: "seller",
+            public_commission: 0,
+            tour_commission: 0,
+          }}
           className="mt-4"
         >
           <Form.Item
@@ -821,19 +864,73 @@ const AdminUsers = () => {
             rules={[{ required: true, message: "Please select a role" }]}
           >
             <Select size="large" placeholder="Select role">
-              <Option value="seller">
+              <Option value={ROLES.SUPER_ADMIN}>
                 <div className="flex items-center gap-2">
-                  <ShopOutlined className="text-blue-500!" />
-                  <span>Seller</span>
+                  <SafetyOutlined className="!text-red-500" />
+                  <span>Super Admin</span>
                 </div>
               </Option>
-              <Option value="manager">
+              <Option value={ROLES.OPERATION_MANAGER}>
                 <div className="flex items-center gap-2">
-                  <CrownOutlined className="text-purple-500!" />
-                  <span>Manager</span>
+                  <CrownOutlined className="!text-purple-500" />
+                  <span>Operation Manager</span>
+                </div>
+              </Option>
+              <Option value={ROLES.ACCOUNTANT}>
+                <div className="flex items-center gap-2">
+                  <DollarOutlined className="!text-green-500" />
+                  <span>Accountant</span>
+                </div>
+              </Option>
+              <Option value={ROLES.CUSTOMER_SUPPORT}>
+                <div className="flex items-center gap-2">
+                  <CustomerServiceOutlined className="!text-blue-500" />
+                  <span>Customer Support</span>
+                </div>
+              </Option>
+              <Option value={ROLES.CONTENT_EDITOR}>
+                <div className="flex items-center gap-2">
+                  <EditOutlined className="!text-orange-500" />
+                  <span>Content Editor</span>
                 </div>
               </Option>
             </Select>
+          </Form.Item>
+
+          <Form.Item
+            label="Public Commission (%)"
+            name="public_commission"
+            rules={[
+              { required: true, message: "Please enter public commission" },
+            ]}
+          >
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              placeholder="Enter percentage (0-100)"
+              size="large"
+              suffix="%"
+              prefix={<PercentageOutlined className="text-gray-400" />}
+            />
+          </Form.Item>
+
+          <Form.Item
+            label="Tour Commission (%)"
+            name="tour_commission"
+            rules={[
+              { required: true, message: "Please enter tour commission" },
+            ]}
+          >
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              placeholder="Enter percentage (0-100)"
+              size="large"
+              suffix="%"
+              prefix={<PercentageOutlined className="text-gray-400" />}
+            />
           </Form.Item>
 
           <div className="bg-green-50 p-4 rounded-lg mb-4 border border-green-200">
@@ -897,14 +994,6 @@ const AdminUsers = () => {
           onFinish={handleEditAdmin}
           className="mt-4"
         >
-          {/* Admin ID Display */}
-          {rowData && (
-            <div className="bg-blue-50 p-3 rounded-lg mb-4">
-              <p className="text-xs text-gray-500 mb-1">Admin ID</p>
-              <p className="font-bold text-blue-600">#{rowData.admin_id}</p>
-            </div>
-          )}
-
           <Form.Item
             label="Full Name"
             name="admin_name"
@@ -956,19 +1045,73 @@ const AdminUsers = () => {
             rules={[{ required: true, message: "Please select a role" }]}
           >
             <Select size="large" placeholder="Select role">
-              <Option value="seller">
+              <Option value={ROLES.SUPER_ADMIN}>
                 <div className="flex items-center gap-2">
-                  <ShopOutlined className="text-blue-500!" />
-                  <span>Seller</span>
+                  <SafetyOutlined className="!text-red-500" />
+                  <span>Super Admin</span>
                 </div>
               </Option>
-              <Option value="manager">
+              <Option value={ROLES.OPERATION_MANAGER}>
                 <div className="flex items-center gap-2">
-                  <CrownOutlined className="text-purple-500!" />
-                  <span>Manager</span>
+                  <CrownOutlined className="!text-purple-500" />
+                  <span>Operation Manager</span>
+                </div>
+              </Option>
+              <Option value={ROLES.ACCOUNTANT}>
+                <div className="flex items-center gap-2">
+                  <DollarOutlined className="!text-green-500" />
+                  <span>Accountant</span>
+                </div>
+              </Option>
+              <Option value={ROLES.CUSTOMER_SUPPORT}>
+                <div className="flex items-center gap-2">
+                  <CustomerServiceOutlined className="!text-blue-500" />
+                  <span>Customer Support</span>
+                </div>
+              </Option>
+              <Option value={ROLES.CONTENT_EDITOR}>
+                <div className="flex items-center gap-2">
+                  <EditOutlined className="!text-orange-500" />
+                  <span>Content Editor</span>
                 </div>
               </Option>
             </Select>
+          </Form.Item>
+
+          <Form.Item
+            label="Public Commission (%)"
+            name="public_commission"
+            rules={[
+              { required: true, message: "Please enter public commission" },
+            ]}
+          >
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              placeholder="Enter percentage (0-100)"
+              size="large"
+              suffix="%"
+              prefix={<PercentageOutlined className="text-gray-400" />}
+            />
+          </Form.Item>
+
+          <Form.Item
+            label="Tour Commission (%)"
+            name="tour_commission"
+            rules={[
+              { required: true, message: "Please enter tour commission" },
+            ]}
+          >
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              placeholder="Enter percentage (0-100)"
+              size="large"
+              suffix="%"
+              prefix={<PercentageOutlined className="text-gray-400" />}
+            />
           </Form.Item>
 
           {/* Invitation Code - Editable */}

@@ -200,8 +200,8 @@ function CreateAccomLayout() {
                 <Option value="hotel">Hotel</Option>
                 <Option value="Luxury Resort">Luxury Resort</Option>
                 <Option value="trip_package">Trip Package</Option>
-                <Option value="activity">Activity</Option>
-                <Option value="car">Car Rental</Option>
+                {/* <Option value="activity">Activity</Option> */}
+                {/* <Option value="car">Car Rental</Option> */}
               </Select>
             </div>
           </div>

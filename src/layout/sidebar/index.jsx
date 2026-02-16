@@ -1,9 +1,17 @@
+// layout/SideBar/SideBar.js
 import React, { useEffect } from "react";
 import SidebarLink from "../../components/sidebar/link";
 import Logo from "../../components/sidebar/logo";
-import { publicRoutes } from "../../data/routes";
+import { publicRoutes, getRoutesByRole } from "../../data/routes";
 
 function SideBar() {
+  // جيب الـ role من localStorage أو من context
+  const adminData = JSON.parse(localStorage.getItem("admin_data") || "{}");
+  const userRole = adminData?.role || "content_editor"; // default role
+
+  // فلتر الـ routes حسب الـ role
+  const allowedRoutes = getRoutesByRole(userRole);
+
   useEffect(() => {
     const dropMenuItems = document.querySelectorAll(".drop-menu-link-item");
 
@@ -21,10 +29,9 @@ function SideBar() {
         menu.style.padding = "0px";
       });
 
-      // Toggle the clicked one only if it was closed
       if (!isAlreadyOpen && dropMenu) {
         dropMenu.style.height = dropMenu.scrollHeight + "px";
-        dropMenu.style.padding = ""; // restore padding if needed
+        dropMenu.style.padding = "";
       }
     };
 
@@ -43,10 +50,9 @@ function SideBar() {
     <aside>
       <Logo />
       <ul className="drop-menu">
-        {publicRoutes?.map((item, index) => {
+        {allowedRoutes?.map((item, index) => {
           return item?.hidden ? null : (
             <li className="drop-menu-link-item" key={index}>
-              {" "}
               <SidebarLink
                 path={item?.route}
                 title={item?.title}
@@ -54,16 +60,17 @@ function SideBar() {
                 key={index}
               />
               {item?.subLinks && item?.subLinks?.length ? (
-                <ul className="drop-menu-drop !px-4 ">
+                <ul className="drop-menu-drop !px-4">
                   {item?.subLinks?.map((sub_item, sub_index) => {
                     return sub_item?.hidden ? null : (
-                      <li className="drop-menu-drop-item first:mt-4">
-                        {" "}
+                      <li
+                        className="drop-menu-drop-item first:mt-4"
+                        key={sub_index}
+                      >
                         <SidebarLink
                           path={item?.route + "/" + sub_item?.route}
                           title={sub_item?.title}
                           icon={sub_item?.icon}
-                          key={sub_index}
                         />
                       </li>
                     );

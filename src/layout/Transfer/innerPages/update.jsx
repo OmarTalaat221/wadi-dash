@@ -51,12 +51,15 @@ function UpdateCarLayout() {
 
   const fetchCarData = async () => {
     try {
-      const response = await axios.get(
-        `${base_url}/admin/cars/select_cars.php`
+      const response = await axios.post(
+        `${base_url}/admin/cars/select_car_by_id.php`,
+        {
+          car_id: product_id,
+        }
       );
 
       if (response.data.status === "success") {
-        const car = response.data.message.find((c) => c.id === product_id);
+        const car = response.data.message[0];
 
         if (car) {
           const imagesArray = car.image
@@ -68,10 +71,10 @@ function UpdateCarLayout() {
             : [];
 
           const featuresArray = car.features.map((f) => ({
-            feature_id: f.feature_id,
-            feature: f.feature,
-            label: f.feature,
-            value: f.feature,
+            feature_id: f,
+            feature: f,
+            label: f,
+            value: f,
           }));
 
           setRowData({

@@ -72,14 +72,15 @@ function UpdateActivityLayout() {
 
   const fetchActivity = async () => {
     try {
-      const response = await axios.get(
-        `${base_url}/admin/activities/select_activities.php`
+      const response = await axios.post(
+        `${base_url}/admin/activities/select_activity_by_id.php`,
+        {
+          activity_id: product_id,
+        }
       );
 
       if (response.data.status === "success") {
-        const activity = response.data.message?.find(
-          (item) => item.id === product_id
-        );
+        const activity = response.data.message[0];
 
         if (activity) {
           // Parse features
