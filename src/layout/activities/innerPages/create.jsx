@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
 import Tabs from "../../../components/Tabs";
-import { RiDeleteBin6Line } from "react-icons/ri";
 import JoditEditor from "jodit-react";
 import editorConfig from "../../../data/joditConfig";
 import axios from "axios";
@@ -9,7 +8,8 @@ import { useNavigate } from "react-router-dom";
 import { base_url } from "../../../utils/base_url";
 import { uploadImageToServer } from "../../../hooks/uploadImage";
 import ActivityImages from "../../../components/Activities/activityImages";
-import useCountries from "../../../hooks/useCountries"; // 👈 Import hook
+import useCountries from "../../../hooks/useCountries";
+import ActivityFeatures from "../../../components/Activities/activityFeatures";
 
 const { Option } = Select;
 
@@ -17,14 +17,41 @@ function CreateActivityLayout() {
   const navigate = useNavigate();
   const imageRefs = useRef([]);
 
-  // 👇 استخدام الـ hook
   const { countries, loading: countriesLoading } = useCountries();
 
   const [loading, setLoading] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
 
+  // ✅ UPDATED: Initial state with featuresArray
+
+  // const [formData, setFormData] = useState({
+  //   country_id: "1",
+  //   title: "Scuba Diving Adventure",
+  //   subtitle: "Explore the Underwater World",
+  //   description:
+  //     "<p>Experience the thrill of scuba diving in the crystal-clear waters of the Red Sea. Our professional instructors will guide you through an unforgettable underwater adventure.</p><ul><li>Professional PADI certified instructors</li><li>All equipment provided</li><li>Underwater photography included</li><li>Suitable for beginners and experts</li></ul>",
+  //   background_image: "",
+  //   cta_button_text: "Book Now",
+  //   cta_button_url: "",
+  //   category: "activity",
+  //   duration: "4 HOURS",
+  //   route: "HURGHADA → RED SEA → HURGHADA",
+  //   price_current: "85",
+  //   price_original: "120",
+  //   price_currency: "$",
+  //   per_adult: "85",
+  //   per_child: "50",
+  //   max_people: "12",
+  //   video_link: "https://www.youtube.com/watch?v=example",
+  //   price_note: "PER PERSON",
+  //   activity_type: "Scuba Diving",
+  //   featuresArray: [],
+  //   featuresString: "",
+  //   images: [],
+  // });
+
   const [formData, setFormData] = useState({
-    country_id: "", // 👈 خليها فاضية
+    country_id: "",
     title: "",
     subtitle: "",
     description: "",
@@ -43,12 +70,36 @@ function CreateActivityLayout() {
     video_link: "",
     price_note: "PER PERSON",
     activity_type: "",
-    features: [],
+    featuresArray: [], // ✅ Changed from features: []
+    featuresString: "", // ✅ Added
     images: [],
   });
 
   const [activeTab, setActiveTab] = useState("General");
   const imageInputRef = useRef(null);
+
+  // ✅ Helper function to clean icons
+  const cleanIcon = (icon) => {
+    if (!icon || typeof icon !== "string") return "";
+
+    let result = icon.trim();
+    let prevResult = "";
+    let iterations = 0;
+
+    while (prevResult !== result && iterations < 10) {
+      prevResult = result;
+      result = result
+        .replace(/\\\\/g, "")
+        .replace(/\\"/g, '"')
+        .replace(/\\n/g, "")
+        .replace(/\\r/g, "")
+        .replace(/\\t/g, "")
+        .replace(/\\/g, "");
+      iterations++;
+    }
+
+    return result.trim();
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -118,30 +169,11 @@ function CreateActivityLayout() {
     }
   };
 
-  const handleFeatureFieldChange = (index, field, value) => {
-    const updatedFeatures = [...formData.features];
-    updatedFeatures[index] = { ...updatedFeatures[index], [field]: value };
-    setFormData((prev) => ({ ...prev, features: updatedFeatures }));
-  };
-
-  const removeFeature = (index) => {
-    setFormData((prev) => ({
-      ...prev,
-      features: prev.features.filter((_, i) => i !== index),
-    }));
-  };
-
-  const addFeature = () => {
-    setFormData((prev) => ({
-      ...prev,
-      features: [...prev.features, { label: "", value: "" }],
-    }));
-  };
-
+  // ✅ UPDATED: handleSubmit with featuresArray
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // 👇 Validation
+    // Validation
     if (!formData.country_id) {
       message.error("Please select a country");
       return;
@@ -160,13 +192,30 @@ function CreateActivityLayout() {
     setLoading(true);
 
     try {
-      const featuresString = formData.features
-        .map((f) => f.value || f.label)
-        .filter(Boolean)
-        .join("**");
+      // ✅ Use featuresArray for formatting
+      let featuresFormatted = "";
+
+      if (formData.featuresArray && formData.featuresArray.length > 0) {
+        featuresFormatted = formData.featuresArray
+          .filter((f) => f.name || f.label)
+          .map((f) => {
+            const label = (f.label || f.name || "").trim();
+            const value = (f.name || f.label || "").trim();
+            const icon = cleanIcon(f.icon);
+            return `${label}**${value}**${icon}`;
+          })
+          .join("**CAMP**");
+      }
+      // Fallback to featuresString if available
+      else if (formData.featuresString) {
+        featuresFormatted = formData.featuresString;
+      }
+
+      console.log("Features formatted:", featuresFormatted);
 
       const imagesString = formData.images
         .map((img) => img.value)
+        .filter((img) => img)
         .join("//CAMP//");
 
       const payload = {
@@ -190,8 +239,10 @@ function CreateActivityLayout() {
         max_people: formData.max_people,
         video_link: formData.video_link,
         activity_type: formData.activity_type,
-        features: featuresString,
+        features: featuresFormatted, // ✅ Use formatted string
       };
+
+      console.log("Submitting payload:", payload);
 
       const response = await axios.post(
         `${base_url}/admin/activities/add_activity.php`,
@@ -216,7 +267,7 @@ function CreateActivityLayout() {
     if (activeTab === "General") {
       return (
         <>
-          {/* 👇 Country & Category Row */}
+          {/* Country & Category Row */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block !mb-1 font-medium">Country *</label>
@@ -423,59 +474,7 @@ function CreateActivityLayout() {
     }
 
     if (activeTab === "Features") {
-      return (
-        <fieldset className="border p-4 rounded">
-          <legend className="font-medium mb-2">Activity Features</legend>
-
-          <button
-            type="button"
-            title="Add New Feature"
-            className="group cursor-pointer outline-none hover:rotate-90 duration-300"
-            onClick={addFeature}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="50px"
-              height="50px"
-              viewBox="0 0 24 24"
-              className="stroke-slate-400 fill-none group-active:stroke-slate-200 group-active:fill-slate-600 group-active:duration-0 duration-300"
-            >
-              <path
-                d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"
-                strokeWidth="1.5"
-              ></path>
-              <path d="M8 12H16" strokeWidth="1.5"></path>
-              <path d="M12 16V8" strokeWidth="1.5"></path>
-            </svg>
-          </button>
-
-          <div className="grid grid-cols-3 gap-[10px]">
-            {formData.features.map((feature, index) => (
-              <div key={index} className="mb-3 space-y-2 border p-2 rounded">
-                <div className="flex items-center space-x-2">
-                  <label className="w-16">Feature:</label>
-                  <input
-                    type="text"
-                    value={feature.label || feature.value}
-                    onChange={(e) =>
-                      handleFeatureFieldChange(index, "value", e.target.value)
-                    }
-                    className="w-full border border-gray-300 p-2 rounded"
-                    placeholder="e.g., Free Equipment"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeFeature(index)}
-                  className="bg-red-500 text-white py-[10px] px-3 rounded hover:bg-red-600 transition-colors duration-200"
-                >
-                  <RiDeleteBin6Line />
-                </button>
-              </div>
-            ))}
-          </div>
-        </fieldset>
-      );
+      return <ActivityFeatures rowData={formData} setRowData={setFormData} />;
     }
 
     if (activeTab === "Images") {

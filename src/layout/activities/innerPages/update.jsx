@@ -40,11 +40,80 @@ function UpdateActivityLayout() {
     max_people: "",
     video_link: "",
     activity_type: "",
-    features: [],
+    featuresArray: [], // ✅ Changed
+    featuresString: "", // ✅ Added
     images: [],
   });
 
   const [activeTab, setActiveTab] = useState("General");
+
+  // ✅ Helper function to clean icons
+  const cleanIcon = (icon) => {
+    if (!icon || typeof icon !== "string") return "";
+
+    let result = icon.trim();
+    let prevResult = "";
+    let iterations = 0;
+
+    while (prevResult !== result && iterations < 10) {
+      prevResult = result;
+      result = result
+        .replace(/\\\\/g, "")
+        .replace(/\\"/g, '"')
+        .replace(/\\n/g, "")
+        .replace(/\\r/g, "")
+        .replace(/\\t/g, "")
+        .replace(/\\/g, "");
+      iterations++;
+    }
+
+    return result.trim();
+  };
+
+  // ✅ Helper function to parse features
+  const parseFeaturesToArray = (features) => {
+    if (!features) return [];
+
+    // If features is an array from API
+    if (Array.isArray(features)) {
+      return features.map((f, index) => ({
+        id: f.feature_id || f.id || index + 1,
+        label: f.label || f.name || f.value || "",
+        name: f.name || f.value || f.label || "",
+        icon: f.icon || "",
+      }));
+    }
+
+    // If features is a string
+    if (typeof features === "string" && features.trim()) {
+      return features.split("**CAMP**").map((item, index) => {
+        const parts = item.split("**");
+        return {
+          id: index + 1,
+          label: parts[0] || "",
+          name: parts[1] || parts[0] || "",
+          icon: parts[2] || "",
+        };
+      });
+    }
+
+    return [];
+  };
+
+  // ✅ Helper function to convert features array to string
+  const convertFeaturesToString = (features) => {
+    if (!features || features.length === 0) return "";
+
+    return features
+      .filter((f) => f.name || f.label)
+      .map((f) => {
+        const label = (f.label || f.name || "").trim();
+        const value = (f.name || f.label || "").trim();
+        const icon = cleanIcon(f.icon);
+        return `${label}**${value}**${icon}`;
+      })
+      .join("**CAMP**");
+  };
 
   useEffect(() => {
     fetchActivity();
@@ -83,8 +152,8 @@ function UpdateActivityLayout() {
         const activity = response.data.message[0];
 
         if (activity) {
-          // Parse features
-          const featuresArray = activity?.features;
+          // ✅ Parse features to featuresArray format
+          const featuresArray = parseFeaturesToArray(activity.features);
 
           // Parse images
           const imagesArray = activity.image
@@ -96,7 +165,8 @@ function UpdateActivityLayout() {
 
           setRowData({
             ...activity,
-            features: featuresArray,
+            featuresArray: featuresArray, // ✅ Use featuresArray
+            featuresString: convertFeaturesToString(featuresArray),
             images: imagesArray,
           });
         }
@@ -125,15 +195,31 @@ function UpdateActivityLayout() {
     setLoading(true);
 
     try {
-      // Prepare features string
-      const featuresString = rowData.features
-        .map((f) => f.value || f.label)
-        .filter(Boolean)
-        .join("**");
+      // ✅ Use featuresArray for formatting
+      let featuresFormatted = "";
+
+      if (rowData.featuresArray && rowData.featuresArray.length > 0) {
+        featuresFormatted = rowData.featuresArray
+          .filter((f) => f.name || f.label)
+          .map((f) => {
+            const label = (f.label || f.name || "").trim();
+            const value = (f.name || f.label || "").trim();
+            const icon = cleanIcon(f.icon);
+            return `${label}**${value}**${icon}`;
+          })
+          .join("**CAMP**");
+      }
+      // Fallback to featuresString if available
+      else if (rowData.featuresString) {
+        featuresFormatted = rowData.featuresString;
+      }
+
+      console.log("Features formatted:", featuresFormatted);
 
       // Prepare images string
       const imagesString = rowData.images
         .map((img) => img.value || img.preview)
+        .filter((img) => img)
         .join("//CAMP//");
 
       const payload = {
@@ -142,7 +228,7 @@ function UpdateActivityLayout() {
         title: rowData.title,
         subtitle: rowData.subtitle,
         description: rowData.description,
-        background_image: rowData.images[0]?.value,
+        background_image: rowData.images[0]?.value || rowData.background_image,
         cta_button_text: rowData.cta_button_text,
         cta_button_url: rowData.cta_button_url,
         duration: rowData.duration,
@@ -158,7 +244,10 @@ function UpdateActivityLayout() {
         max_people: rowData.max_people,
         video_link: rowData.video_link,
         activity_type: rowData.activity_type,
+        features: featuresFormatted, // ✅ Use formatted string
       };
+
+      console.log("Submitting payload:", payload);
 
       const response = await axios.post(
         `${base_url}/admin/activities/edit_activity.php`,
@@ -385,9 +474,11 @@ function UpdateActivityLayout() {
         </>
       );
     }
+
     if (activeTab === "Features") {
       return <ActivityFeatures rowData={rowData} setRowData={setRowData} />;
     }
+
     if (activeTab === "Images") {
       return <ActivityImages rowData={rowData} setRowData={setRowData} />;
     }

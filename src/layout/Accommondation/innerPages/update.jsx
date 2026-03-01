@@ -113,23 +113,61 @@ function UpdateAccomLayout() {
     setSubmitting(true);
 
     try {
-      // Get background image from first uploaded image
-      const backgroundImage = rowData.image.split("//CAMP//")[0] || "";
+      const backgroundImage = rowData.image.split("**CAMP**")[0] || "";
+
+      // ✅ Clean Icon Function - تنظيف كامل
+      const cleanIcon = (icon) => {
+        if (!icon) return "";
+
+        let result = icon;
+
+        // فك الـ escaping بشكل متكرر لحد ما يخلص
+        let prevResult = "";
+        while (prevResult !== result) {
+          prevResult = result;
+          result = result.replaceAll(/\\t/g, "");
+        }
+
+        // إزالة أي backslash متبقي قبل quotes
+        result = result.replace(/\\/g, "");
+
+        return result.trim();
+      };
+
+      // ✅ تنسيق الـ features
+      let featuresFormatted = "";
+
+      if (rowData.amenities && rowData.amenities.length > 0) {
+        const validAmenities = rowData.amenities.filter(
+          (a) => a.name && a.name.trim()
+        );
+
+        if (validAmenities.length > 0) {
+          featuresFormatted = validAmenities
+            .map((a) => {
+              const label = a.label.trim();
+              const name = a.name.trim();
+              const icon = cleanIcon(a.icon);
+              console.log("Original icon:", a.icon);
+              console.log("Cleaned icon:", icon);
+              return `${label}**${name}**${icon}`;
+            })
+            .join("**CAMP**");
+        }
+      }
+
+      console.log("Final features:", featuresFormatted);
+
+      // return;
 
       const payload = {
         id: product_id.toString(),
         ...rowData,
         adult_price: rowData.price_current,
         background_image: backgroundImage,
-        features: rowData.amenities
-          ? rowData.amenities
-              .map((a) => a.name)
-              .filter((n) => n)
-              .join("**")
-          : "",
+        features: featuresFormatted,
       };
 
-      // Remove amenities from payload as API expects 'features' field
       delete payload.amenities;
 
       console.log("Submitting payload:", payload);

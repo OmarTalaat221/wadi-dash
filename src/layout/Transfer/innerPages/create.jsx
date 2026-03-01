@@ -13,6 +13,7 @@ import { base_url } from "../../../utils/base_url";
 import { uploadImageToServer } from "./../../../hooks/uploadImage";
 import useCountries from "../../../hooks/useCountries"; // 👈 Import hook
 import TransferImages from "../../../components/Transfer/transferImages";
+import TransferFeatures from "../../../components/Transfer/transferFeatures";
 
 const { Option } = Select;
 
@@ -23,8 +24,31 @@ function CreateCarLayout() {
   // 👇 استخدام الـ hook
   const { countries, loading: countriesLoading } = useCountries();
 
+  /*Test Data
+    const [formData, setFormData] = useState({
+    country_id: "1",
+    title: "Mercedes-Benz S-Class 2024",
+    subtitle: "Luxury Sedan with Premium Features",
+    description:
+      "<p>Experience ultimate luxury with the Mercedes-Benz S-Class. This flagship sedan offers exceptional comfort, cutting-edge technology, and powerful performance. Perfect for business trips or special occasions.</p><ul><li>Premium leather interior</li><li>Advanced driver assistance systems</li><li>Panoramic sunroof</li><li>Burmester surround sound system</li></ul>",
+    background_image: "",
+    cta_button_text: "Rent Now",
+    cta_button_url: "",
+    category: "car",
+    duration: "1 DAY",
+    location: "Cairo, Egypt",
+    price_current: "250",
+    price_original: "300",
+    price_currency: "$",
+    price_note: "PER DAY",
+    max_people: "4",
+    car_type: "Luxury",
+    featuresArray: [],
+    featuresString: "",
+    images: [],
+  }); */
   const [formData, setFormData] = useState({
-    country_id: "", // 👈 خليها فاضية في البداية
+    country_id: "",
     title: "",
     subtitle: "",
     description: "",
@@ -40,7 +64,8 @@ function CreateCarLayout() {
     price_note: "PER DAY",
     max_people: "",
     car_type: "",
-    features: [],
+    featuresArray: [], // ✅ Changed from features: []
+    featuresString: "", // ✅ Add this
     images: [],
   });
 
@@ -58,113 +83,32 @@ function CreateCarLayout() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleImageFilesChange = async (files) => {
-    setIsUploading(true);
+  const cleanIcon = (icon) => {
+    if (!icon || typeof icon !== "string") return "";
 
-    try {
-      const fileArray = [];
+    let result = icon.trim();
+    let prevResult = "";
+    let iterations = 0;
 
-      for (let file of files) {
-        const uploadedImageUrl = await uploadImageToServer(file);
-
-        if (uploadedImageUrl) {
-          fileArray.push({
-            type: "url",
-            file,
-            value: uploadedImageUrl,
-            preview: uploadedImageUrl,
-          });
-        }
-      }
-
-      setFormData((prev) => {
-        const updated = [...prev.images, ...fileArray];
-
-        const newFormData = {
-          ...prev,
-          images: updated,
-          background_image: prev.background_image || updated[0]?.preview || "",
-        };
-
-        setTimeout(() => {
-          fileArray.forEach((_, idx) => {
-            const refIndex = prev.images.length + idx;
-            const imgRef = imageRefs.current[refIndex];
-            if (imgRef) {
-              imgRef.classList.add("zoomIn");
-              setTimeout(() => imgRef.classList.remove("zoomIn"), 300);
-            }
-          });
-        }, 10);
-
-        return newFormData;
-      });
-
-      message.success(`${fileArray.length} image(s) uploaded successfully!`);
-    } catch (error) {
-      message.error("Failed to upload images");
-      console.error("Upload error:", error);
-    } finally {
-      setIsUploading(false);
+    while (prevResult !== result && iterations < 10) {
+      prevResult = result;
+      result = result
+        .replace(/\\\\/g, "")
+        .replace(/\\"/g, '"')
+        .replace(/\\n/g, "")
+        .replace(/\\r/g, "")
+        .replace(/\\t/g, "")
+        .replace(/\\/g, "");
+      iterations++;
     }
-  };
 
-  const removeImage = (index) => {
-    const imgRef = imageRefs.current[index];
-
-    if (imgRef) {
-      imgRef.classList.remove("zoomIn");
-      imgRef.classList.add("zoomOut");
-
-      setTimeout(() => {
-        setFormData((prev) => {
-          const updatedImages = prev.images.filter((_, i) => i !== index);
-          const removedImageUrl =
-            prev.images[index]?.preview || prev.images[index]?.value;
-
-          return {
-            ...prev,
-            images: updatedImages,
-            background_image:
-              prev.background_image === removedImageUrl
-                ? updatedImages[0]?.preview || ""
-                : prev.background_image,
-          };
-        });
-        imgRef.classList.remove("zoomOut");
-      }, 300);
-    }
-  };
-
-  const setBackgroundImage = (imageUrl) => {
-    setFormData((prev) => ({ ...prev, background_image: imageUrl }));
-    message.success("Background image set!");
-  };
-
-  const handleFeatureFieldChange = (index, field, value) => {
-    const updatedFeatures = [...formData.features];
-    updatedFeatures[index] = { ...updatedFeatures[index], [field]: value };
-    setFormData((prev) => ({ ...prev, features: updatedFeatures }));
-  };
-
-  const removeFeature = (index) => {
-    setFormData((prev) => ({
-      ...prev,
-      features: prev.features.filter((_, i) => i !== index),
-    }));
-  };
-
-  const addFeature = () => {
-    setFormData((prev) => ({
-      ...prev,
-      features: [...prev.features, { feature: "" }],
-    }));
+    return result.trim();
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // 👇 Validation
+    // Validation
     if (!formData.country_id) {
       message.error("Please select a country");
       return;
@@ -178,10 +122,26 @@ function CreateCarLayout() {
     setIsSubmitting(true);
 
     try {
-      const featuresString = formData.features
-        .map((f) => f.feature || f.label || f.value || "")
-        .filter((f) => f.trim() !== "")
-        .join("**");
+      // ✅ Use featuresArray for formatting
+      let featuresFormatted = "";
+
+      if (formData.featuresArray && formData.featuresArray.length > 0) {
+        featuresFormatted = formData.featuresArray
+          .filter((f) => f.name || f.label)
+          .map((f) => {
+            const label = (f.label || f.name || "").trim();
+            const value = (f.name || f.label || "").trim();
+            const icon = cleanIcon(f.icon);
+            return `${label}**${value}**${icon}`;
+          })
+          .join("**CAMP**");
+      }
+      // Fallback to featuresString if available
+      else if (formData.featuresString) {
+        featuresFormatted = formData.featuresString;
+      }
+
+      console.log("Features formatted:", featuresFormatted);
 
       const imagesString = formData.images
         .map((img) => img.preview || img.value || "")
@@ -205,17 +165,23 @@ function CreateCarLayout() {
         price_currency: formData.price_currency,
         price_note: formData.price_note,
         car_type: formData.car_type,
-        features: featuresString,
         max_people: formData.max_people,
+        features: featuresFormatted, // ✅ Use formatted string
       };
+
+      console.log("Submitting payload:", payload);
 
       const response = await axios.post(
         `${base_url}/admin/cars/add_cars.php`,
         payload
       );
 
-      message.success("Car created successfully!");
-      navigate("/transfer");
+      if (response.data.status == "success") {
+        message.success("Car created successfully!");
+        navigate("/transfer");
+      } else {
+        message.error("Failed to create car");
+      }
     } catch (error) {
       message.error("Failed to create car");
       console.error("Error:", error);
@@ -400,59 +366,7 @@ function CreateCarLayout() {
     }
 
     if (activeTab === "Features") {
-      return (
-        <fieldset className="border p-4 rounded">
-          <legend className="font-medium mb-2">Features</legend>
-
-          <button
-            type="button"
-            title="Add New Feature"
-            className="group cursor-pointer outline-none hover:rotate-90 duration-300 mb-4"
-            onClick={addFeature}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="50px"
-              height="50px"
-              viewBox="0 0 24 24"
-              className="stroke-slate-400 fill-none group-active:stroke-slate-200 group-active:fill-slate-600 group-active:duration-0 duration-300"
-            >
-              <path
-                d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"
-                strokeWidth="1.5"
-              ></path>
-              <path d="M8 12H16" strokeWidth="1.5"></path>
-              <path d="M12 16V8" strokeWidth="1.5"></path>
-            </svg>
-          </button>
-
-          <div className="grid grid-cols-3 gap-[10px]">
-            {formData.features.map((feature, index) => (
-              <div key={index} className="mb-3 space-y-2 border p-2 rounded">
-                <div className="flex items-center space-x-2">
-                  <label className="w-24">Feature:</label>
-                  <input
-                    type="text"
-                    value={feature.feature || ""}
-                    onChange={(e) =>
-                      handleFeatureFieldChange(index, "feature", e.target.value)
-                    }
-                    className="w-full border border-gray-300 p-2 rounded"
-                    placeholder="e.g., GPS, Bluetooth"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeFeature(index)}
-                  className="bg-red-500 text-white py-[10px] px-3 rounded hover:bg-red-600 transition-colors duration-200"
-                >
-                  <RiDeleteBin6Line />
-                </button>
-              </div>
-            ))}
-          </div>
-        </fieldset>
-      );
+      return <TransferFeatures rowData={formData} setRowData={setFormData} />;
     }
 
     if (activeTab === "Images") {

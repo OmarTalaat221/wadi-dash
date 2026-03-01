@@ -386,10 +386,12 @@ const TourRequests = () => {
       key: "admins",
       render: (text) => (
         <div className="flex flex-col gap-2">
-          <p className="text-xs mb-1">
-            <CalendarOutlined className="mr-1 text-blue-500" />
-            {text?.admin_name}
-          </p>
+          {text?.admin_name && (
+            <p className="text-xs mb-1">
+              <CalendarOutlined className="mr-1 text-blue-500" />
+              {text?.admin_name}
+            </p>
+          )}
 
           <p className="font-bold text-green-600">
             {text?.tour_commission ? text?.tour_commission + "%" : ""}

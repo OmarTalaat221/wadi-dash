@@ -58,7 +58,6 @@ function CreateAccomLayout() {
   const handleSelectChange = (name, value) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -86,18 +85,64 @@ function CreateAccomLayout() {
     setSubmitting(true);
 
     try {
-      const backgroundImage = formData.image.split("//CAMP//")[0] || "";
+      const backgroundImage = formData.image.split("**CAMP**")[0] || "";
+
+      // ✅ Clean Icon Function - تنظيف كامل
+      const cleanIcon = (icon) => {
+        if (!icon) return "";
+
+        let result = icon;
+
+        // فك الـ escaping بشكل متكرر لحد ما يخلص
+        let prevResult = "";
+        while (prevResult !== result) {
+          prevResult = result;
+          result = result
+            .replace(/\\\\/g, "TEMP_BACKSLASH")
+            .replace(/\\"/g, '"')
+            .replace(/TEMP_BACKSLASH/g, "")
+            .replace(/\\n/g, "")
+            .replace(/\\r/g, "")
+            .replace(/\\t/g, "");
+        }
+
+        // إزالة أي backslash متبقي قبل quotes
+        result = result.replace(/\\/g, "");
+
+        return result.trim();
+      };
+
+      // ✅ تنسيق الـ features
+      let featuresFormatted = "";
+
+      if (formData.amenities && formData.amenities.length > 0) {
+        const validAmenities = formData.amenities.filter(
+          (a) => a.name && a.name.trim()
+        );
+
+        if (validAmenities.length > 0) {
+          featuresFormatted = validAmenities
+            .map((a) => {
+              const label = a.label.trim();
+              const name = a.name.trim();
+              const icon = cleanIcon(a.icon);
+              console.log("Original icon:", a.icon);
+              console.log("Cleaned icon:", icon);
+              return `${label}**${name}**${icon}`;
+            })
+            .join("**CAMP**");
+        }
+      }
+
+      console.log("Final features:", featuresFormatted);
+
+      return;
 
       const payload = {
         ...formData,
         background_image: backgroundImage,
         adult_price: formData.price_current,
-        features: formData.amenities
-          ? formData.amenities
-              .map((a) => a.name)
-              .filter((n) => n)
-              .join("**")
-          : "",
+        features: featuresFormatted,
       };
 
       delete payload.amenities;
@@ -127,7 +172,6 @@ function CreateAccomLayout() {
 
     setSubmitting(false);
   };
-
   const renderTabContent = () => {
     if (activeTab === "General") {
       return (
