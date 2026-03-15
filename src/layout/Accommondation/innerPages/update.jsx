@@ -9,6 +9,7 @@ import axios from "axios";
 import { message, Select } from "antd";
 import { base_url } from "../../../utils/base_url";
 import editorConfig from "../../../data/joditConfig";
+import AccomRooms from "../../../components/Accommodation/accomRooms";
 
 const { Option } = Select;
 
@@ -390,6 +391,9 @@ function UpdateAccomLayout() {
     if (activeTab === "Images") {
       return <AccomImages rowData={rowData} setRowData={setRowData} />;
     }
+    if (activeTab === "rooms") {
+      return <AccomRooms rowData={rowData} setRowData={setRowData} />;
+    }
   };
 
   if (loading) {
@@ -415,7 +419,7 @@ function UpdateAccomLayout() {
       <div className="mb-4">
         <nav className="flex space-x-4 border-b">
           <Tabs
-            tabs={["General", "Features", "Images"]}
+            tabs={["General", "Features", "rooms", "Images"]}
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             classNameDecoration=""

@@ -9,6 +9,7 @@ import { message, Select, Spin } from "antd";
 import { base_url } from "../../../utils/base_url";
 import editorConfig from "../../../data/joditConfig";
 import useCountries from "../../../hooks/useCountries"; // 👈 Import hook
+import AccomRooms from "../../../components/Accommodation/accomRooms";
 
 const { Option } = Select;
 
@@ -42,6 +43,7 @@ function CreateAccomLayout() {
     video_link: "",
     features: "",
     amenities: [],
+    rooms: [],
   });
 
   const [activeTab, setActiveTab] = useState("General");
@@ -136,7 +138,7 @@ function CreateAccomLayout() {
 
       console.log("Final features:", featuresFormatted);
 
-      return;
+
 
       const payload = {
         ...formData,
@@ -149,16 +151,39 @@ function CreateAccomLayout() {
 
       console.log("Submitting payload:", payload);
 
+
+
       const response = await axios.post(
         `${base_url}/admin/hotels/add_hotel.php`,
         payload
       );
 
       if (response.data.status === "success") {
-        message.success("Accommodation created successfully!");
-        setTimeout(() => {
-          navigate("/accommodation");
-        }, 1500);
+
+        const response1 = await axios.post(
+          `${base_url}/admin/hotels/add_hotel_rooms.php`,
+          {
+            hotel_id: response.data.hotel_id,
+            rooms: payload.rooms
+          }
+        );
+
+        if (response1.data.status === "success") {
+          message.success("Accommodation AND it's data  created successfully!");
+
+          setTimeout(() => {
+            navigate("/accommodation");
+          }, 1500);
+        } else {
+          message.success("Accommodation created successfully but somthing went wrong while adding  rooms  !");
+
+          setTimeout(() => {
+            navigate("/accommodation");
+          }, 1500);
+        }
+
+
+
       } else {
         throw new Error(
           response.data.message || "Failed to create accommodation"
@@ -394,6 +419,10 @@ function CreateAccomLayout() {
     if (activeTab === "Images") {
       return <AccomImages rowData={formData} setRowData={setFormData} />;
     }
+
+    if (activeTab === "rooms") {
+      return <AccomRooms rowData={formData} setRowData={setFormData} />;
+    }
   };
 
   return (
@@ -403,7 +432,7 @@ function CreateAccomLayout() {
       <div className="mb-4">
         <nav className="flex space-x-4 border-b">
           <Tabs
-            tabs={["General", "Features", "Images"]}
+            tabs={["General", "Features", "rooms", "Images"]}
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             classNameDecoration=""
