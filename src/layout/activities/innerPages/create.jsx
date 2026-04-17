@@ -70,6 +70,7 @@ function CreateActivityLayout() {
     video_link: "",
     price_note: "PER PERSON",
     activity_type: "",
+    for_children: "1",
     featuresArray: [], // ✅ Changed from features: []
     featuresString: "", // ✅ Added
     images: [],
@@ -230,6 +231,7 @@ function CreateActivityLayout() {
         category: formData.category,
         image: imagesString,
         route: formData.route,
+        for_children: formData.for_children,
         price_current: formData.price_current,
         price_original: formData.price_original,
         price_currency: formData.price_currency,
@@ -368,7 +370,40 @@ function CreateActivityLayout() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-gray-50">
+              <div>
+                <p className="font-medium text-gray-800">
+                  Suitable for Children
+                </p>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  If disabled, children cannot be booked for this activity
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setFormData((prev) => ({
+                    // setRowData for UpdateActivityLayout
+                    ...prev,
+                    for_children: prev.for_children === "1" ? "0" : "1",
+                  }))
+                }
+                className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  formData.for_children === "1" // rowData.for_children for UpdateActivityLayout
+                    ? "bg-[#295557]"
+                    : "bg-gray-300"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition duration-200 ease-in-out ${
+                    formData.for_children === "1" // rowData.for_children for UpdateActivityLayout
+                      ? "translate-x-5"
+                      : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
             <div>
               <label className="block mb-1 font-medium">Price per Child</label>
               <input

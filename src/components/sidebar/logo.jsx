@@ -5,7 +5,7 @@ function Logo() {
     <div className="sidebar-logo">
       <img
         src={
-          "https://res.cloudinary.com/dkc5klynm/image/upload/v1744887553/wadi_way_logo_x9vjni.webp"
+          "https://res.cloudinary.com/dbvh5i83q/image/upload/v1775980868/wadi-way_gnrjns.png"
         }
         alt=""
       />

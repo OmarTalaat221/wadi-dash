@@ -70,7 +70,7 @@ function Login() {
         {/* Logo */}
         <div className="text-center mb-8 p-2">
           <img
-            src="https://res.cloudinary.com/dkc5klynm/image/upload/v1769242456/W_eaaxsn.png"
+            src="https://res.cloudinary.com/dbvh5i83q/image/upload/v1775980904/W_ppfn8j.png"
             alt=""
             className="w-20 h-20 mx-auto mb-4"
           />

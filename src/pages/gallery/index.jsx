@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
 import {
   Modal,
   Button,
   Upload,
   message,
-  Card,
   Typography,
   Space,
   Popconfirm,
@@ -25,6 +24,8 @@ import {
   GlobalOutlined,
   FolderOutlined,
 } from "@ant-design/icons";
+import { AsyncImage } from "loadable-image";
+import { Blur } from "transitions-kit";
 import axios from "axios";
 import { base_url } from "../../utils/base_url";
 import { uploadImageToServer } from "../../hooks/uploadImage";
@@ -33,6 +34,345 @@ import { useNavigate } from "react-router-dom";
 const { Title } = Typography;
 const { Option } = Select;
 
+// ─── Skeleton loader (shown while AsyncImage fetches) ─────────────────────────
+const ImageSkeleton = memo(() => (
+  <div
+    style={{
+      position: "absolute",
+      inset: 0,
+      background: "linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%)",
+      backgroundSize: "200% 100%",
+      animation: "gal-shimmer 1.4s infinite linear",
+    }}
+  />
+));
+ImageSkeleton.displayName = "ImageSkeleton";
+
+// ─── Error placeholder ────────────────────────────────────────────────────────
+const ImageError = memo(() => (
+  <div
+    style={{
+      position: "absolute",
+      inset: 0,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "#f9fafb",
+      color: "#d1d5db",
+      gap: 6,
+      fontSize: 12,
+    }}
+  >
+    <span style={{ fontSize: 28 }}>🖼️</span>
+    <span>Image unavailable</span>
+  </div>
+));
+ImageError.displayName = "ImageError";
+
+// ─── Action button ─────────────────────────────────────────────────────────────
+const ActionBtn = memo(
+  ({ children, hoverColor, hoverBg, onClick, disabled }) => {
+    const [hov, setHov] = useState(false);
+    return (
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        onMouseEnter={() => setHov(true)}
+        onMouseLeave={() => setHov(false)}
+        style={{
+          border: "none",
+          cursor: disabled ? "not-allowed" : "pointer",
+          padding: "9px 0",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 15,
+          background: hov && !disabled ? hoverBg : "transparent",
+          color: hov && !disabled ? hoverColor : "#9ca3af",
+          transition: "background 0.15s, color 0.15s",
+          opacity: disabled ? 0.4 : 1,
+        }}
+      >
+        {children}
+      </button>
+    );
+  }
+);
+ActionBtn.displayName = "ActionBtn";
+
+// ─── Photo Card ────────────────────────────────────────────────────────────────
+const PhotoCard = memo(
+  ({
+    photo,
+    onPreview,
+    onEdit,
+    onToggle,
+    onDelete,
+    toggling,
+    getCategoryName,
+    getCountryName,
+  }) => {
+    const [hov, setHov] = useState(false);
+
+    const isHidden = photo.hidden === "1";
+    const isToggling = toggling === photo.id;
+
+    // All expensive lookups isolated here — won't re-run unless IDs change
+    const categoryName = useMemo(
+      () => getCategoryName(photo.category_id),
+      [photo.category_id, getCategoryName]
+    );
+    const countryName = useMemo(
+      () => getCountryName(photo.country_id),
+      [photo.country_id, getCountryName]
+    );
+    const formattedDate = useMemo(
+      () => new Date(photo.created_at).toLocaleDateString(),
+      [photo.created_at]
+    );
+
+    return (
+      <div
+        onMouseEnter={() => setHov(true)}
+        onMouseLeave={() => setHov(false)}
+        style={{
+          background: "#fff",
+          borderRadius: 12,
+          overflow: "hidden",
+          border: "1px solid #f0f0f0",
+          display: "flex",
+          flexDirection: "column",
+          // GPU-promoted layer — hover won't trigger layout
+          willChange: "transform",
+          transform: hov ? "translateY(-3px)" : "translateY(0)",
+          boxShadow: hov
+            ? "0 10px 28px rgba(0,0,0,0.11)"
+            : "0 1px 4px rgba(0,0,0,0.05)",
+          transition: "transform 0.2s ease, box-shadow 0.2s ease",
+          // Isolate paint/layout per card
+          contain: "layout style paint",
+        }}
+      >
+        {/* ── Image ── */}
+        <div
+          style={{
+            position: "relative",
+            height: 192,
+            cursor: "pointer",
+            overflow: "hidden",
+          }}
+          onClick={() => onPreview(photo)}
+        >
+          {/* AsyncImage handles:
+            • Intersection Observer (lazy load)
+            • Blur transition on reveal
+            • Skeleton while loading
+            • Error slot                          */}
+          <AsyncImage
+            src={photo.image}
+            alt={photo.title || "Gallery image"}
+            Transition={Blur}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              opacity: isHidden ? 0.45 : 1,
+              transition: "opacity 0.2s",
+            }}
+            loader={
+              <div className="flex justify-center items-center h-full">
+                <Spin
+                  size="default"
+                  className="animate-spin text-2xl !text-green-500"
+                />
+              </div>
+            }
+            error={<ImageError />}
+          />
+
+          {/* Visibility badge */}
+          <span
+            style={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              fontSize: 11,
+              fontWeight: 600,
+              padding: "2px 9px",
+              borderRadius: 999,
+              border: `1px solid ${isHidden ? "#fca5a5" : "#86efac"}`,
+              background: isHidden
+                ? "rgba(254,242,242,0.92)"
+                : "rgba(240,253,244,0.92)",
+              color: isHidden ? "#dc2626" : "#16a34a",
+              backdropFilter: "blur(4px)",
+              pointerEvents: "none",
+            }}
+          >
+            {isHidden ? "Hidden" : "Visible"}
+          </span>
+
+          {/* Category / Country pills */}
+          {(photo.category_id || photo.country_id) && (
+            <div
+              style={{
+                position: "absolute",
+                top: 8,
+                left: 8,
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+                pointerEvents: "none",
+              }}
+            >
+              {photo.category_id && (
+                <span style={pillStyle("#7c3aed")}>
+                  <FolderOutlined style={{ fontSize: 9 }} />
+                  {categoryName}
+                </span>
+              )}
+              {photo.country_id && (
+                <span style={pillStyle("#2563eb")}>
+                  <GlobalOutlined style={{ fontSize: 9 }} />
+                  {countryName}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── Meta ── */}
+        <div style={{ padding: "10px 12px", flex: 1 }}>
+          <Tooltip title={photo.title || "No title"}>
+            <p style={metaTitle}>{photo.title || "Untitled"}</p>
+          </Tooltip>
+          <p style={metaSub}>
+            {formattedDate} · ID: {photo.id}
+          </p>
+        </div>
+
+        {/* ── Actions ── */}
+        <div
+          style={{
+            borderTop: "1px solid #f3f4f6",
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+          }}
+        >
+          <Tooltip title="Preview">
+            <ActionBtn
+              hoverColor="#3b82f6"
+              hoverBg="#eff6ff"
+              onClick={() => onPreview(photo)}
+            >
+              <EyeOutlined />
+            </ActionBtn>
+          </Tooltip>
+
+          <Tooltip title="Edit">
+            <ActionBtn
+              hoverColor="#22c55e"
+              hoverBg="#f0fdf4"
+              onClick={() => onEdit(photo)}
+            >
+              <EditOutlined />
+            </ActionBtn>
+          </Tooltip>
+
+          <Tooltip title={isHidden ? "Show" : "Hide"}>
+            <ActionBtn
+              hoverColor="#f59e0b"
+              hoverBg="#fffbeb"
+              onClick={() => onToggle(photo)}
+              disabled={isToggling}
+            >
+              {isToggling ? (
+                <Spin size="small" />
+              ) : isHidden ? (
+                <EyeInvisibleOutlined />
+              ) : (
+                <EyeOutlined />
+              )}
+            </ActionBtn>
+          </Tooltip>
+
+          <Popconfirm
+            title="Delete this photo?"
+            description="This action cannot be undone."
+            onConfirm={() => onDelete(photo.id)}
+            okText="Yes"
+            cancelText="No"
+          >
+            <Tooltip title="Delete">
+              <ActionBtn hoverColor="#ef4444" hoverBg="#fef2f2">
+                <DeleteOutlined />
+              </ActionBtn>
+            </Tooltip>
+          </Popconfirm>
+        </div>
+      </div>
+    );
+  }
+);
+PhotoCard.displayName = "PhotoCard";
+
+// ── tiny style objects defined outside render (no re-allocation per render) ───
+const pillStyle = (bg) => ({
+  fontSize: 10,
+  fontWeight: 600,
+  padding: "2px 8px",
+  borderRadius: 999,
+  background: bg + "d0", // hex + alpha
+  color: "#fff",
+  backdropFilter: "blur(4px)",
+  display: "flex",
+  alignItems: "center",
+  gap: 4,
+});
+
+const metaTitle = {
+  margin: 0,
+  fontSize: 13,
+  fontWeight: 600,
+  color: "#111",
+  textAlign: "center",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+const metaSub = {
+  margin: "4px 0 0",
+  fontSize: 11,
+  color: "#9ca3af",
+  textAlign: "center",
+};
+
+// ─── Upload area ──────────────────────────────────────────────────────────────
+const UploadArea = memo(({ uploadProps, label = "Select Image" }) => (
+  <Upload {...uploadProps}>
+    {uploadProps.fileList.length === 0 && (
+      <div className="flex flex-col items-center">
+        <PlusOutlined className="text-xl text-gray-400" />
+        <p className="mt-2 text-sm text-gray-500">{label}</p>
+      </div>
+    )}
+  </Upload>
+));
+UploadArea.displayName = "UploadArea";
+
+// ─── Shimmer keyframe (injected once, shared by all cards) ───────────────────
+const ShimmerStyle = () => (
+  <style>{`
+    @keyframes gal-shimmer {
+      0%   { background-position:  200% 0 }
+      100% { background-position: -200% 0 }
+    }
+  `}</style>
+);
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
 const Gallery = () => {
   const [photos, setPhotos] = useState([]);
   const [countries, setCountries] = useState([]);
@@ -51,914 +391,707 @@ const Gallery = () => {
   const [toggling, setToggling] = useState(null);
 
   const navigate = useNavigate();
-
-  // Forms
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
 
-  // Fetch categories
-  const fetchCategories = async () => {
+  // O(1) lookup maps — recomputed only when raw arrays change
+  const countryMap = useMemo(() => {
+    const m = {};
+    countries.forEach((c) => {
+      m[c.country_id] = c.country_name;
+      m[String(c.country_id)] = c.country_name;
+    });
+    return m;
+  }, [countries]);
+
+  const categoryMap = useMemo(() => {
+    const m = {};
+    categories.forEach((c) => {
+      m[c.category_id] = c.category;
+      m[String(c.category_id)] = c.category;
+    });
+    return m;
+  }, [categories]);
+
+  const getCountryName = useCallback(
+    (id) => countryMap[id] ?? countryMap[String(id)] ?? "Unknown",
+    [countryMap]
+  );
+  const getCategoryName = useCallback(
+    (id) => categoryMap[id] ?? categoryMap[String(id)] ?? "Unknown",
+    [categoryMap]
+  );
+
+  const visibleCategories = useMemo(
+    () => categories.filter((c) => c.hidden === "0"),
+    [categories]
+  );
+
+  // ── Fetchers ──────────────────────────────────────────────────────────────────
+  const fetchCategories = useCallback(async () => {
     setCategoriesLoading(true);
     try {
-      const response = await axios.get(
-        `${base_url}/admin/gallary/categories/select_category.php`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
+      const { data } = await axios.get(
+        `${base_url}/admin/gallary/categories/select_category.php`
       );
-
-      if (response.data && response.data.status === "success") {
-        // Filter out hidden categories for selection
-        const visibleCategories = response.data.message.filter(
-          (cat) => cat.hidden === "0"
-        );
-        setCategories(response.data.message || []);
-      } else {
-        message.error("Failed to fetch categories");
-      }
-    } catch (error) {
-      console.error("Error fetching categories:", error);
-      message.error(
-        error.response?.data?.message ||
-          "Failed to load categories. Please try again."
-      );
+      if (data?.status === "success") setCategories(data.message || []);
+      else message.error("Failed to fetch categories");
+    } catch {
+      message.error("Failed to load categories.");
     } finally {
       setCategoriesLoading(false);
     }
-  };
+  }, []);
 
-  // Fetch countries
-  const fetchCountries = async () => {
+  const fetchCountries = useCallback(async () => {
     setCountriesLoading(true);
     try {
-      const response = await axios.get(
-        `${base_url}/user/countries/select_countries.php`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
+      const { data } = await axios.get(
+        `${base_url}/user/countries/select_countries.php`
       );
-
-      if (response.data && response.data.status === "success") {
-        setCountries(response.data.message || []);
-      } else {
-        message.error("Failed to fetch countries");
-      }
-    } catch (error) {
-      console.error("Error fetching countries:", error);
-      message.error(
-        error.response?.data?.message ||
-          "Failed to load countries. Please try again."
-      );
+      if (data?.status === "success") setCountries(data.message || []);
+      else message.error("Failed to fetch countries");
+    } catch {
+      message.error("Failed to load countries.");
     } finally {
       setCountriesLoading(false);
     }
-  };
+  }, []);
 
-  // Fetch gallery images
-  const fetchGallery = async () => {
+  const fetchGallery = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await axios.get(
-        `${base_url}/admin/gallary/select_gallary.php`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
+      const { data } = await axios.get(
+        `${base_url}/admin/gallary/select_gallary.php`
       );
-
-      if (response.data && response.data.status === "success") {
-        setPhotos(response.data.message);
-      } else {
-        message.error("Failed to fetch gallery images");
-      }
-    } catch (error) {
-      console.error("Error fetching gallery:", error);
-      message.error(
-        error.response?.data?.message ||
-          "Failed to load gallery. Please try again."
-      );
+      if (data?.status === "success") setPhotos(data.message || []);
+      else message.error("Failed to fetch gallery");
+    } catch {
+      message.error("Failed to load gallery.");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Load gallery, countries, and categories on component mount
   useEffect(() => {
     fetchGallery();
     fetchCountries();
     fetchCategories();
-  }, []);
+  }, [fetchGallery, fetchCountries, fetchCategories]);
 
-  // Get country name by ID
-  const getCountryName = (countryId) => {
-    const country = countries.find(
-      (c) => c.country_id === countryId || c.country_id === String(countryId)
-    );
-    return country ? country.country_name : "Unknown";
-  };
-
-  // Get category name by ID
-  const getCategoryName = (categoryId) => {
-    const category = categories.find(
-      (c) =>
-        c.category_id === categoryId || c.category_id === String(categoryId)
-    );
-    return category ? category.category : "Unknown";
-  };
-
-  const handleAddPhoto = () => {
+  // ── Handlers ──────────────────────────────────────────────────────────────────
+  const handleAddPhoto = useCallback(() => {
     setFileList([]);
     form.resetFields();
     setModalOpen(true);
-  };
+  }, [form]);
 
-  const handleEditPhoto = (photo) => {
-    setCurrentPhoto(photo);
-    setEditFileList([]);
-    editForm.setFieldsValue({
-      title: photo.title,
-      country_id: photo.country_id ? String(photo.country_id) : undefined,
-      category_id: photo.category_id ? String(photo.category_id) : undefined,
-    });
-    setEditModalOpen(true);
-  };
+  const handleEditPhoto = useCallback(
+    (photo) => {
+      setCurrentPhoto(photo);
+      setEditFileList([]);
+      editForm.setFieldsValue({
+        title: photo.title,
+        country_id: photo.country_id ? String(photo.country_id) : undefined,
+        category_id: photo.category_id ? String(photo.category_id) : undefined,
+      });
+      setEditModalOpen(true);
+    },
+    [editForm]
+  );
 
-  const handleDeletePhoto = async (photoId) => {
+  const handleDeletePhoto = useCallback(async (photoId) => {
     try {
-      const response = await axios.post(
+      const { data } = await axios.post(
         `${base_url}/admin/gallary/delete_gallary.php`,
-        {
-          id: parseInt(photoId),
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
+        { id: parseInt(photoId) }
       );
-
-      if (response.data && response.data.status === "success") {
-        message.success("Photo deleted successfully");
-        await fetchGallery();
-      } else {
-        throw new Error(response.data?.message || "Failed to delete photo");
-      }
-    } catch (error) {
-      console.error("Error deleting photo:", error);
-      message.error(
-        error.response?.data?.message ||
-          error.message ||
-          "Failed to delete photo. Please try again."
-      );
+      if (data?.status === "success") {
+        message.success("Photo deleted");
+        setPhotos((prev) => prev.filter((p) => p.id !== photoId)); // optimistic
+      } else throw new Error(data?.message);
+    } catch (err) {
+      message.error(err.message || "Failed to delete.");
     }
-  };
+  }, []);
 
-  const handleToggleVisibility = async (photo) => {
+  const handleToggleVisibility = useCallback(async (photo) => {
     setToggling(photo.id);
     try {
-      const response = await axios.post(
+      const { data } = await axios.post(
         `${base_url}/admin/gallary/toggle_image.php`,
-        {
-          id: parseInt(photo.id),
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
+        { id: parseInt(photo.id) }
       );
-
-      if (response.data && response.data.status === "success") {
-        const isCurrentlyHidden = photo.hidden === "1";
-        const actionText = isCurrentlyHidden ? "shown" : "hidden";
-        message.success(`Photo ${actionText} successfully`);
-        await fetchGallery();
-      } else {
-        throw new Error(
-          response.data?.message || "Failed to toggle visibility"
+      if (data?.status === "success") {
+        const wasHidden = photo.hidden === "1";
+        message.success(`Photo ${wasHidden ? "shown" : "hidden"}`);
+        setPhotos(
+          (
+            prev // optimistic
+          ) =>
+            prev.map((p) =>
+              p.id === photo.id ? { ...p, hidden: wasHidden ? "0" : "1" } : p
+            )
         );
-      }
-    } catch (error) {
-      console.error("Error toggling visibility:", error);
-      message.error(
-        error.response?.data?.message ||
-          error.message ||
-          "Failed to toggle visibility. Please try again."
-      );
+      } else throw new Error(data?.message);
+    } catch (err) {
+      message.error(err.message || "Failed to toggle.");
     } finally {
       setToggling(null);
     }
-  };
+  }, []);
 
-  const handlePreviewPhoto = (photo) => {
+  const handlePreviewPhoto = useCallback((photo) => {
     setCurrentPhoto({ ...photo });
     setPreviewModalOpen(true);
-  };
+  }, []);
 
-  const handleUploadPhoto = async (values) => {
-    if (fileList.length === 0) {
-      message.error("Please select an image to upload");
-      return;
-    }
-
-    if (!values.country_id) {
-      message.error("Please select a country");
-      return;
-    }
-
-    if (!values.category_id) {
-      message.error("Please select a category");
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const file = fileList[0].originFileObj || fileList[0];
-
-      // Step 1: Upload image to your server
-      message.loading("Uploading image...", 0);
-      const imageUrl = await uploadImageToServer(file);
-      message.destroy();
-
-      if (!imageUrl) {
-        throw new Error("No image URL returned from upload");
+  const handleUploadPhoto = useCallback(
+    async (values) => {
+      if (!fileList.length) {
+        message.error("Please select an image");
+        return;
       }
-
-      const payload = {
-        image: imageUrl,
-        category_id: parseInt(values.category_id),
-        country_id: parseInt(values.country_id),
-      };
-
-      console.log("Adding photo with payload:", payload);
-
-      const response = await axios.post(
-        `${base_url}/admin/gallary/add_gallary.php`,
-        payload,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (response.data && response.data.status === "success") {
-        message.success("Photo uploaded and added to gallery successfully!");
-        await fetchGallery();
-        setModalOpen(false);
-        setFileList([]);
-        form.resetFields();
-      } else {
-        throw new Error(
-          response.data?.message || "Failed to add photo to gallery"
-        );
-      }
-    } catch (error) {
-      message.destroy();
-      console.error("Error uploading photo:", error);
-      message.error(
-        error.response?.data?.message ||
-          error.message ||
-          "Failed to upload photo. Please try again."
-      );
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleUpdatePhoto = async (values) => {
-    if (!currentPhoto) return;
-
-    setUpdating(true);
-    try {
-      let imageUrl = currentPhoto.image;
-
-      // If new image is selected, upload it
-      if (editFileList.length > 0) {
-        const file = editFileList[0].originFileObj || editFileList[0];
-        message.loading("Uploading new image...", 0);
-        imageUrl = await uploadImageToServer(file);
+      setUploading(true);
+      try {
+        const file = fileList[0].originFileObj || fileList[0];
+        message.loading("Uploading…", 0);
+        const imageUrl = await uploadImageToServer(file);
         message.destroy();
+        if (!imageUrl) throw new Error("No URL returned");
 
-        if (!imageUrl) {
-          throw new Error("No image URL returned from upload");
-        }
+        const { data } = await axios.post(
+          `${base_url}/admin/gallary/add_gallary.php`,
+          {
+            image: imageUrl,
+            category_id: parseInt(values.category_id),
+            country_id: parseInt(values.country_id),
+          }
+        );
+        if (data?.status === "success") {
+          message.success("Photo uploaded!");
+          await fetchGallery();
+          setModalOpen(false);
+          setFileList([]);
+          form.resetFields();
+        } else throw new Error(data?.message);
+      } catch (err) {
+        message.destroy();
+        message.error(err.message || "Failed to upload.");
+      } finally {
+        setUploading(false);
       }
+    },
+    [fileList, fetchGallery, form]
+  );
 
-      const payload = {
-        id: parseInt(currentPhoto.id),
-        category_id: parseInt(values.category_id),
-        country_id: parseInt(values.country_id),
-        title: values.title || "",
-        image: imageUrl,
-      };
-
-      console.log("Updating photo with payload:", payload);
-
-      const response = await axios.post(
-        `${base_url}/admin/gallary/edit_galary.php`,
-        payload,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
+  const handleUpdatePhoto = useCallback(
+    async (values) => {
+      if (!currentPhoto) return;
+      setUpdating(true);
+      try {
+        let imageUrl = currentPhoto.image;
+        if (editFileList.length) {
+          const file = editFileList[0].originFileObj || editFileList[0];
+          message.loading("Uploading…", 0);
+          imageUrl = await uploadImageToServer(file);
+          message.destroy();
+          if (!imageUrl) throw new Error("No URL returned");
         }
-      );
-
-      if (response.data && response.data.status === "success") {
-        message.success("Photo updated successfully!");
-        await fetchGallery();
-        setEditModalOpen(false);
-        setEditFileList([]);
-        editForm.resetFields();
-        setCurrentPhoto(null);
-      } else {
-        throw new Error(response.data?.message || "Failed to update photo");
+        const { data } = await axios.post(
+          `${base_url}/admin/gallary/edit_galary.php`,
+          {
+            id: parseInt(currentPhoto.id),
+            category_id: parseInt(values.category_id),
+            country_id: parseInt(values.country_id),
+            title: values.title || "",
+            image: imageUrl,
+          }
+        );
+        if (data?.status === "success") {
+          message.success("Photo updated!");
+          setPhotos(
+            (
+              prev // optimistic
+            ) =>
+              prev.map((p) =>
+                p.id === currentPhoto.id
+                  ? {
+                      ...p,
+                      title: values.title || "",
+                      category_id: values.category_id,
+                      country_id: values.country_id,
+                      image: imageUrl,
+                    }
+                  : p
+              )
+          );
+          setEditModalOpen(false);
+          setEditFileList([]);
+          editForm.resetFields();
+          setCurrentPhoto(null);
+        } else throw new Error(data?.message);
+      } catch (err) {
+        message.destroy();
+        message.error(err.message || "Failed to update.");
+      } finally {
+        setUpdating(false);
       }
-    } catch (error) {
-      message.destroy();
-      console.error("Error updating photo:", error);
-      message.error(
-        error.response?.data?.message ||
-          error.message ||
-          "Failed to update photo. Please try again."
-      );
-    } finally {
-      setUpdating(false);
-    }
-  };
+    },
+    [currentPhoto, editFileList, editForm]
+  );
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setModalOpen(false);
     setFileList([]);
     form.resetFields();
-  };
-
-  const handleEditCancel = () => {
+  }, [form]);
+  const handleEditCancel = useCallback(() => {
     setEditModalOpen(false);
     setEditFileList([]);
     editForm.resetFields();
     setCurrentPhoto(null);
-  };
-
-  const uploadProps = {
-    onRemove: () => {
-      setFileList([]);
-    },
-    beforeUpload: (file) => {
-      const isImage = file.type.startsWith("image/");
-      if (!isImage) {
-        message.error("You can only upload image files!");
-        return false;
-      }
-
-      const isLt10M = file.size / 1024 / 1024 < 10;
-      if (!isLt10M) {
-        message.error("Image must be smaller than 10MB!");
-        return false;
-      }
-
-      setFileList([file]);
-      return false;
-    },
-    fileList,
-    listType: "picture-card",
-    accept: "image/*",
-  };
-
-  const editUploadProps = {
-    onRemove: () => {
-      setEditFileList([]);
-    },
-    beforeUpload: (file) => {
-      const isImage = file.type.startsWith("image/");
-      if (!isImage) {
-        message.error("You can only upload image files!");
-        return false;
-      }
-
-      const isLt10M = file.size / 1024 / 1024 < 10;
-      if (!isLt10M) {
-        message.error("Image must be smaller than 10MB!");
-        return false;
-      }
-
-      setEditFileList([file]);
-      return false;
-    },
-    fileList: editFileList,
-    listType: "picture-card",
-    accept: "image/*",
-  };
-
-  const getVisibilityInfo = (hidden) => {
-    const isHidden = hidden === "1";
-    return {
-      color: isHidden ? "red" : "green",
-      text: isHidden ? "Hidden" : "Visible",
-      icon: isHidden ? EyeInvisibleOutlined : EyeOutlined,
-      tooltipText: isHidden ? "Show Image" : "Hide Image",
-    };
-  };
-
-  const handleRefresh = () => {
+  }, [editForm]);
+  const handleRefresh = useCallback(() => {
     fetchGallery();
     fetchCountries();
     fetchCategories();
-  };
+  }, [fetchGallery, fetchCountries, fetchCategories]);
 
+  // Stable upload props — only recreate when fileList reference changes
+  const uploadProps = useMemo(
+    () => ({
+      onRemove: () => setFileList([]),
+      beforeUpload: (file) => {
+        if (!file.type.startsWith("image/")) {
+          message.error("Images only!");
+          return false;
+        }
+        if (file.size / 1024 / 1024 >= 10) {
+          message.error("Max 10MB!");
+          return false;
+        }
+        setFileList([file]);
+        return false;
+      },
+      fileList,
+      listType: "picture-card",
+      accept: "image/*",
+    }),
+    [fileList]
+  );
+
+  const editUploadProps = useMemo(
+    () => ({
+      onRemove: () => setEditFileList([]),
+      beforeUpload: (file) => {
+        if (!file.type.startsWith("image/")) {
+          message.error("Images only!");
+          return false;
+        }
+        if (file.size / 1024 / 1024 >= 10) {
+          message.error("Max 10MB!");
+          return false;
+        }
+        setEditFileList([file]);
+        return false;
+      },
+      fileList: editFileList,
+      listType: "picture-card",
+      accept: "image/*",
+    }),
+    [editFileList]
+  );
+
+  // Preview helpers
+  const previewVisibility = useMemo(
+    () => ({
+      color: currentPhoto?.hidden === "1" ? "red" : "green",
+      text: currentPhoto?.hidden === "1" ? "Hidden" : "Visible",
+    }),
+    [currentPhoto?.hidden]
+  );
+
+  const previewDate = useMemo(
+    () =>
+      currentPhoto?.created_at
+        ? new Date(currentPhoto.created_at).toLocaleString()
+        : "",
+    [currentPhoto?.created_at]
+  );
+
+  // Country/category select options (stable JSX arrays)
+  const countryOptions = useMemo(
+    () =>
+      countries.map((c) => (
+        <Option key={c.country_id} value={c.country_id}>
+          {c.country_name}
+        </Option>
+      )),
+    [countries]
+  );
+
+  const categoryOptions = useMemo(
+    () =>
+      visibleCategories.map((c) => (
+        <Option key={c.category_id} value={c.category_id}>
+          {c.category}
+        </Option>
+      )),
+    [visibleCategories]
+  );
+
+  const filterOption = useCallback(
+    (input, option) =>
+      (option?.children ?? "").toLowerCase().includes(input.toLowerCase()),
+    []
+  );
+
+  // ── Render ────────────────────────────────────────────────────────────────────
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <Title level={2}>Photo Gallery</Title>
-        <Space>
-          <Button
-            type="default"
-            icon={<GlobalOutlined />}
-            onClick={() => navigate("/gallery/categories")}
-          >
-            Manage Categories
-          </Button>
-
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={handleRefresh}
-            loading={loading}
-          >
-            Refresh
-          </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAddPhoto}
-          >
-            Add Photo
-          </Button>
-        </Space>
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center items-center py-12">
-          <Spin size="large" tip="Loading gallery..." />
+    <>
+      <ShimmerStyle />
+      <div className="p-6">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-6">
+          <Title level={2}>Photo Gallery</Title>
+          <Space>
+            <Button
+              type="default"
+              icon={<GlobalOutlined />}
+              onClick={() => navigate("/gallery/categories")}
+            >
+              Manage Categories
+            </Button>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={handleRefresh}
+              loading={loading}
+            >
+              Refresh
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleAddPhoto}
+            >
+              Add Photo
+            </Button>
+          </Space>
         </div>
-      ) : photos.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-gray-500 mb-4">No photos in gallery yet</p>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAddPhoto}
-          >
-            Add Your First Photo
-          </Button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {photos.map((photo) => {
-            const visibilityInfo = getVisibilityInfo(photo.hidden);
-            const VisibilityIcon = visibilityInfo.icon;
 
-            return (
-              <Card
+        {/* Grid */}
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <Spin size="large" tip="Loading gallery…" />
+          </div>
+        ) : photos.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500 mb-4">No photos in gallery yet</p>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleAddPhoto}
+            >
+              Add Your First Photo
+            </Button>
+          </div>
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+              gap: 20,
+              contain: "layout", // page-level containment
+            }}
+          >
+            {photos.map((photo) => (
+              <PhotoCard
                 key={photo.id}
-                cover={
-                  <div
-                    className={`h-48 bg-cover bg-center cursor-pointer relative ${
-                      photo.hidden === "1" ? "opacity-50" : ""
-                    }`}
+                photo={photo}
+                onPreview={handlePreviewPhoto}
+                onEdit={handleEditPhoto}
+                onToggle={handleToggleVisibility}
+                onDelete={handleDeletePhoto}
+                toggling={toggling}
+                getCategoryName={getCategoryName}
+                getCountryName={getCountryName}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* ── Add Modal ── */}
+        <Modal
+          title="Add New Photo"
+          open={modalOpen}
+          onCancel={handleCancel}
+          footer={null}
+          width={600}
+          destroyOnClose
+        >
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleUploadPhoto}
+            className="py-4"
+          >
+            <Form.Item
+              name="category_id"
+              label="Category"
+              rules={[{ required: true, message: "Please select a category" }]}
+            >
+              <Select
+                placeholder="Select a category"
+                loading={categoriesLoading}
+                showSearch
+                optionFilterProp="children"
+                filterOption={filterOption}
+              >
+                {categoryOptions}
+              </Select>
+            </Form.Item>
+            <Form.Item
+              name="country_id"
+              label="Country"
+              rules={[{ required: true, message: "Please select a country" }]}
+            >
+              <Select
+                placeholder="Select a country"
+                loading={countriesLoading}
+                showSearch
+                optionFilterProp="children"
+                filterOption={filterOption}
+              >
+                {countryOptions}
+              </Select>
+            </Form.Item>
+            <Form.Item label="Select Image" required>
+              <UploadArea uploadProps={uploadProps} />
+            </Form.Item>
+            {fileList.length > 0 && (
+              <div className="p-3 bg-blue-50 rounded text-sm text-blue-700">
+                <p className="font-medium text-blue-800">Upload Info:</p>
+                <p>• Max 10MB · JPG, PNG, GIF, WebP</p>
+              </div>
+            )}
+            <Form.Item className="mb-0 mt-6">
+              <Space className="flex justify-end">
+                <Button onClick={handleCancel} disabled={uploading}>
+                  Cancel
+                </Button>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  loading={uploading}
+                  disabled={!fileList.length}
+                >
+                  Upload Photo
+                </Button>
+              </Space>
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        {/* ── Edit Modal ── */}
+        <Modal
+          title="Edit Photo"
+          open={editModalOpen}
+          onCancel={handleEditCancel}
+          footer={null}
+          width={600}
+          destroyOnClose
+        >
+          <Form
+            form={editForm}
+            layout="vertical"
+            onFinish={handleUpdatePhoto}
+            className="py-4"
+          >
+            {currentPhoto && (
+              <div className="mb-4">
+                <p className="text-sm font-medium text-gray-700 mb-2">
+                  Current Image:
+                </p>
+                <div
+                  style={{
+                    height: 160,
+                    position: "relative",
+                    borderRadius: 8,
+                    overflow: "hidden",
+                    border: "1px solid #f0f0f0",
+                  }}
+                >
+                  <AsyncImage
+                    src={currentPhoto.image}
+                    alt="current"
+                    Transition={Blur}
                     style={{
-                      backgroundImage: `url(${photo.image})`,
-                      backgroundSize: "cover",
-                      backgroundPosition: "center",
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "contain",
                     }}
-                    onClick={() => handlePreviewPhoto(photo)}
-                  >
-                    {/* Visibility Tag */}
-                    <div className="absolute top-2 right-2">
-                      <Tag color={visibilityInfo.color} className="m-0">
-                        {visibilityInfo.text}
-                      </Tag>
-                    </div>
-                    {/* Tags */}
-                    <div className="absolute top-2 left-2">
-                      <Space direction="vertical" size="small">
-                        {photo.category_id && (
-                          <Tag
-                            color="purple"
-                            icon={<FolderOutlined />}
-                            className="m-0"
-                          >
-                            {getCategoryName(photo.category_id)}
-                          </Tag>
-                        )}
-                        {photo.country_id && (
-                          <Tag
-                            color="blue"
-                            icon={<GlobalOutlined />}
-                            className="m-0"
-                          >
-                            {getCountryName(photo.country_id)}
-                          </Tag>
-                        )}
-                      </Space>
-                    </div>
+                    loader={
+                      <div className="flex justify-center items-center h-full">
+                        <Spin className="animate-spin text-2xl !text-green-500" />
+                      </div>
+                    }
+                    error={<ImageError />}
+                  />
+                </div>
+              </div>
+            )}
+            <Form.Item name="title" label="Photo Title">
+              <Input
+                placeholder="Enter a descriptive title"
+                showCount
+                maxLength={100}
+              />
+            </Form.Item>
+            <Form.Item
+              name="category_id"
+              label="Category"
+              rules={[{ required: true, message: "Please select a category" }]}
+            >
+              <Select
+                placeholder="Select a category"
+                loading={categoriesLoading}
+                showSearch
+                optionFilterProp="children"
+                filterOption={filterOption}
+              >
+                {categoryOptions}
+              </Select>
+            </Form.Item>
+            <Form.Item
+              name="country_id"
+              label="Country"
+              rules={[{ required: true, message: "Please select a country" }]}
+            >
+              <Select
+                placeholder="Select a country"
+                loading={countriesLoading}
+                showSearch
+                optionFilterProp="children"
+                filterOption={filterOption}
+              >
+                {countryOptions}
+              </Select>
+            </Form.Item>
+            <Form.Item label="Change Image (Optional)">
+              <UploadArea
+                uploadProps={editUploadProps}
+                label="Select New Image"
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                Leave empty to keep the current image
+              </p>
+            </Form.Item>
+            <Form.Item className="mb-0 mt-6">
+              <Space className="flex justify-end">
+                <Button onClick={handleEditCancel} disabled={updating}>
+                  Cancel
+                </Button>
+                <Button type="primary" htmlType="submit" loading={updating}>
+                  Update Photo
+                </Button>
+              </Space>
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        {/* ── Preview Modal ── */}
+        <Modal
+          title={
+            <p className="text-center font-semibold text-base mb-0">
+              {currentPhoto?.title || "Untitled"}
+            </p>
+          }
+          open={previewModalOpen}
+          onCancel={() => setPreviewModalOpen(false)}
+          footer={[
+            <Button
+              key="edit"
+              type="primary"
+              icon={<EditOutlined />}
+              onClick={() => {
+                setPreviewModalOpen(false);
+                handleEditPhoto(currentPhoto);
+              }}
+            >
+              Edit
+            </Button>,
+            <Button key="close" onClick={() => setPreviewModalOpen(false)}>
+              Close
+            </Button>,
+          ]}
+          width={900}
+          centered
+          destroyOnClose
+        >
+          <div className="flex flex-col items-center gap-4">
+            <div
+              style={{
+                width: "100%",
+                maxHeight: "70vh",
+                position: "relative",
+                borderRadius: 8,
+                overflow: "hidden",
+                minHeight: 300,
+              }}
+            >
+              <AsyncImage
+                src={currentPhoto?.image}
+                alt={currentPhoto?.title || "Preview"}
+                Transition={Blur}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                  maxHeight: "70vh",
+                }}
+                loader={
+                  <div className="flex justify-center items-center h-full">
+                    <Spin className="animate-spin text-2xl !text-green-500" />
                   </div>
                 }
-                actions={[
-                  <Tooltip title="Preview Image" key="preview">
-                    <EyeOutlined onClick={() => handlePreviewPhoto(photo)} />
-                  </Tooltip>,
-                  <Tooltip title="Edit Image" key="edit">
-                    <EditOutlined onClick={() => handleEditPhoto(photo)} />
-                  </Tooltip>,
-                  <Tooltip title={visibilityInfo.tooltipText} key="toggle">
-                    <VisibilityIcon
-                      onClick={() => handleToggleVisibility(photo)}
-                      style={{
-                        color: toggling === photo.id ? "#1890ff" : undefined,
-                      }}
-                    />
-                  </Tooltip>,
-                  <Popconfirm
-                    key="delete"
-                    title="Delete this photo?"
-                    description="Are you sure you want to delete this photo? This action cannot be undone."
-                    onConfirm={() => handleDeletePhoto(photo.id)}
-                    okText="Yes"
-                    cancelText="No"
-                  >
-                    <Tooltip title="Delete Image">
-                      <DeleteOutlined />
-                    </Tooltip>
-                  </Popconfirm>,
-                ]}
-              >
-                <Card.Meta
-                  title={
-                    <Tooltip title={photo.title || "No title"}>
-                      <div className="text-sm font-medium text-gray-900 truncate text-center">
-                        {photo.title || "Untitled"}
-                      </div>
-                    </Tooltip>
-                  }
-                  description={
-                    <div className="text-center">
-                      {photo.category_id && (
-                        <p className="text-xs text-purple-600 mb-1">
-                          <FolderOutlined className="mr-1" />
-                          {getCategoryName(photo.category_id)}
-                        </p>
-                      )}
-                      {photo.country_id && (
-                        <p className="text-xs text-blue-600 mb-1">
-                          <GlobalOutlined className="mr-1" />
-                          {getCountryName(photo.country_id)}
-                        </p>
-                      )}
-                      <p className="text-xs text-gray-500 mb-1">
-                        Added: {new Date(photo.created_at).toLocaleDateString()}
-                      </p>
-                      <p className="text-xs text-gray-400">ID: {photo.id}</p>
-                    </div>
-                  }
-                />
-              </Card>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Add Photo Modal */}
-      <Modal
-        title="Add New Photo"
-        open={modalOpen}
-        onCancel={handleCancel}
-        footer={null}
-        width={600}
-        destroyOnClose
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleUploadPhoto}
-          className="py-4"
-        >
-          <Form.Item
-            name="category_id"
-            label="Category"
-            rules={[{ required: true, message: "Please select a category" }]}
-          >
-            <Select
-              placeholder="Select a category"
-              loading={categoriesLoading}
-              showSearch
-              optionFilterProp="children"
-              filterOption={(input, option) =>
-                (option?.children ?? "")
-                  .toLowerCase()
-                  .includes(input.toLowerCase())
-              }
-            >
-              {categories
-                .filter((cat) => cat.hidden === "0")
-                .map((category) => (
-                  <Option
-                    key={category.category_id}
-                    value={category.category_id}
-                  >
-                    {category.category}
-                  </Option>
-                ))}
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            name="country_id"
-            label="Country"
-            rules={[{ required: true, message: "Please select a country" }]}
-          >
-            <Select
-              placeholder="Select a country"
-              loading={countriesLoading}
-              showSearch
-              optionFilterProp="children"
-              filterOption={(input, option) =>
-                (option?.children ?? "")
-                  .toLowerCase()
-                  .includes(input.toLowerCase())
-              }
-            >
-              {countries.map((country) => (
-                <Option key={country.country_id} value={country.country_id}>
-                  {country.country_name}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-
-          <Form.Item label="Select Image" required>
-            <Upload {...uploadProps}>
-              {fileList.length === 0 && (
-                <div>
-                  <PlusOutlined />
-                  <div style={{ marginTop: 8 }}>Select Image</div>
-                </div>
-              )}
-            </Upload>
-          </Form.Item>
-
-          {fileList.length > 0 && (
-            <div className="mt-4 p-3 bg-blue-50 rounded">
-              <h4 className="text-sm font-medium text-blue-800 mb-2">
-                Upload Information:
-              </h4>
-              <ul className="text-sm text-blue-700 space-y-1">
-                <li>• Image will be uploaded to server</li>
-                <li>• Maximum file size: 10MB</li>
-                <li>• Supported formats: JPG, PNG, GIF, WebP</li>
-                <li>• Image will be automatically resized if needed</li>
-              </ul>
-            </div>
-          )}
-
-          <Form.Item className="mb-0 mt-6">
-            <Space className="flex justify-end">
-              <Button onClick={handleCancel} disabled={uploading}>
-                Cancel
-              </Button>
-              <Button
-                type="primary"
-                htmlType="submit"
-                loading={uploading}
-                disabled={fileList.length === 0}
-              >
-                Upload Photo
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Edit Photo Modal */}
-      <Modal
-        title="Edit Photo"
-        open={editModalOpen}
-        onCancel={handleEditCancel}
-        footer={null}
-        width={600}
-        destroyOnClose
-      >
-        <Form
-          form={editForm}
-          layout="vertical"
-          onFinish={handleUpdatePhoto}
-          className="py-4"
-        >
-          {/* Current Image Preview */}
-          {currentPhoto && (
-            <div className="mb-4">
-              <p className="text-sm font-medium text-gray-700 mb-2">
-                Current Image:
-              </p>
-              <div
-                className="h-40 w-full bg-cover bg-center rounded-lg border"
-                style={{
-                  backgroundImage: `url(${currentPhoto.image})`,
-                  backgroundSize: "contain",
-                  backgroundRepeat: "no-repeat",
-                }}
+                error={<ImageError />}
               />
             </div>
-          )}
 
-          <Form.Item name="title" label="Photo Title">
-            <Input
-              placeholder="Enter a descriptive title for your photo"
-              showCount
-              maxLength={100}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="category_id"
-            label="Category"
-            rules={[{ required: true, message: "Please select a category" }]}
-          >
-            <Select
-              placeholder="Select a category"
-              loading={categoriesLoading}
-              showSearch
-              optionFilterProp="children"
-              filterOption={(input, option) =>
-                (option?.children ?? "")
-                  .toLowerCase()
-                  .includes(input.toLowerCase())
-              }
-            >
-              {categories
-                .filter((cat) => cat.hidden === "0")
-                .map((category) => (
-                  <Option
-                    key={category.category_id}
-                    value={category.category_id}
-                  >
-                    {category.category}
-                  </Option>
-                ))}
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            name="country_id"
-            label="Country"
-            rules={[{ required: true, message: "Please select a country" }]}
-          >
-            <Select
-              placeholder="Select a country"
-              loading={countriesLoading}
-              showSearch
-              optionFilterProp="children"
-              filterOption={(input, option) =>
-                (option?.children ?? "")
-                  .toLowerCase()
-                  .includes(input.toLowerCase())
-              }
-            >
-              {countries.map((country) => (
-                <Option key={country.country_id} value={country.country_id}>
-                  {country.country_name}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-
-          <Form.Item label="Change Image (Optional)">
-            <Upload {...editUploadProps}>
-              {editFileList.length === 0 && (
-                <div>
-                  <PlusOutlined />
-                  <div style={{ marginTop: 8 }}>Select New Image</div>
-                </div>
-              )}
-            </Upload>
-            <p className="text-xs text-gray-500 mt-2">
-              Leave empty to keep the current image
-            </p>
-          </Form.Item>
-
-          <Form.Item className="mb-0 mt-6">
-            <Space className="flex justify-end">
-              <Button onClick={handleEditCancel} disabled={updating}>
-                Cancel
-              </Button>
-              <Button type="primary" htmlType="submit" loading={updating}>
-                Update Photo
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Preview Modal */}
-      <Modal
-        title={
-          <div className="text-center">
-            <Title level={4} className="mb-0">
-              {currentPhoto?.title || "Untitled"}
-            </Title>
-          </div>
-        }
-        open={previewModalOpen}
-        onCancel={() => setPreviewModalOpen(false)}
-        footer={[
-          <Button
-            key="edit"
-            type="primary"
-            icon={<EditOutlined />}
-            onClick={() => {
-              setPreviewModalOpen(false);
-              handleEditPhoto(currentPhoto);
-            }}
-          >
-            Edit
-          </Button>,
-          <Button key="close" onClick={() => setPreviewModalOpen(false)}>
-            Close
-          </Button>,
-        ]}
-        width={900}
-        centered
-        destroyOnClose
-      >
-        <div className="flex flex-col items-center">
-          <img
-            src={currentPhoto?.image}
-            alt={currentPhoto?.title || "Gallery Preview"}
-            style={{
-              maxWidth: "100%",
-              maxHeight: "70vh",
-              objectFit: "contain",
-              borderRadius: "8px",
-            }}
-          />
-          <div className="mt-4 text-center">
-            <Space direction="vertical" size="small">
-              <div className="bg-gray-50 p-3 rounded-md">
-                <p className="text-base font-medium text-gray-900 mb-2">
-                  {currentPhoto?.title || "Untitled"}
-                </p>
-                <Space wrap>
-                  <Tag
-                    color={getVisibilityInfo(currentPhoto?.hidden).color}
-                    className="text-sm"
-                  >
-                    {getVisibilityInfo(currentPhoto?.hidden).text}
+            <div className="bg-gray-50 p-3 rounded-lg text-center w-full">
+              <p className="font-medium text-gray-900 mb-2">
+                {currentPhoto?.title || "Untitled"}
+              </p>
+              <Space wrap className="justify-center mb-2">
+                <Tag color={previewVisibility.color}>
+                  {previewVisibility.text}
+                </Tag>
+                {currentPhoto?.category_id && (
+                  <Tag color="purple" icon={<FolderOutlined />}>
+                    {getCategoryName(currentPhoto.category_id)}
                   </Tag>
-                  {currentPhoto?.category_id && (
-                    <Tag
-                      color="purple"
-                      icon={<FolderOutlined />}
-                      className="text-sm"
-                    >
-                      {getCategoryName(currentPhoto?.category_id)}
-                    </Tag>
-                  )}
-                  {currentPhoto?.country_id && (
-                    <Tag
-                      color="blue"
-                      icon={<GlobalOutlined />}
-                      className="text-sm"
-                    >
-                      {getCountryName(currentPhoto?.country_id)}
-                    </Tag>
-                  )}
-                </Space>
-              </div>
-              <p className="text-sm text-gray-500">
-                Added:{" "}
-                {currentPhoto?.created_at &&
-                  new Date(currentPhoto.created_at).toLocaleString()}
-              </p>
-              <p className="text-xs text-gray-400">
-                Image ID: {currentPhoto?.id}
-              </p>
+                )}
+                {currentPhoto?.country_id && (
+                  <Tag color="blue" icon={<GlobalOutlined />}>
+                    {getCountryName(currentPhoto.country_id)}
+                  </Tag>
+                )}
+              </Space>
+              <p className="text-sm text-gray-500">Added: {previewDate}</p>
+              <p className="text-xs text-gray-400">ID: {currentPhoto?.id}</p>
               <Button
                 type="link"
                 size="small"
                 onClick={() => window.open(currentPhoto?.image, "_blank")}
               >
-                Open Original Image
+                Open Original
               </Button>
-            </Space>
+            </div>
           </div>
-        </div>
-      </Modal>
-    </div>
+        </Modal>
+      </div>
+    </>
   );
 };
 

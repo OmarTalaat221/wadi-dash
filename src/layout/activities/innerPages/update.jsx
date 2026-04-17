@@ -40,6 +40,7 @@ function UpdateActivityLayout() {
     max_people: "",
     video_link: "",
     activity_type: "",
+    for_children: "1",
     featuresArray: [], // ✅ Changed
     featuresString: "", // ✅ Added
     images: [],
@@ -165,6 +166,8 @@ function UpdateActivityLayout() {
 
           setRowData({
             ...activity,
+            for_children: activity.for_children ?? "1",
+
             featuresArray: featuresArray, // ✅ Use featuresArray
             featuresString: convertFeaturesToString(featuresArray),
             images: imagesArray,
@@ -241,6 +244,7 @@ function UpdateActivityLayout() {
         per_adult: rowData.price_current,
         per_child: rowData.per_child,
         price_note: rowData.price_note,
+        for_children: rowData.for_children,
         max_people: rowData.max_people,
         video_link: rowData.video_link,
         activity_type: rowData.activity_type,
@@ -370,7 +374,37 @@ function UpdateActivityLayout() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-gray-50">
+              <div>
+                <p className="font-medium text-gray-800">
+                  Suitable for Children
+                </p>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  If disabled, children cannot be booked for this activity
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setRowData((prev) => ({
+                    ...prev,
+                    for_children: prev.for_children === "1" ? "0" : "1",
+                  }))
+                }
+                className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  rowData.for_children === "1" ? "bg-[#295557]" : "bg-gray-300"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition duration-200 ease-in-out ${
+                    rowData.for_children === "1"
+                      ? "translate-x-5"
+                      : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
             <div>
               <label className="block mb-1 font-medium">Price per Child</label>
               <input
