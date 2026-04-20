@@ -69,6 +69,7 @@ function UpdateTourLayout() {
     video_link: "",
     price_currency: "$",
     price_note: "",
+    driver_price: "",
     highlights: [],
     includes: [],
     excludes: [],
@@ -164,6 +165,7 @@ function UpdateTourLayout() {
               day_id: item.day_id,
               title: item.title,
               description: item.description,
+              guide_price: Number(item.guide_price),
               hotel_id:
                 item.hotel_options?.map((h) => Number(h.hotel_id)) || [],
               car_id: item.cars_options?.map((c) => Number(c.car_id)) || [],
@@ -229,6 +231,7 @@ function UpdateTourLayout() {
           per_adult: tourData.per_adult,
           per_child: tourData.per_child,
           price_currency: tourData.price_currency,
+          driver_price: tourData.driver_price,
           price_note: tourData.price_note,
           max_persons: tourData.max_persons || "",
           video_link: tourData.video_link || "",
@@ -530,6 +533,7 @@ function UpdateTourLayout() {
               day_id: day.day_id,
               title: day.title,
               description: day.description,
+              guide_price: day.guide_price,
               hotel_id: Array.isArray(day.hotel_id)
                 ? day.hotel_id.join(",")
                 : day.hotel_id,
@@ -710,6 +714,7 @@ function UpdateTourLayout() {
           onChange={handleChange}
           onWheel={(e) => e.target.blur()}
         />
+
         <TextField
           fullWidth
           label="Video Link"
@@ -768,6 +773,16 @@ function UpdateTourLayout() {
           onWheel={(e) => e.target.blur()}
         />
       </div>
+
+      <TextField
+        fullWidth
+        label="Driver Price"
+        name="driver_price"
+        type="number"
+        value={formData.driver_price}
+        onChange={handleChange}
+        onWheel={(e) => e.target.blur()}
+      />
       <TextField
         fullWidth
         label="Price Note"
@@ -904,26 +919,47 @@ function UpdateTourLayout() {
           </div>
 
           {/* Tour Guide Toggle */}
-          <div className="bg-gray-50 p-4 rounded-lg border">
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.days[activeDay]?.isTourguide === 1}
-                  onChange={(e) =>
-                    handleTourguideToggle(activeDay, e.target.checked)
-                  }
-                  color="primary"
-                />
-              }
-              label={
-                <div className="flex flex-col">
-                  <span className="font-medium">Tour Guide Required</span>
-                  <span className="text-sm text-gray-500">
-                    Enable if this day requires a tour guide
-                  </span>
-                </div>
-              }
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-gray-50 p-4 rounded-lg border">
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.days[activeDay]?.isTourguide === 1}
+                    onChange={(e) =>
+                      handleTourguideToggle(activeDay, e.target.checked)
+                    }
+                    color="primary"
+                  />
+                }
+                label={
+                  <div className="flex flex-col">
+                    <span className="font-medium">Tour Guide Required</span>
+                    <span className="text-sm text-gray-500">
+                      Enable if this day requires a tour guide
+                    </span>
+                  </div>
+                }
+              />
+            </div>
+
+            <div className="w-full h-full">
+              <TextField
+                fullWidth
+                label="Guide Price"
+                name="guide_price"
+                type="number"
+                value={formData.days[activeDay]?.guide_price}
+                onChange={(e) =>
+                  handleDayChange(
+                    activeDay,
+                    "guide_price",
+                    Number(e.target.value)
+                  )
+                }
+                onWheel={(e) => e.target.blur()}
+                disabled={formData.days[activeDay]?.isTourguide == 0}
+              />
+            </div>
           </div>
 
           {/* ============ Map Locations Section ============ */}

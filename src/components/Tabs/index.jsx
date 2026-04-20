@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from "react";
-
 import "../../sass/components/_tabs.scss";
 
 function Tabs({
@@ -9,17 +8,19 @@ function Tabs({
   setActiveTab,
   className,
 }) {
-  const [activeIndex, setActiveIndex] = useState(0);
+  // ✅ activeIndex مشتق من activeTab prop مش state مستقل
+  const activeIndex =
+    tabs.indexOf(activeTab) !== -1 ? tabs.indexOf(activeTab) : 0;
 
   const tabsRef = useRef([]);
   const decorationRef = useRef(null);
 
   useEffect(() => {
     const updateDecoration = () => {
-      const activeTab = tabsRef.current[activeIndex];
-      if (activeTab && decorationRef.current) {
-        decorationRef.current.style.width = `${activeTab.offsetWidth}px`;
-        decorationRef.current.style.transform = `translateX(${activeTab.offsetLeft}px)`;
+      const activeTabEl = tabsRef.current[activeIndex];
+      if (activeTabEl && decorationRef.current) {
+        decorationRef.current.style.width = `${activeTabEl.offsetWidth}px`;
+        decorationRef.current.style.transform = `translateX(${activeTabEl.offsetLeft}px)`;
       }
     };
 
@@ -47,7 +48,6 @@ function Tabs({
                       activeIndex === index ? "js-active" : ""
                     }`}
                     onClick={() => {
-                      setActiveIndex(index);
                       setActiveTab(tab);
                     }}
                   >

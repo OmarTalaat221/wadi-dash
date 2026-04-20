@@ -19,6 +19,16 @@ import {
   EditOutlined,
   ToolOutlined,
   SearchOutlined,
+  HomeOutlined,
+  UserOutlined,
+  CalendarOutlined,
+  DollarOutlined,
+  EnvironmentOutlined,
+  TeamOutlined,
+  BankOutlined,
+  SafetyCertificateOutlined,
+  ClockCircleOutlined,
+  GlobalOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
 import { base_url } from "../../../utils/base_url";
@@ -50,19 +60,16 @@ const AccommodationRequests = () => {
   const [manualUpdateRecord, setManualUpdateRecord] = useState(null);
   const [searchDebounce, setSearchDebounce] = useState(currentSearch);
 
-  // Sync searchDebounce with URL on mount
   useEffect(() => {
     setSearchDebounce(currentSearch);
   }, []);
 
-  // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchDebounce !== currentSearch) {
         setSearch(searchDebounce);
       }
     }, 500);
-
     return () => clearTimeout(timer);
   }, [searchDebounce, currentSearch, setSearch]);
 
@@ -88,7 +95,7 @@ const AccommodationRequests = () => {
           message.error("Failed to fetch accommodation requests");
         }
       } catch (error) {
-        console.error("Error fetching accommodation requests:", error);
+        console.error("Error:", error);
         message.error("Error fetching data");
       } finally {
         setLoading(false);
@@ -145,7 +152,7 @@ const AccommodationRequests = () => {
       } else {
         message.error(response.data.message);
       }
-    } catch (error) {
+    } catch {
       message.error("Error updating status");
     } finally {
       setUpdatingStatus(false);
@@ -184,7 +191,7 @@ const AccommodationRequests = () => {
       } else {
         message.error(response.data.message);
       }
-    } catch (error) {
+    } catch {
       message.error("Error updating status");
     } finally {
       setUpdatingStatus(false);
@@ -197,72 +204,126 @@ const AccommodationRequests = () => {
     setIsManualModalVisible(true);
   };
 
+  // ── Helpers ──
   const calculateDuration = (startDate, endDate) => {
     const start = new Date(startDate);
     const end = new Date(endDate);
     return Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
   };
 
-  const parseServices = (services) => {
-    if (!services || services === "null") return [];
-    return services.split("**").filter(Boolean);
+  const getStatusTagColor = (status) =>
+    ({
+      upcoming: "cyan",
+      in_progress: "processing",
+      completed: "default",
+      pending: "warning",
+      rejected: "error",
+    })[status?.toLowerCase()] || "default";
+
+  const formatDate = (d) =>
+    d
+      ? new Date(d).toLocaleDateString("en-US", {
+          weekday: "short",
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        })
+      : "N/A";
+
+  const getFirstImage = (img) =>
+    img
+      ? img.split("//CAMP//")[0]
+      : "https://via.placeholder.com/400x300?text=No+Image";
+
+  // ── Get total guests from rooms ──
+  const getRoomsSummary = (rooms) => {
+    if (!rooms || rooms.length === 0) return null;
+    const totalAdults = rooms.reduce((s, r) => s + parseInt(r.adults || 0), 0);
+    const totalKids = rooms.reduce((s, r) => s + parseInt(r.kids || 0), 0);
+    const totalBabies = rooms.reduce((s, r) => s + parseInt(r.babies || 0), 0);
+    return { totalAdults, totalKids, totalBabies, totalRooms: rooms.length };
   };
 
-  const getStatusColor = (status) => {
-    const colors = {
-      upcoming: "blue",
-      in_progress: "cyan",
-      completed: "purple",
-      pending: "orange",
-      rejected: "red",
-    };
-    return colors[status?.toLowerCase()] || "default";
-  };
-
+  // ═══════════════════════════════════
+  // TABLE COLUMNS
+  // ═══════════════════════════════════
   const columns = [
     {
-      title: "Hotel Name",
+      title: "Hotel",
       dataIndex: "title",
       key: "title",
       render: (text, record) => (
-        <div>
-          {text ? (
-            <>
-              <p className="font-semibold">{text}</p>
-              <p className="text-xs text-gray-500">{record.subtitle}</p>
-            </>
+        <div className="flex items-center gap-3">
+          {record.background_image ? (
+            <img
+              src={getFirstImage(record.background_image)}
+              alt={text}
+              className="w-14 h-10 object-cover rounded-lg shadow-sm"
+              onError={(e) => {
+                e.target.src = "https://via.placeholder.com/56x40?text=Hotel";
+              }}
+            />
           ) : (
-            <Tag color="orange">Custom Booking</Tag>
+            <div className="w-14 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+              <HomeOutlined className="text-gray-400" />
+            </div>
           )}
+          <div>
+            {text ? (
+              <>
+                <p className="font-semibold text-gray-800 mb-0 text-sm">
+                  {text}
+                </p>
+                <p className="text-xs text-gray-400 mb-0">
+                  <EnvironmentOutlined className="mr-1" />
+                  {record.location?.substring(0, 30) || "N/A"}...
+                </p>
+              </>
+            ) : (
+              <Tag
+                style={{
+                  background: "#f0f7f7",
+                  borderColor: "#295557",
+                  color: "#295557",
+                }}
+              >
+                Custom Booking
+              </Tag>
+            )}
+          </div>
         </div>
       ),
     },
     {
-      title: "User Info",
+      title: "Guest",
       dataIndex: "full_name",
       key: "full_name",
       render: (text, record) => (
         <div>
-          <p className="font-medium">{text || "N/A"}</p>
-          <p className="text-xs text-gray-500">{record.email || "N/A"}</p>
-          <p className="text-xs text-gray-500">{record.phone || "N/A"}</p>
+          <p className="font-medium text-sm mb-0">{text || "N/A"}</p>
+          <p className="text-xs text-gray-400 mb-0">{record.email || "N/A"}</p>
         </div>
       ),
     },
     {
-      title: "Stay Period",
-      key: "stay_period",
+      title: "Stay",
+      key: "stay",
       render: (_, record) => {
         const duration = calculateDuration(record.start_date, record.end_date);
         return (
           <div>
-            <p className="text-xs">
-              <span className="font-medium">Check-in:</span> {record.start_date}
+            <p className="text-xs mb-1 text-gray-600">
+              <CalendarOutlined className="mr-1 text-[#295557]" />
+              {record.start_date} → {record.end_date}
             </p>
-            <p className="text-xs">
-              <span className="font-medium">Check-out:</span> {record.end_date}
-            </p>
-            <Tag color="purple" className="mt-1">
+            <Tag
+              style={{
+                background: "#f0f7f7",
+                borderColor: "#295557",
+                color: "#295557",
+              }}
+            >
+              <ClockCircleOutlined className="mr-1" />
               {duration} {duration === 1 ? "Night" : "Nights"}
             </Tag>
           </div>
@@ -270,10 +331,43 @@ const AccommodationRequests = () => {
       },
     },
     {
-      title: "Total Amount",
+      title: "Rooms",
+      key: "rooms",
+      render: (_, record) => {
+        const summary = getRoomsSummary(record.rooms);
+        if (!summary || summary.totalRooms === 0) {
+          return <span className="text-xs text-gray-400">No rooms</span>;
+        }
+        return (
+          <div className="flex flex-col gap-1">
+            <Tag
+              style={{
+                backgroundColor: "#295557",
+                color: "#fff",
+                border: "none",
+              }}
+            >
+              {summary.totalRooms} Room(s)
+            </Tag>
+            <span className="text-xs text-gray-500">
+              {summary.totalAdults}A
+              {summary.totalKids > 0 ? ` + ${summary.totalKids}C` : ""}
+              {summary.totalBabies > 0 ? ` + ${summary.totalBabies}I` : ""}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      title: "Total",
       dataIndex: "total_amount",
       key: "total_amount",
-      render: (text) => <p className="font-bold text-green-600">{text}</p>,
+      render: (text, record) => (
+        <p className="font-bold text-lg mb-0 text-[#295557]">
+          {record.price_currency || "$"}
+          {parseFloat(text).toLocaleString()}
+        </p>
+      ),
     },
     {
       title: "Status",
@@ -281,18 +375,27 @@ const AccommodationRequests = () => {
       key: "status",
       render: (text, record) => (
         <div className="flex flex-col gap-1">
-          <Tag
-            color={getStatusColor(text)}
-            className="px-3 py-1 text-sm font-medium w-fit"
-          >
+          <Tag color={getStatusTagColor(text)} className="w-fit font-medium">
             {text?.toUpperCase()}
           </Tag>
-          {record.manual == "1" && (
+          {record.manual === "1" && (
             <Tooltip title="Manually Updated">
-              <Tag color="gold" className="w-fit">
+              <Tag color="orange" className="w-fit">
                 <ToolOutlined /> Manual
               </Tag>
             </Tooltip>
+          )}
+          {record.invite_code && (
+            <Tag
+              className="w-fit text-[10px]"
+              style={{
+                background: "#f0f7f7",
+                borderColor: "#295557",
+                color: "#295557",
+              }}
+            >
+              {record.invite_code}
+            </Tag>
           )}
         </div>
       ),
@@ -301,14 +404,22 @@ const AccommodationRequests = () => {
       title: "Commission",
       dataIndex: "admins",
       key: "admins",
-      render: (text, record) => (
+      render: (admins) => (
         <div className="flex flex-col gap-1">
-          <p className="text-xs mb-1">{record.admins?.admin_name || "N/A"}</p>
-          <p className="font-bold text-green-600">
-            {record?.admins?.public_commission
-              ? record.admins?.public_commission + "%"
-              : ""}
-          </p>
+          {admins?.admin_name && (
+            <p className="text-xs mb-0 text-gray-600">
+              <UserOutlined className="mr-1 text-[#295557]" />
+              {admins.admin_name}
+            </p>
+          )}
+          {admins?.public_commission && (
+            <p className="font-bold text-[#295557] mb-0">
+              {admins.public_commission}%
+            </p>
+          )}
+          {!admins?.admin_name && (
+            <span className="text-xs text-gray-400">N/A</span>
+          )}
         </div>
       ),
     },
@@ -326,6 +437,7 @@ const AccommodationRequests = () => {
               setRowData(record);
               setIsModalVisible(true);
             }}
+            style={{ backgroundColor: "#295557", borderColor: "#295557" }}
           >
             View
           </Button>
@@ -333,8 +445,8 @@ const AccommodationRequests = () => {
             <Button
               icon={<EditOutlined />}
               onClick={() => openManualUpdateModal(record)}
-              className="border-orange-400 text-orange-600"
               size="small"
+              style={{ borderColor: "#295557", color: "#295557" }}
             >
               Change Status
             </Button>
@@ -344,13 +456,16 @@ const AccommodationRequests = () => {
     },
   ];
 
+  // ═══════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════
   return (
     <>
-      {/* Filters */}
-      <div className="flex items-center gap-3 flex-wrap mb-4 p-4 bg-gray-50 rounded-lg">
+      {/* ── Filters ── */}
+      <div className="flex items-center gap-3 flex-wrap mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
         <Input
           placeholder="Search accommodations..."
-          prefix={<SearchOutlined />}
+          prefix={<SearchOutlined className="text-[#295557]" />}
           value={searchDebounce}
           onChange={(e) => setSearchDebounce(e.target.value)}
           style={{ width: 200 }}
@@ -361,11 +476,11 @@ const AccommodationRequests = () => {
           }}
         />
         <Divider type="vertical" />
-        <span className="text-gray-500 text-sm">Status:</span>
+        <span className="text-gray-500 text-sm font-medium">Status:</span>
         <Select
           value={currentStatus}
           style={{ width: 150 }}
-          onChange={(value) => setStatus(value)}
+          onChange={(v) => setStatus(v)}
         >
           <Option value="all">All Status</Option>
           <Option value="pending">Pending</Option>
@@ -375,11 +490,11 @@ const AccommodationRequests = () => {
           <Option value="rejected">Rejected</Option>
         </Select>
         <Divider type="vertical" />
-        <span className="text-gray-500 text-sm">Type:</span>
+        <span className="text-gray-500 text-sm font-medium">Type:</span>
         <Select
           value={currentManual}
           style={{ width: 150 }}
-          onChange={(value) => setManual(value)}
+          onChange={(v) => setManual(v)}
         >
           <Option value="all">All Types</Option>
           <Option value="0">Automatic</Option>
@@ -387,7 +502,7 @@ const AccommodationRequests = () => {
         </Select>
       </div>
 
-      {/* Table */}
+      {/* ── Table ── */}
       <Table
         columns={columns}
         dataSource={data}
@@ -396,7 +511,7 @@ const AccommodationRequests = () => {
         pagination={{
           current: currentPage,
           pageSize: currentPageSize,
-          total: total,
+          total,
           showSizeChanger: true,
           pageSizeOptions: ["10", "20", "50", "100"],
           showTotal: (t, range) => `${range[0]}-${range[1]} of ${t} requests`,
@@ -407,122 +522,337 @@ const AccommodationRequests = () => {
         bordered
       />
 
-      {/* Details Modal */}
+      {/* ══════════════════════════════════════
+          DETAILS MODAL
+      ══════════════════════════════════════ */}
       <Modal
-        title="Accommodation Request Details"
+        title={
+          <div className="flex items-center gap-3">
+            <div
+              className="p-2 rounded-lg"
+              style={{ backgroundColor: "#295557" }}
+            >
+              <HomeOutlined className="text-white text-xl" />
+            </div>
+            <div>
+              <h3 className="mb-0 text-lg font-bold">
+                Accommodation Request Details
+              </h3>
+              <p className="mb-0 text-xs text-gray-500">
+                Reservation #{rowData?.reserving_id}
+              </p>
+            </div>
+          </div>
+        }
         open={isModalVisible}
         onCancel={() => setIsModalVisible(false)}
         footer={null}
-        width={1000}
+        width={1100}
+        className="accommodation-request-modal"
       >
         {rowData && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Tag
-                color={getStatusColor(rowData.status)}
-                className="px-4 py-1 text-base font-bold"
-              >
-                {rowData.status?.toUpperCase()}
-              </Tag>
-              {rowData.manual === "1" && (
-                <Tag color="gold" className="px-4 py-1 text-sm font-bold">
-                  <ToolOutlined className="mr-1" /> Manual Update
-                </Tag>
+          <div className="space-y-6">
+            {/* ── Hero ── */}
+            <div className="relative rounded-xl overflow-hidden">
+              {rowData.background_image ? (
+                <img
+                  src={getFirstImage(rowData.background_image)}
+                  alt={rowData.title}
+                  className="w-full h-48 object-cover"
+                  onError={(e) => {
+                    e.target.src =
+                      "https://via.placeholder.com/1100x200?text=Hotel";
+                  }}
+                />
+              ) : (
+                <div
+                  className="w-full h-48 flex items-center justify-center"
+                  style={{ backgroundColor: "#295557" }}
+                >
+                  <HomeOutlined className="text-white text-6xl opacity-30" />
+                </div>
               )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+              <div className="absolute bottom-4 left-4 right-4 text-white">
+                <h2 className="text-2xl font-bold mb-1">
+                  {rowData.title || "Custom Booking Request"}
+                </h2>
+                {rowData.location && (
+                  <p className="text-sm opacity-90">
+                    <EnvironmentOutlined className="mr-1" />
+                    {rowData.location}
+                  </p>
+                )}
+              </div>
+              <div className="absolute top-4 right-4 flex flex-col gap-2">
+                <Tag
+                  color={getStatusTagColor(rowData.status)}
+                  className="px-4 py-1 text-base font-bold"
+                >
+                  {rowData.status?.toUpperCase()}
+                </Tag>
+                {rowData.manual === "1" && (
+                  <Tag color="orange" className="px-4 py-1 text-sm font-bold">
+                    <ToolOutlined className="mr-1" /> Manual
+                  </Tag>
+                )}
+              </div>
             </div>
 
-            {rowData.background_image && (
-              <div className="grid grid-cols-4 gap-2">
-                {rowData.background_image
-                  .split("//CAMP//")
-                  .slice(0, 4)
-                  .map((img, i) => (
-                    <img
-                      key={i}
-                      src={img}
-                      alt={`${rowData.title} - ${i + 1}`}
-                      className="w-full h-32 object-cover rounded-lg"
-                      onError={(e) => {
-                        e.target.src = "https://via.placeholder.com/200x130";
-                      }}
-                    />
-                  ))}
+            {/* ── Summary Cards ── */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div
+                className="p-4 rounded-xl text-white shadow-lg"
+                style={{ backgroundColor: "#295557" }}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs opacity-80 mb-1">Check-in</p>
+                    <p className="text-sm font-bold">
+                      {formatDate(rowData.start_date)}
+                    </p>
+                  </div>
+                  <CalendarOutlined className="text-3xl opacity-40" />
+                </div>
+              </div>
+              <div
+                className="p-4 rounded-xl text-white shadow-lg"
+                style={{ backgroundColor: "#3d7a7d" }}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs opacity-80 mb-1">Check-out</p>
+                    <p className="text-sm font-bold">
+                      {formatDate(rowData.end_date)}
+                    </p>
+                  </div>
+                  <CalendarOutlined className="text-3xl opacity-40" />
+                </div>
+              </div>
+              <div
+                className="p-4 rounded-xl text-white shadow-lg"
+                style={{ backgroundColor: "#4a8f92" }}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs opacity-80 mb-1">Duration</p>
+                    <p className="text-sm font-bold">
+                      {calculateDuration(rowData.start_date, rowData.end_date)}{" "}
+                      Night(s)
+                    </p>
+                  </div>
+                  <ClockCircleOutlined className="text-3xl opacity-40" />
+                </div>
+              </div>
+              <div
+                className="p-4 rounded-xl text-white shadow-lg"
+                style={{ backgroundColor: "#1a3839" }}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs opacity-80 mb-1">Total Amount</p>
+                    <p className="text-xl font-bold">
+                      {rowData.price_currency || "$"}
+                      {parseFloat(rowData.total_amount).toLocaleString()}
+                    </p>
+                  </div>
+                  <DollarOutlined className="text-3xl opacity-40" />
+                </div>
+              </div>
+            </div>
+
+            {/* ── Invite Code ── */}
+            {rowData.invite_code && (
+              <div
+                className="flex items-center gap-3 px-4 py-3 rounded-lg border"
+                style={{
+                  backgroundColor: "#f0f7f7",
+                  borderColor: "#295557",
+                }}
+              >
+                <SafetyCertificateOutlined
+                  style={{ color: "#295557" }}
+                  className="text-lg"
+                />
+                <span className="text-sm text-gray-600 font-medium">
+                  Invite Code:
+                </span>
+                <Tag
+                  style={{
+                    backgroundColor: "#295557",
+                    color: "#fff",
+                    border: "none",
+                    fontWeight: "bold",
+                    letterSpacing: 1,
+                  }}
+                >
+                  {rowData.invite_code}
+                </Tag>
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <h3 className="font-semibold text-lg mb-3 border-b pb-2">
-                  Hotel Information
-                </h3>
-                {rowData.title ? (
-                  <div className="space-y-2">
-                    <p>
-                      <span className="font-medium">Title:</span>{" "}
-                      {rowData.title}
-                    </p>
-                    <p>
-                      <span className="font-medium">Subtitle:</span>{" "}
-                      {rowData.subtitle}
-                    </p>
-                    <p>
-                      <span className="font-medium">Duration:</span>{" "}
-                      <Tag color="blue">{rowData.duration}</Tag>
-                    </p>
-                    <div>
-                      <p className="font-medium mb-1">Location:</p>
-                      <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                        📍 {rowData.location}
+            {/* ── Hotel Info + Customer Info ── */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Hotel Info */}
+              <div className="border border-gray-200 rounded-xl overflow-hidden">
+                <div
+                  className="px-4 py-3 border-b"
+                  style={{ backgroundColor: "#f0f7f7" }}
+                >
+                  <h3
+                    className="font-semibold mb-0 text-sm flex items-center gap-2"
+                    style={{ color: "#295557" }}
+                  >
+                    <HomeOutlined /> Hotel Information
+                  </h3>
+                </div>
+                <div className="p-4 space-y-3">
+                  {rowData.title ? (
+                    <>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-semibold text-gray-800">
+                            {rowData.title}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {rowData.subtitle}
+                          </p>
+                        </div>
+                      </div>
+                      {rowData.location && (
+                        <div className="bg-gray-50 px-3 py-2 rounded-lg">
+                          <p className="text-xs text-gray-600 mb-0">
+                            <EnvironmentOutlined className="mr-1" />
+                            {rowData.location}
+                          </p>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-4">
+                        <div>
+                          <p className="text-xs text-gray-400 mb-0">
+                            Price/Night
+                          </p>
+                          <p
+                            className="font-bold mb-0"
+                            style={{ color: "#295557" }}
+                          >
+                            {rowData.price_currency}
+                            {rowData.price_current}
+                          </p>
+                        </div>
+                        {rowData.price_original && (
+                          <div>
+                            <p className="text-xs text-gray-400 mb-0">
+                              Original
+                            </p>
+                            <p className="line-through text-gray-400 mb-0">
+                              {rowData.price_currency}
+                              {rowData.price_original}
+                            </p>
+                          </div>
+                        )}
+                        {rowData.duration && (
+                          <div>
+                            <p className="text-xs text-gray-400 mb-0">
+                              Duration
+                            </p>
+                            <Tag
+                              style={{
+                                background: "#f0f7f7",
+                                borderColor: "#295557",
+                                color: "#295557",
+                              }}
+                            >
+                              {rowData.duration}
+                            </Tag>
+                          </div>
+                        )}
+                      </div>
+                      {rowData.price_note && (
+                        <p className="text-xs text-gray-400 italic">
+                          {rowData.price_note}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <div
+                      className="text-center py-6 rounded-lg border"
+                      style={{
+                        backgroundColor: "#f0f7f7",
+                        borderColor: "#295557",
+                      }}
+                    >
+                      <HomeOutlined
+                        className="text-3xl mb-2"
+                        style={{ color: "#295557" }}
+                      />
+                      <p
+                        className="font-medium mb-0"
+                        style={{ color: "#295557" }}
+                      >
+                        Custom Booking Request
+                      </p>
+                      <p className="text-xs text-gray-400 mb-0">
+                        No hotel selected
                       </p>
                     </div>
-                    <p>
-                      <span className="font-medium">Price/Night:</span>{" "}
-                      {rowData.price_currency}
-                      {rowData.price_current}{" "}
-                      <span className="line-through text-gray-400">
-                        {rowData.price_currency}
-                        {rowData.price_original}
-                      </span>
-                    </p>
-                  </div>
-                ) : (
-                  <div className="bg-orange-50 p-3 rounded">
-                    <Tag color="orange">Custom Booking Request</Tag>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-lg mb-3 border-b pb-2">
-                  Customer Information
-                </h3>
-                <div className="space-y-2">
-                  <p>
-                    <span className="font-medium">Name:</span>{" "}
-                    {rowData.full_name || "N/A"}
-                  </p>
-                  <p>
-                    <span className="font-medium">Email:</span>{" "}
-                    {rowData.email || "N/A"}
-                  </p>
-                  <p>
-                    <span className="font-medium">Phone:</span>{" "}
-                    {rowData.phone || "N/A"}
-                  </p>
-                  <p>
-                    <span className="font-medium">Country:</span>{" "}
-                    {rowData.country || "N/A"}
-                  </p>
+
+              {/* Customer Info */}
+              <div className="border border-gray-200 rounded-xl overflow-hidden">
+                <div
+                  className="px-4 py-3 border-b"
+                  style={{ backgroundColor: "#f0f7f7" }}
+                >
+                  <h3
+                    className="font-semibold mb-0 text-sm flex items-center gap-2"
+                    style={{ color: "#295557" }}
+                  >
+                    <UserOutlined /> Guest Information
+                  </h3>
+                </div>
+                <div className="p-4 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-xs text-gray-400 mb-0">Full Name</p>
+                      <p className="font-medium text-gray-800 mb-0">
+                        {rowData.full_name || "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 mb-0">Country</p>
+                      <p className="font-medium text-gray-800 mb-0">
+                        {rowData.country || "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 mb-0">Email</p>
+                      <p className="text-sm text-gray-700 mb-0">
+                        {rowData.email || "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 mb-0">Phone</p>
+                      <p className="text-sm text-gray-700 mb-0">
+                        {rowData.phone || "N/A"}
+                      </p>
+                    </div>
+                  </div>
                   {rowData.passport && (
-                    <div className="mt-3">
-                      <p className="font-medium mb-2">Passport:</p>
+                    <div className="border-t pt-3">
+                      <p className="text-xs text-gray-400 mb-2">
+                        Passport Document
+                      </p>
                       <Image
                         src={rowData.passport}
                         alt="Passport"
-                        width={200}
-                        height={120}
+                        width={180}
+                        height={110}
                         style={{ objectFit: "cover" }}
-                        className="rounded border"
-                        fallback="https://via.placeholder.com/200x120"
+                        className="rounded-lg border"
+                        fallback="https://via.placeholder.com/180x110"
                       />
                     </div>
                   )}
@@ -530,79 +860,296 @@ const AccommodationRequests = () => {
               </div>
             </div>
 
-            {rowData.aditional_services &&
-              rowData.aditional_services !== "null" && (
-                <div className="border-t pt-4">
-                  <h3 className="font-semibold text-lg mb-3">
-                    Additional Services
+            {/* ══ ROOMS SECTION ══ */}
+            {rowData.rooms && rowData.rooms.length > 0 && (
+              <div className="border border-gray-200 rounded-xl overflow-hidden">
+                <div
+                  className="px-4 py-3 border-b flex items-center justify-between"
+                  style={{ backgroundColor: "#f0f7f7" }}
+                >
+                  <h3
+                    className="font-semibold mb-0 text-sm flex items-center gap-2"
+                    style={{ color: "#295557" }}
+                  >
+                    <BankOutlined /> Room Distribution
                   </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {parseServices(rowData.aditional_services).map((s, i) => (
-                      <Tag key={i} color="blue" className="text-sm px-3 py-1">
-                        ✓ {s}
-                      </Tag>
+                  <Tag
+                    style={{
+                      backgroundColor: "#295557",
+                      color: "#fff",
+                      border: "none",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {rowData.rooms.length}{" "}
+                    {rowData.rooms.length === 1 ? "Room" : "Rooms"}
+                  </Tag>
+                </div>
+                <div className="p-4">
+                  {/* Rooms summary bar */}
+                  {(() => {
+                    const summary = getRoomsSummary(rowData.rooms);
+                    return (
+                      <div
+                        className="flex items-center justify-between rounded-lg px-4 py-3 mb-4 border"
+                        style={{
+                          backgroundColor: "#f0f7f7",
+                          borderColor: "#d1e3e4",
+                        }}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <TeamOutlined style={{ color: "#295557" }} />
+                            <span className="text-sm font-medium text-gray-700">
+                              Total Guests:
+                            </span>
+                          </div>
+                          <Tag
+                            style={{
+                              backgroundColor: "#295557",
+                              color: "#fff",
+                              border: "none",
+                            }}
+                          >
+                            {summary.totalAdults} Adults
+                          </Tag>
+                          {summary.totalKids > 0 && (
+                            <Tag
+                              style={{
+                                backgroundColor: "#3d7a7d",
+                                color: "#fff",
+                                border: "none",
+                              }}
+                            >
+                              {summary.totalKids} Children
+                            </Tag>
+                          )}
+                          {summary.totalBabies > 0 && (
+                            <Tag
+                              style={{
+                                backgroundColor: "#4a8f92",
+                                color: "#fff",
+                                border: "none",
+                              }}
+                            >
+                              {summary.totalBabies} Infants
+                            </Tag>
+                          )}
+                        </div>
+                        <span className="text-xs text-gray-500">
+                          {summary.totalAdults +
+                            summary.totalKids +
+                            summary.totalBabies}{" "}
+                          guest(s) total
+                        </span>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Room cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {rowData.rooms.map((room, idx) => (
+                      <div
+                        key={room.room_id || idx}
+                        className="border border-gray-200 rounded-xl p-3 hover:shadow-md transition-shadow bg-white"
+                      >
+                        {/* Room header */}
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                              style={{ backgroundColor: "#295557" }}
+                            >
+                              {idx + 1}
+                            </div>
+                            <span
+                              className="text-sm font-semibold"
+                              style={{ color: "#295557" }}
+                            >
+                              Room {idx + 1}
+                            </span>
+                          </div>
+                          {room.day > 0 && (
+                            <Tag
+                              className="text-[10px]"
+                              style={{
+                                background: "#f0f7f7",
+                                borderColor: "#295557",
+                                color: "#295557",
+                              }}
+                            >
+                              Day {room.day}
+                            </Tag>
+                          )}
+                        </div>
+
+                        {/* Room guests */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-1.5">
+                            <span className="text-xs text-gray-500">
+                              Adults
+                            </span>
+                            <span className="text-sm font-bold text-gray-800">
+                              {room.adults}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-1.5">
+                            <span className="text-xs text-gray-500">
+                              Children
+                            </span>
+                            <span className="text-sm font-bold text-gray-800">
+                              {room.kids}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-1.5">
+                            <span className="text-xs text-gray-500">
+                              Infants
+                            </span>
+                            <span
+                              className="text-sm font-bold"
+                              style={{
+                                color:
+                                  parseInt(room.babies) > 0
+                                    ? "#295557"
+                                    : "#9ca3af",
+                              }}
+                            >
+                              {room.babies}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Room total */}
+                        <div className="mt-2 pt-2 border-t border-gray-100 text-center">
+                          <span className="text-xs text-gray-400">
+                            {parseInt(room.adults) + parseInt(room.kids)}{" "}
+                            countable
+                            {parseInt(room.babies) > 0
+                              ? ` + ${room.babies} infant(s)`
+                              : ""}
+                          </span>
+                        </div>
+                      </div>
                     ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Additional Services ── */}
+            {rowData.aditional_services &&
+              rowData.aditional_services !== "null" &&
+              rowData.aditional_services !== "" && (
+                <div className="border border-gray-200 rounded-xl overflow-hidden">
+                  <div
+                    className="px-4 py-3 border-b"
+                    style={{ backgroundColor: "#f0f7f7" }}
+                  >
+                    <h3
+                      className="font-semibold mb-0 text-sm flex items-center gap-2"
+                      style={{ color: "#295557" }}
+                    >
+                      <CheckCircleOutlined /> Additional Services
+                    </h3>
+                  </div>
+                  <div className="p-4 flex flex-wrap gap-2">
+                    {rowData.aditional_services
+                      .split(",")
+                      .filter(Boolean)
+                      .map((s, i) => (
+                        <Tag
+                          key={i}
+                          style={{
+                            background: "#f0f7f7",
+                            borderColor: "#295557",
+                            color: "#295557",
+                          }}
+                          className="px-3 py-1"
+                        >
+                          <CheckCircleOutlined className="mr-1" />
+                          {s.trim()}
+                        </Tag>
+                      ))}
                   </div>
                 </div>
               )}
 
-            <div className="border-t pt-4">
-              <h3 className="font-semibold text-lg mb-3">Booking Details</h3>
-              <div className="grid grid-cols-4 gap-4">
-                <div className="bg-blue-50 p-3 rounded">
-                  <p className="text-xs text-gray-600 mb-1">Check-in</p>
-                  <p className="font-semibold">{rowData.start_date}</p>
+            {/* ── Commission Info ── */}
+            {rowData.admins?.admin_name && (
+              <div
+                className="flex items-center gap-4 px-4 py-3 rounded-lg border"
+                style={{
+                  backgroundColor: "#f0f7f7",
+                  borderColor: "#295557",
+                }}
+              >
+                <UserOutlined
+                  style={{ color: "#295557" }}
+                  className="text-lg"
+                />
+                <div>
+                  <span className="text-sm text-gray-600">Agent: </span>
+                  <span className="font-semibold text-gray-800">
+                    {rowData.admins.admin_name}
+                  </span>
                 </div>
-                <div className="bg-blue-50 p-3 rounded">
-                  <p className="text-xs text-gray-600 mb-1">Check-out</p>
-                  <p className="font-semibold">{rowData.end_date}</p>
-                </div>
-                <div className="bg-purple-50 p-3 rounded">
-                  <p className="text-xs text-gray-600 mb-1">Total Nights</p>
-                  <p className="font-semibold">
-                    {calculateDuration(rowData.start_date, rowData.end_date)}{" "}
-                    Nights
-                  </p>
-                </div>
-                <div className="bg-green-50 p-3 rounded">
-                  <p className="text-xs text-gray-600 mb-1">Total Amount</p>
-                  <p className="font-bold text-green-600 text-xl">
-                    {rowData.total_amount}
-                  </p>
-                </div>
+                {rowData.admins.public_commission && (
+                  <Tag
+                    style={{
+                      backgroundColor: "#295557",
+                      color: "#fff",
+                      border: "none",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {rowData.admins.public_commission}% Commission
+                  </Tag>
+                )}
               </div>
-            </div>
+            )}
 
-            {rowData?.status === "pending" && (
-              <div className="border-t pt-4">
-                <h3 className="font-semibold text-lg mb-3">Update Status</h3>
-                <div className="flex gap-3">
+            {/* ── Action Buttons ── */}
+            {rowData.status === "pending" && (
+              <div className="border-t pt-6">
+                <h3 className="font-semibold text-base mb-4 text-gray-800">
+                  Update Status
+                </h3>
+                <div className="flex gap-4 flex-wrap">
                   <Button
                     type="primary"
-                    className="bg-green-500 hover:bg-green-600 border-0"
+                    size="large"
                     icon={<CheckCircleOutlined />}
                     loading={updatingStatus}
                     onClick={() =>
                       handleStatusUpdate(rowData.reserving_id, "accepted")
                     }
-                    size="large"
+                    style={{
+                      backgroundColor: "#295557",
+                      borderColor: "#295557",
+                    }}
+                    className="h-12 px-8"
                   >
-                    ✓ Accept
+                    Accept Booking
                   </Button>
                   <Button
                     type="primary"
                     danger
+                    size="large"
                     icon={<CloseCircleOutlined />}
                     loading={updatingStatus}
                     onClick={() =>
                       handleStatusUpdate(rowData.reserving_id, "rejected")
                     }
-                    size="large"
+                    className="h-12 px-8"
                   >
-                    ✗ Reject
+                    Reject Booking
                   </Button>
-                  <Button onClick={() => setIsModalVisible(false)} size="large">
-                    Cancel
+                  <Button
+                    size="large"
+                    onClick={() => setIsModalVisible(false)}
+                    className="h-12 px-8"
+                  >
+                    Close
                   </Button>
                 </div>
               </div>
@@ -611,11 +1158,13 @@ const AccommodationRequests = () => {
         )}
       </Modal>
 
-      {/* Manual Status Update Modal */}
+      {/* ══════════════════════════════════════
+          MANUAL STATUS MODAL
+      ══════════════════════════════════════ */}
       <Modal
         title={
           <div className="flex items-center gap-2">
-            <ToolOutlined className="text-orange-500" />
+            <ToolOutlined style={{ color: "#295557" }} />
             <span>Manual Status Update</span>
           </div>
         }
@@ -628,72 +1177,101 @@ const AccommodationRequests = () => {
         footer={null}
         width={500}
       >
-        <div className="space-y-4">
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-            <p className="text-sm text-orange-700 mb-0">
+        <div className="flex flex-col gap-3">
+          <div
+            className="border rounded-lg p-4"
+            style={{ backgroundColor: "#f0f7f7", borderColor: "#295557" }}
+          >
+            <p className="text-sm mb-0" style={{ color: "#295557" }}>
               <ToolOutlined className="mr-2" />
               This will mark the status change as <strong>Manual Update</strong>
             </p>
           </div>
+
           {manualUpdateRecord && (
-            <div className="bg-gray-50 rounded-lg p-3">
+            <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
               <p className="text-sm text-gray-600 mb-1">
                 Hotel:{" "}
                 <strong>{manualUpdateRecord.title || "Custom Booking"}</strong>
               </p>
               <p className="text-sm text-gray-600 mb-0">
                 Current:{" "}
-                <Tag color={getStatusColor(manualUpdateRecord.status)}>
+                <Tag color={getStatusTagColor(manualUpdateRecord.status)}>
                   {manualUpdateRecord.status?.toUpperCase()}
                 </Tag>
               </p>
             </div>
           )}
+
           <Radio.Group
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
             className="w-full"
           >
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
               {[
                 {
                   value: "upcoming",
                   label: "Upcoming",
                   desc: "Reservation confirmed",
-                  color: "blue",
                 },
                 {
                   value: "in_progress",
                   label: "In Progress",
                   desc: "Guest checked in",
-                  color: "cyan",
                 },
                 {
                   value: "completed",
                   label: "Completed",
                   desc: "Guest checked out",
-                  color: "purple",
                 },
                 {
                   value: "rejected",
                   label: "Rejected",
                   desc: "Booking declined",
-                  color: "red",
                 },
               ].map((opt) => (
                 <Radio
                   key={opt.value}
                   value={opt.value}
                   className="w-full !p-3 border rounded hover:bg-gray-50"
+                  style={
+                    selectedStatus === opt.value
+                      ? {
+                          borderColor: "#295557",
+                          backgroundColor: "#f0f7f7",
+                        }
+                      : {}
+                  }
                 >
-                  <Tag color={opt.color}>{opt.label}</Tag>
+                  <Tag
+                    color={
+                      opt.value === "rejected"
+                        ? "error"
+                        : opt.value === "completed"
+                          ? "default"
+                          : "processing"
+                    }
+                    style={
+                      opt.value !== "rejected" && opt.value !== "completed"
+                        ? {
+                            backgroundColor: "#f0f7f7",
+                            borderColor: "#295557",
+                            color: "#295557",
+                          }
+                        : {}
+                    }
+                  >
+                    {opt.label}
+                  </Tag>
                   <span className="text-gray-500 text-xs ml-2">
-                    - {opt.desc}
+                    — {opt.desc}
                   </span>
                 </Radio>
               ))}
             </div>
           </Radio.Group>
+
           <div className="flex gap-3 pt-4 border-t">
             <Button
               type="primary"
@@ -701,8 +1279,8 @@ const AccommodationRequests = () => {
               onClick={handleManualStatusUpdate}
               loading={updatingStatus}
               disabled={!selectedStatus}
-              className="bg-orange-500 hover:bg-orange-600 border-0"
               size="large"
+              style={{ backgroundColor: "#295557", borderColor: "#295557" }}
             >
               Update Status
             </Button>
@@ -719,6 +1297,13 @@ const AccommodationRequests = () => {
           </div>
         </div>
       </Modal>
+
+      <style jsx global>{`
+        .accommodation-request-modal .ant-modal-body {
+          max-height: 80vh;
+          overflow-y: auto;
+        }
+      `}</style>
     </>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import PostCard from "../../components/PostCard/AdminPostCard";
 import FramerModal from "../../components/FramerModal/FramerModal";
 import {
@@ -12,20 +12,29 @@ import {
   Upload,
   Spin,
   Select,
+  Pagination,
 } from "antd";
 import { PlusOutlined, LoadingOutlined } from "@ant-design/icons";
 import axios from "axios";
 import { base_url } from "../../utils/base_url";
+import { useSearchParams } from "react-router-dom";
 
 const { TabPane } = Tabs;
 const { TextArea } = Input;
 const { Option } = Select;
 
 const Blogs = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // ✅ Read from URL
+  const currentPage = parseInt(searchParams.get("page") || "1");
+  const currentLimit = parseInt(searchParams.get("limit") || "10");
+  const currentTab = searchParams.get("tab") || "all";
+
   const [selectedPost, setSelectedPost] = useState(null);
   const [posts, setPosts] = useState([]);
-  const [activeTab, setActiveTab] = useState("all");
   const [loading, setLoading] = useState(false);
+  const [total, setTotal] = useState(0);
 
   // Categories State
   const [categories, setCategories] = useState([]);
@@ -46,23 +55,44 @@ const Blogs = () => {
   const [addForm] = Form.useForm();
   const [editForm] = Form.useForm();
 
-  // Map admin_blogs.hidden -> UI status
+  // ✅ Update URL params helper
+  const updateParams = useCallback(
+    (updates) => {
+      const newParams = new URLSearchParams(searchParams);
+      Object.entries(updates).forEach(([key, value]) => {
+        if (
+          value === null ||
+          value === undefined ||
+          value === "" ||
+          (key === "page" && String(value) === "1") ||
+          (key === "limit" && String(value) === "10") ||
+          (key === "tab" && value === "all")
+        ) {
+          newParams.delete(key);
+        } else {
+          newParams.set(key, String(value));
+        }
+      });
+      setSearchParams(newParams, { replace: true });
+    },
+    [searchParams, setSearchParams]
+  );
+
+  // ── Helpers ──
   const transformBlogStatus = (hidden) => {
     if (hidden === "0" || hidden === 0) return "accepted";
     return "rejected";
   };
 
-  // Fetch Categories from API
+  // ── Fetch Categories ──
   const fetchCategories = async () => {
     setCategoriesLoading(true);
     try {
       const response = await axios.get(
         `${base_url}/admin/admin_blogs/select_blog_categories.php`
       );
-
       if (response.data?.status === "success") {
-        const categoriesData = response.data.message || [];
-        setCategories(categoriesData);
+        setCategories(response.data.message || []);
       } else {
         message.error("Failed to fetch categories");
         setCategories([]);
@@ -76,67 +106,91 @@ const Blogs = () => {
     }
   };
 
-  // Fetch blogs from API
-  const fetchBlogs = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.post(
-        `${base_url}/admin/admin_blogs/select_blogs.php`
-      );
+  // ✅ Fetch blogs with pagination + tab filter
+  const fetchBlogs = useCallback(
+    async (
+      page = currentPage,
+      limit = currentLimit,
+      tab = currentTab,
+      showLoading = true
+    ) => {
+      if (showLoading) setLoading(true);
+      try {
+        const params = { page, limit };
 
-      if (response.data.status === "success") {
-        const transformedBlogs =
-          response?.data.message?.map((blog) => ({
-            id: blog.blog_id,
-            title: blog.title,
-            description: blog.description,
-            postImage: blog.cover_image,
-            category_name: blog.category_name,
-            status: transformBlogStatus(blog.hidden),
-            hidden: blog.hidden,
-            category: blog.category,
-            likes: Math.floor(Math.random() * 100),
-            comments: blog.comments || [],
-            shares: Math.floor(Math.random() * 10),
-            createdAt: blog.created_at,
-            updatedAt: blog.updated_at,
-            quoteText: blog.quote_text,
-            quoteAuthor: blog.quote_author,
-            originalBlogId: blog.blog_id,
-          })) || [];
+        // ✅ Map tab to API hidden param
+        if (tab === "accepted") params.hidden = "0";
+        else if (tab === "rejected") params.hidden = "1";
 
-        setPosts(transformedBlogs);
-      } else {
+        const response = await axios.post(
+          `${base_url}/admin/admin_blogs/select_blogs.php`,
+          null,
+          { params }
+        );
+
+        if (response.data.status === "success") {
+          const transformedBlogs =
+            response.data.message?.map((blog) => ({
+              id: blog.blog_id,
+              title: blog.title,
+              description: blog.description,
+              postImage: blog.cover_image,
+              category_name: blog.category_name,
+              status: transformBlogStatus(blog.hidden),
+              hidden: blog.hidden,
+              category: blog.category,
+              likes: Math.floor(Math.random() * 100),
+              comments: blog.comments || [],
+              shares: Math.floor(Math.random() * 10),
+              createdAt: blog.created_at,
+              updatedAt: blog.updated_at,
+              quoteText: blog.quote_text,
+              quoteAuthor: blog.quote_author,
+              originalBlogId: blog.blog_id,
+            })) || [];
+
+          setPosts(transformedBlogs);
+
+          const pg = response.data.pagination;
+          setTotal(pg?.total_items || transformedBlogs.length || 0);
+        } else {
+          message.error("Failed to fetch blogs");
+        }
+      } catch (error) {
+        console.error("Error fetching blogs:", error);
         message.error("Failed to fetch blogs");
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Error fetching blogs:", error);
-      message.error("Failed to fetch blogs");
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [currentPage, currentLimit, currentTab]
+  );
+
+  // ✅ Fetch when URL changes
+  useEffect(() => {
+    fetchBlogs(currentPage, currentLimit, currentTab);
+  }, [currentPage, currentLimit, currentTab]);
 
   useEffect(() => {
-    fetchBlogs();
     fetchCategories();
   }, []);
 
-  // Filter posts
-  const filteredPosts =
-    activeTab === "all"
-      ? posts
-      : posts.filter((post) => post.status === activeTab);
+  // ✅ Tab change → reset page to 1
+  const handleTabChange = (tab) => {
+    updateParams({ tab, page: 1 });
+  };
 
-  const acceptedCount = posts.filter((p) => p.status === "accepted").length;
-  const rejectedCount = posts.filter((p) => p.status === "rejected").length;
+  // ✅ Pagination change
+  const handlePageChange = (page, pageSize) => {
+    updateParams({ page, limit: pageSize });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
-  // Get only visible categories (hidden === "0")
   const visibleCategories = categories.filter(
     (cat) => cat.hidden === "0" || cat.hidden === 0
   );
 
-  // Toggle hidden
+  // ── Toggle Status ──
   const handleToggleStatus = async (post) => {
     try {
       const response = await axios.post(
@@ -172,6 +226,7 @@ const Blogs = () => {
     }
   };
 
+  // ── Delete ──
   const handleDeletePost = async (post) => {
     try {
       const response = await axios.post(
@@ -181,9 +236,13 @@ const Blogs = () => {
       );
 
       if (response.data?.status === "success") {
-        setPosts((e) => e.filter((p) => p.id !== post?.id));
-        if (selectedPost?.id === post.id) {
-          setSelectedPost(null);
+        if (selectedPost?.id === post.id) setSelectedPost(null);
+
+        // ✅ If last item on page > go back
+        if (posts.length === 1 && currentPage > 1) {
+          updateParams({ page: currentPage - 1 });
+        } else {
+          fetchBlogs(currentPage, currentLimit, currentTab, false);
         }
 
         message.success("Blog deleted successfully");
@@ -210,42 +269,34 @@ const Blogs = () => {
     }
   };
 
-  // ========= File Validation =========
+  // ── File Validation ──
   const validateFile = (file) => {
     const isImage = file.type.startsWith("image/");
     if (!isImage) {
       message.error("You can only upload image files!");
       return false;
     }
-
     const isLt5M = file.size / 1024 / 1024 < 5;
     if (!isLt5M) {
       message.error("Image must be smaller than 5MB!");
       return false;
     }
-
     return true;
   };
 
-  // ========= Image Upload Handler (Reusable) =========
+  // ── Image Upload ──
   const uploadImage = async (file) => {
     const formData = new FormData();
     formData.append("image", file);
-
     const response = await axios.post(
       `${base_url}/user/item_img_uploader.php`,
       formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      }
+      { headers: { "Content-Type": "multipart/form-data" } }
     );
-
     return response.data;
   };
 
-  // ========= Add Blog Modal =========
+  // ── Add Modal ──
   const openAddModal = () => {
     addForm.resetFields();
     setAddImagePreview(null);
@@ -254,38 +305,20 @@ const Blogs = () => {
 
   const handleAddImageChange = async (info) => {
     const { file } = info;
-
     if (!file || file.status === "removed") return;
-
     const fileObj = file.originFileObj || file;
-
-    if (!fileObj || !fileObj.type) {
-      return;
-    }
-
-    if (!validateFile(fileObj)) {
-      return;
-    }
+    if (!fileObj || !fileObj.type) return;
+    if (!validateFile(fileObj)) return;
 
     setUploadingAdd(true);
-
     try {
       const responseData = await uploadImage(fileObj);
-
       if (responseData) {
-        const imageUrl = responseData;
-
-        if (!imageUrl) {
-          console.error("Response structure:", responseData);
-          message.error("Upload succeeded but no image URL found in response");
-          return;
-        }
-
-        setAddImagePreview(imageUrl);
-        addForm.setFieldsValue({ cover_image: imageUrl });
+        setAddImagePreview(responseData);
+        addForm.setFieldsValue({ cover_image: responseData });
         message.success("Image uploaded successfully");
       } else {
-        message.error(responseData?.message || "Failed to upload image");
+        message.error("Failed to upload image");
       }
     } catch (error) {
       console.error("Error uploading image:", error);
@@ -307,7 +340,9 @@ const Blogs = () => {
       if (response.data?.status === "success") {
         message.success("Blog added successfully");
         setIsAddModalOpen(false);
-        await fetchBlogs();
+        // ✅ Go to page 1 after adding
+        updateParams({ page: 1 });
+        fetchBlogs(1, currentLimit, currentTab, false);
       } else if (response.data?.status === "found") {
         message.warning(response.data.message || "Blog already exists");
       } else {
@@ -321,11 +356,10 @@ const Blogs = () => {
     }
   };
 
-  // ========= Edit Blog Modal =========
+  // ── Edit Modal ──
   const openEditModal = (post) => {
     setEditingPost(post);
     setEditImagePreview(post.postImage || null);
-
     editForm.setFieldsValue({
       title: post.title,
       cover_image: post.postImage || "",
@@ -334,44 +368,25 @@ const Blogs = () => {
       quote_author: post.quoteAuthor,
       category: post.category,
     });
-
     setIsEditModalOpen(true);
   };
 
   const handleEditImageChange = async (info) => {
     const { file } = info;
-
     if (!file || file.status === "removed") return;
-
     const fileObj = file.originFileObj || file;
-
-    if (!fileObj || !fileObj.type) {
-      return;
-    }
-
-    if (!validateFile(fileObj)) {
-      return;
-    }
+    if (!fileObj || !fileObj.type) return;
+    if (!validateFile(fileObj)) return;
 
     setUploadingEdit(true);
-
     try {
       const responseData = await uploadImage(fileObj);
-
       if (responseData) {
-        const imageUrl = responseData;
-
-        if (!imageUrl) {
-          console.error("Response structure:", responseData);
-          message.error("Upload succeeded but no image URL found in response");
-          return;
-        }
-
-        setEditImagePreview(imageUrl);
-        editForm.setFieldsValue({ cover_image: imageUrl });
+        setEditImagePreview(responseData);
+        editForm.setFieldsValue({ cover_image: responseData });
         message.success("Image uploaded successfully");
       } else {
-        message.error(responseData?.message || "Failed to upload image");
+        message.error("Failed to upload image");
       }
     } catch (error) {
       console.error("Error uploading image:", error);
@@ -383,14 +398,9 @@ const Blogs = () => {
 
   const handleEditSubmit = async (values) => {
     if (!editingPost) return;
-
     try {
       setSaving(true);
-      const payload = {
-        blog_id: editingPost.id,
-        ...values,
-      };
-
+      const payload = { blog_id: editingPost.id, ...values };
       const response = await axios.post(
         `${base_url}/admin/admin_blogs/edit_blog.php`,
         payload,
@@ -400,7 +410,7 @@ const Blogs = () => {
       if (response.data?.status === "success") {
         message.success("Blog updated successfully");
         setIsEditModalOpen(false);
-        await fetchBlogs();
+        fetchBlogs(currentPage, currentLimit, currentTab, false);
       } else if (response.data?.status === "found") {
         message.warning(
           response.data.message || "Another blog with same title exists"
@@ -416,15 +426,16 @@ const Blogs = () => {
     }
   };
 
-  // ========= Upload Button Component =========
-  const UploadButton = ({ loading }) => (
+  // ── Upload Button ──
+  const UploadButton = ({ loading: btnLoading }) => (
     <div>
-      {loading ? <LoadingOutlined /> : <PlusOutlined />}
-      <div style={{ marginTop: 8 }}>{loading ? "Uploading..." : "Upload"}</div>
+      {btnLoading ? <LoadingOutlined /> : <PlusOutlined />}
+      <div style={{ marginTop: 8 }}>
+        {btnLoading ? "Uploading..." : "Upload"}
+      </div>
     </div>
   );
 
-  // ========= Remove Image Handlers =========
   const handleRemoveAddImage = () => {
     setAddImagePreview(null);
     addForm.setFieldsValue({ cover_image: "" });
@@ -435,11 +446,11 @@ const Blogs = () => {
     editForm.setFieldsValue({ cover_image: "" });
   };
 
-  // ========= Category Select Component (Reusable) =========
-  const CategorySelect = ({ loading: selectLoading }) => (
+  // ── Category Select ──
+  const CategorySelectInput = () => (
     <Select
       placeholder="Select a category"
-      loading={selectLoading || categoriesLoading}
+      loading={categoriesLoading}
       showSearch
       optionFilterProp="children"
       filterOption={(input, option) =>
@@ -459,7 +470,7 @@ const Blogs = () => {
 
   return (
     <div className="p-4">
-      {/* Header + Add Button */}
+      {/* ── Header ── */}
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Blogs Management</h2>
         <Button type="primary" onClick={openAddModal}>
@@ -467,21 +478,24 @@ const Blogs = () => {
         </Button>
       </div>
 
-      {/* Filter Tabs */}
+      {/* ── Filter Tabs ── */}
       <div className="mb-6 bg-white p-4 rounded-lg shadow">
         <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
+          activeKey={currentTab}
+          onChange={handleTabChange}
           type="card"
           className="custom-tabs"
         >
-          <TabPane tab={<span>All Blogs ({posts.length})</span>} key="all" />
+          <TabPane
+            tab={<span>All Blogs ({currentTab === "all" ? total : ""})</span>}
+            key="all"
+          />
           <TabPane
             tab={
               <span>
                 Published{" "}
                 <Badge
-                  count={acceptedCount}
+                  count={currentTab === "accepted" ? total : undefined}
                   style={{ backgroundColor: "#52c41a" }}
                 />
               </span>
@@ -493,7 +507,7 @@ const Blogs = () => {
               <span>
                 Hidden{" "}
                 <Badge
-                  count={rejectedCount}
+                  count={currentTab === "rejected" ? total : undefined}
                   style={{ backgroundColor: "#f5222d" }}
                 />
               </span>
@@ -503,15 +517,29 @@ const Blogs = () => {
         </Tabs>
       </div>
 
-      {/* Posts Grid */}
+      {/* ── Posts Grid ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
-          <div className="col-span-3 text-center py-10 text-gray-500">
-            <Spin size="large" />
-            <p className="mt-2">Loading blogs...</p>
-          </div>
-        ) : filteredPosts.length > 0 ? (
-          filteredPosts.map((post) => (
+          // ✅ Skeleton loading
+          [...Array(currentLimit > 6 ? 6 : currentLimit)].map((_, i) => (
+            <div
+              key={i}
+              className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden animate-pulse"
+            >
+              <div className="w-full h-48 bg-gray-200" />
+              <div className="p-4 space-y-3">
+                <div className="h-4 bg-gray-200 rounded w-3/4" />
+                <div className="h-3 bg-gray-200 rounded w-full" />
+                <div className="h-3 bg-gray-200 rounded w-5/6" />
+                <div className="flex items-center gap-3 mt-4">
+                  <div className="w-8 h-8 bg-gray-200 rounded-full" />
+                  <div className="h-3 bg-gray-200 rounded w-1/3" />
+                </div>
+              </div>
+            </div>
+          ))
+        ) : posts.length > 0 ? (
+          posts.map((post) => (
             <PostCard
               key={post.id}
               post={post}
@@ -522,13 +550,33 @@ const Blogs = () => {
             />
           ))
         ) : (
-          <div className="col-span-3 text-center py-10 text-gray-500">
-            No blogs found in this category
+          <div className="col-span-3 text-center py-16">
+            <div className="text-gray-300 text-6xl mb-4">📝</div>
+            <p className="text-gray-500 text-lg font-medium">
+              No blogs found in this category
+            </p>
           </div>
         )}
       </div>
 
-      {/* Framer Modal */}
+      {/* ✅ Pagination */}
+      {!loading && total > currentLimit && (
+        <div className="flex justify-center mt-8">
+          <Pagination
+            current={currentPage}
+            pageSize={currentLimit}
+            total={total}
+            onChange={handlePageChange}
+            onShowSizeChange={handlePageChange}
+            showSizeChanger
+            pageSizeOptions={["6", "9", "12", "24"]}
+            showTotal={(t, range) => `${range[0]}-${range[1]} of ${t} blogs`}
+            showQuickJumper
+          />
+        </div>
+      )}
+
+      {/* ── Framer Modal ── */}
       {selectedPost?.status === "accepted" && (
         <FramerModal
           open={selectedPost !== null}
@@ -537,18 +585,20 @@ const Blogs = () => {
           selectedPost={selectedPost}
           onAccept={handleAccept}
           onReject={handleReject}
-          fetchBlogs={fetchBlogs}
+          fetchBlogs={() =>
+            fetchBlogs(currentPage, currentLimit, currentTab, false)
+          }
         />
       )}
 
-      {/* Add Blog Modal */}
+      {/* ══════════════════════════════
+          ADD BLOG MODAL
+      ══════════════════════════════ */}
       <Modal
         title="Add Blog"
         open={isAddModalOpen}
         onCancel={() => {
-          if (!uploadingAdd) {
-            setIsAddModalOpen(false);
-          }
+          if (!uploadingAdd) setIsAddModalOpen(false);
         }}
         okText="Add"
         onOk={() => addForm.submit()}
@@ -571,34 +621,12 @@ const Blogs = () => {
             <Input placeholder="Enter blog title" />
           </Form.Item>
 
-          {/* Category Select */}
           <Form.Item
             label="Category"
             name="category"
             rules={[{ required: true, message: "Please select a category" }]}
           >
-            <Select
-              placeholder="Select a category"
-              loading={categoriesLoading}
-              showSearch
-              optionFilterProp="children"
-              filterOption={(input, option) =>
-                option?.children?.toLowerCase().includes(input.toLowerCase())
-              }
-              notFoundContent={
-                categoriesLoading ? (
-                  <Spin size="small" />
-                ) : (
-                  "No categories found"
-                )
-              }
-            >
-              {visibleCategories.map((category) => (
-                <Option key={category.category_id} value={category.category_id}>
-                  {category.category_name}
-                </Option>
-              ))}
-            </Select>
+            <CategorySelectInput />
           </Form.Item>
 
           <Form.Item
@@ -616,17 +644,15 @@ const Blogs = () => {
                 disabled={uploadingAdd}
               >
                 {addImagePreview ? (
-                  <div className="relative w-full h-full">
-                    <img
-                      src={addImagePreview}
-                      alt="cover"
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                      }}
-                    />
-                  </div>
+                  <img
+                    src={addImagePreview}
+                    alt="cover"
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                  />
                 ) : (
                   <UploadButton loading={uploadingAdd} />
                 )}
@@ -671,14 +697,14 @@ const Blogs = () => {
         </Form>
       </Modal>
 
-      {/* Edit Blog Modal */}
+      {/* ══════════════════════════════
+          EDIT BLOG MODAL
+      ══════════════════════════════ */}
       <Modal
         title="Edit Blog"
         open={isEditModalOpen}
         onCancel={() => {
-          if (!uploadingEdit) {
-            setIsEditModalOpen(false);
-          }
+          if (!uploadingEdit) setIsEditModalOpen(false);
         }}
         okText="Update"
         onOk={() => editForm.submit()}
@@ -701,34 +727,12 @@ const Blogs = () => {
             <Input placeholder="Enter blog title" />
           </Form.Item>
 
-          {/* Category Select */}
           <Form.Item
             label="Category"
             name="category"
             rules={[{ required: true, message: "Please select a category" }]}
           >
-            <Select
-              placeholder="Select a category"
-              loading={categoriesLoading}
-              showSearch
-              optionFilterProp="children"
-              filterOption={(input, option) =>
-                option?.children?.toLowerCase().includes(input.toLowerCase())
-              }
-              notFoundContent={
-                categoriesLoading ? (
-                  <Spin size="small" />
-                ) : (
-                  "No categories found"
-                )
-              }
-            >
-              {visibleCategories.map((category) => (
-                <Option key={category.category_id} value={category.category_id}>
-                  {category.category_name}
-                </Option>
-              ))}
-            </Select>
+            <CategorySelectInput />
           </Form.Item>
 
           <Form.Item label="Cover Image">

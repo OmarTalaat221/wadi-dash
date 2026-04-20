@@ -8,8 +8,7 @@ import axios from "axios";
 import { message, Select, Spin } from "antd";
 import { base_url } from "../../../utils/base_url";
 import editorConfig from "../../../data/joditConfig";
-import useCountries from "../../../hooks/useCountries"; // 👈 Import hook
-import AccomRooms from "../../../components/Accommodation/accomRooms";
+import useCountries from "../../../hooks/useCountries";
 
 const { Option } = Select;
 
@@ -17,7 +16,6 @@ function CreateAccomLayout() {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
 
-  // 👇 استخدام الـ hook
   const { countries, loading: countriesLoading } = useCountries();
 
   const [formData, setFormData] = useState({
@@ -28,7 +26,7 @@ function CreateAccomLayout() {
     price_original: "",
     price_currency: "USD",
     price_note: "",
-    country_id: "", // 👈 خليها فاضية
+    country_id: "",
     category: "hotel",
     duration: "",
     route: "",
@@ -43,7 +41,7 @@ function CreateAccomLayout() {
     video_link: "",
     features: "",
     amenities: [],
-    rooms: [],
+    per_room: "",
   });
 
   const [activeTab, setActiveTab] = useState("General");
@@ -60,10 +58,10 @@ function CreateAccomLayout() {
   const handleSelectChange = (name, value) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // 👇 Validation
     if (!formData.country_id) {
       message.error("Please select a country");
       return;
@@ -89,13 +87,9 @@ function CreateAccomLayout() {
     try {
       const backgroundImage = formData.image.split("**CAMP**")[0] || "";
 
-      // ✅ Clean Icon Function - تنظيف كامل
       const cleanIcon = (icon) => {
         if (!icon) return "";
-
         let result = icon;
-
-        // فك الـ escaping بشكل متكرر لحد ما يخلص
         let prevResult = "";
         while (prevResult !== result) {
           prevResult = result;
@@ -107,14 +101,10 @@ function CreateAccomLayout() {
             .replace(/\\r/g, "")
             .replace(/\\t/g, "");
         }
-
-        // إزالة أي backslash متبقي قبل quotes
         result = result.replace(/\\/g, "");
-
         return result.trim();
       };
 
-      // ✅ تنسيق الـ features
       let featuresFormatted = "";
 
       if (formData.amenities && formData.amenities.length > 0) {
@@ -128,17 +118,11 @@ function CreateAccomLayout() {
               const label = a.label.trim();
               const name = a.name.trim();
               const icon = cleanIcon(a.icon);
-              console.log("Original icon:", a.icon);
-              console.log("Cleaned icon:", icon);
               return `${label}**${name}**${icon}`;
             })
             .join("**CAMP**");
         }
       }
-
-      console.log("Final features:", featuresFormatted);
-
-
 
       const payload = {
         ...formData,
@@ -147,11 +131,10 @@ function CreateAccomLayout() {
         features: featuresFormatted,
       };
 
+      // ✅ Remove amenities - not needed in API
       delete payload.amenities;
 
       console.log("Submitting payload:", payload);
-
-
 
       const response = await axios.post(
         `${base_url}/admin/hotels/add_hotel.php`,
@@ -159,31 +142,11 @@ function CreateAccomLayout() {
       );
 
       if (response.data.status === "success") {
-
-        const response1 = await axios.post(
-          `${base_url}/admin/hotels/add_hotel_rooms.php`,
-          {
-            hotel_id: response.data.hotel_id,
-            rooms: payload.rooms
-          }
-        );
-
-        if (response1.data.status === "success") {
-          message.success("Accommodation AND it's data  created successfully!");
-
-          setTimeout(() => {
-            navigate("/accommodation");
-          }, 1500);
-        } else {
-          message.success("Accommodation created successfully but somthing went wrong while adding  rooms  !");
-
-          setTimeout(() => {
-            navigate("/accommodation");
-          }, 1500);
-        }
-
-
-
+        // ✅ No add_hotel_rooms call anymore
+        message.success("Accommodation created successfully!");
+        setTimeout(() => {
+          navigate("/accommodation");
+        }, 1500);
       } else {
         throw new Error(
           response.data.message || "Failed to create accommodation"
@@ -197,11 +160,11 @@ function CreateAccomLayout() {
 
     setSubmitting(false);
   };
+
   const renderTabContent = () => {
     if (activeTab === "General") {
       return (
         <>
-          {/* 👇 First Row - Country & Title */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block mb-1 font-medium">Country *</label>
@@ -269,8 +232,6 @@ function CreateAccomLayout() {
                 <Option value="hotel">Hotel</Option>
                 <Option value="Luxury Resort">Luxury Resort</Option>
                 <Option value="trip_package">Trip Package</Option>
-                {/* <Option value="activity">Activity</Option> */}
-                {/* <Option value="car">Car Rental</Option> */}
               </Select>
             </div>
           </div>
@@ -359,15 +320,16 @@ function CreateAccomLayout() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block mb-1 font-medium">Max People</label>
+              <label className="block mb-1 font-medium">
+                Max Guests (per room)
+              </label>
               <input
                 type="number"
-                name="adults_num"
-                value={formData.adults_num || ""}
+                onWheel={(e) => e.target.blur()}
+                name="per_room"
+                value={formData.per_room || ""}
                 onChange={handleChange}
                 className="w-full border border-gray-300 p-2 rounded"
-                min="1"
-                onWheel={(e) => e.target.blur()}
               />
             </div>
 
@@ -419,10 +381,6 @@ function CreateAccomLayout() {
     if (activeTab === "Images") {
       return <AccomImages rowData={formData} setRowData={setFormData} />;
     }
-
-    if (activeTab === "rooms") {
-      return <AccomRooms rowData={formData} setRowData={setFormData} />;
-    }
   };
 
   return (
@@ -432,7 +390,7 @@ function CreateAccomLayout() {
       <div className="mb-4">
         <nav className="flex space-x-4 border-b">
           <Tabs
-            tabs={["General", "Features", "rooms", "Images"]}
+            tabs={["General", "Features", "Images"]}
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             classNameDecoration=""

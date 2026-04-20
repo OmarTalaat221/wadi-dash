@@ -116,26 +116,24 @@ function UpdateAccomLayout() {
     try {
       const backgroundImage = rowData.image.split("**CAMP**")[0] || "";
 
-      // ✅ Clean Icon Function - تنظيف كامل
+      // ✅ Clean Icon Function
       const cleanIcon = (icon) => {
         if (!icon) return "";
 
         let result = icon;
 
-        // فك الـ escaping بشكل متكرر لحد ما يخلص
         let prevResult = "";
         while (prevResult !== result) {
           prevResult = result;
           result = result.replaceAll(/\\t/g, "");
         }
 
-        // إزالة أي backslash متبقي قبل quotes
         result = result.replace(/\\/g, "");
 
         return result.trim();
       };
 
-      // ✅ تنسيق الـ features
+      // ✅ Format features
       let featuresFormatted = "";
 
       if (rowData.amenities && rowData.amenities.length > 0) {
@@ -149,17 +147,11 @@ function UpdateAccomLayout() {
               const label = a.label.trim();
               const name = a.name.trim();
               const icon = cleanIcon(a.icon);
-              console.log("Original icon:", a.icon);
-              console.log("Cleaned icon:", icon);
               return `${label}**${name}**${icon}`;
             })
             .join("**CAMP**");
         }
       }
-
-      console.log("Final features:", featuresFormatted);
-
-      // return;
 
       const payload = {
         id: product_id.toString(),
@@ -167,6 +159,8 @@ function UpdateAccomLayout() {
         adult_price: rowData.price_current,
         background_image: backgroundImage,
         features: featuresFormatted,
+        // ✅ country_id included from rowData
+        country_id: rowData.country_id || "",
       };
 
       delete payload.amenities;
@@ -272,8 +266,6 @@ function UpdateAccomLayout() {
                 <Option value="hotel">Hotel</Option>
                 <Option value="Luxury Resort">Luxury Resort</Option>
                 <Option value="trip_package">Trip Package</Option>
-                {/* <Option value="activity">Activity</Option> */}
-                {/* <Option value="car">Car Rental</Option> */}
               </Select>
             </div>
 
@@ -311,15 +303,16 @@ function UpdateAccomLayout() {
             </div>
 
             <div>
-              <label className="block mb-1 font-medium">Max People</label>
+              <label className="block mb-1 font-medium">
+                Max Guests (per room)
+              </label>
               <input
                 type="number"
-                name="adults_num"
-                value={rowData.adults_num || ""}
+                onWheel={(e) => e.target.blur()}
+                name="per_room"
+                value={rowData.per_room || ""}
                 onChange={handleChange}
                 className="w-full border border-gray-300 p-2 rounded"
-                min="1"
-                onWheel={(e) => e.target.blur()}
               />
             </div>
 
@@ -335,6 +328,7 @@ function UpdateAccomLayout() {
               />
             </div>
 
+            {/* ✅ Country Select - with preselected value from API */}
             <div>
               <label className="block mb-1 font-medium">Country *</label>
               <Select
@@ -357,6 +351,18 @@ function UpdateAccomLayout() {
                   </Option>
                 ))}
               </Select>
+            </div>
+
+            <div>
+              <label className="block mb-1 font-medium">Adults Number</label>
+              <input
+                type="number"
+                name="adults_num"
+                value={rowData.adults_num || ""}
+                onChange={handleChange}
+                className="w-full border border-gray-300 p-2 rounded"
+                onWheel={(e) => e.target.blur()}
+              />
             </div>
           </div>
 
@@ -383,16 +389,15 @@ function UpdateAccomLayout() {
         </>
       );
     }
+
     if (activeTab === "Features") {
       return (
         <AccommodationFeatures rowData={rowData} setRowData={setRowData} />
       );
     }
+
     if (activeTab === "Images") {
       return <AccomImages rowData={rowData} setRowData={setRowData} />;
-    }
-    if (activeTab === "rooms") {
-      return <AccomRooms rowData={rowData} setRowData={setRowData} />;
     }
   };
 
@@ -419,7 +424,7 @@ function UpdateAccomLayout() {
       <div className="mb-4">
         <nav className="flex space-x-4 border-b">
           <Tabs
-            tabs={["General", "Features", "rooms", "Images"]}
+            tabs={["General", "Features", "Images"]}
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             classNameDecoration=""
