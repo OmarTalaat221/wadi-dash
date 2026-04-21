@@ -577,7 +577,7 @@ const Blogs = () => {
       )}
 
       {/* ── Framer Modal ── */}
-      {selectedPost?.status === "accepted" && (
+      {selectedPost?.status !== null && (
         <FramerModal
           open={selectedPost !== null}
           setOpen={() => setSelectedPost(null)}

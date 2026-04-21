@@ -1,3 +1,4 @@
+// src/pages/Activities/Update/UpdateActivityLayout.jsx
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Tabs from "../../../components/Tabs";
@@ -7,6 +8,7 @@ import axios from "axios";
 import { message, Select } from "antd";
 import { base_url } from "../../../utils/base_url";
 import ActivityFeatures from "../../../components/Activities/activityFeatures";
+import ActivityFAQs from "../../../components/Activities/ActivityFAQs";
 import editorConfig from "../../../data/joditConfig";
 
 const { Option } = Select;
@@ -41,21 +43,20 @@ function UpdateActivityLayout() {
     video_link: "",
     activity_type: "",
     for_children: "1",
-    featuresArray: [], // ✅ Changed
-    featuresString: "", // ✅ Added
+    featuresArray: [],
+    featuresString: "",
+    faqsArray: [], // ✅ Added
+    faqsString: "", // ✅ Added
     images: [],
   });
 
   const [activeTab, setActiveTab] = useState("General");
 
-  // ✅ Helper function to clean icons
   const cleanIcon = (icon) => {
     if (!icon || typeof icon !== "string") return "";
-
     let result = icon.trim();
     let prevResult = "";
     let iterations = 0;
-
     while (prevResult !== result && iterations < 10) {
       prevResult = result;
       result = result
@@ -67,15 +68,11 @@ function UpdateActivityLayout() {
         .replace(/\\/g, "");
       iterations++;
     }
-
     return result.trim();
   };
 
-  // ✅ Helper function to parse features
   const parseFeaturesToArray = (features) => {
     if (!features) return [];
-
-    // If features is an array from API
     if (Array.isArray(features)) {
       return features.map((f, index) => ({
         id: f.feature_id || f.id || index + 1,
@@ -84,8 +81,6 @@ function UpdateActivityLayout() {
         icon: f.icon || "",
       }));
     }
-
-    // If features is a string
     if (typeof features === "string" && features.trim()) {
       return features.split("**CAMP**").map((item, index) => {
         const parts = item.split("**");
@@ -97,14 +92,41 @@ function UpdateActivityLayout() {
         };
       });
     }
+    return [];
+  };
+
+  // ✅ Parse FAQs from API response
+  const parseFAQsToArray = (faqs) => {
+    if (!faqs) return [];
+
+    // If FAQs come as array of objects from API
+    if (Array.isArray(faqs)) {
+      return faqs
+        .filter((f) => f.question || f.answer)
+        .map((f, index) => ({
+          id: f.id || f.faq_id || Date.now() + index,
+          question: f.question || "",
+          answer: f.answer || "",
+        }));
+    }
+
+    // If FAQs come as string: faq1**ans1**CAMP**faq2**ans2
+    if (typeof faqs === "string" && faqs.trim()) {
+      return faqs.split("**CAMP**").map((item, index) => {
+        const parts = item.split("**");
+        return {
+          id: Date.now() + index,
+          question: parts[0] || "",
+          answer: parts[1] || "",
+        };
+      });
+    }
 
     return [];
   };
 
-  // ✅ Helper function to convert features array to string
   const convertFeaturesToString = (features) => {
     if (!features || features.length === 0) return "";
-
     return features
       .filter((f) => f.name || f.label)
       .map((f) => {
@@ -112,6 +134,19 @@ function UpdateActivityLayout() {
         const value = (f.name || f.label || "").trim();
         const icon = cleanIcon(f.icon);
         return `${label}**${value}**${icon}`;
+      })
+      .join("**CAMP**");
+  };
+
+  // ✅ Convert FAQs array to string
+  const convertFAQsToString = (faqsList) => {
+    if (!faqsList || faqsList.length === 0) return "";
+    return faqsList
+      .filter((f) => f.question || f.answer)
+      .map((f) => {
+        const question = (f.question || "").trim();
+        const answer = (f.answer || "").trim();
+        return `${question}**${answer}`;
       })
       .join("**CAMP**");
   };
@@ -127,11 +162,8 @@ function UpdateActivityLayout() {
       const response = await axios.get(
         `${base_url}/user/countries/select_countries.php`
       );
-
       if (response.data.status === "success") {
         setCountries(response.data.message || []);
-      } else {
-        console.error("Failed to fetch countries");
       }
     } catch (error) {
       console.error("Error fetching countries:", error);
@@ -144,19 +176,18 @@ function UpdateActivityLayout() {
     try {
       const response = await axios.post(
         `${base_url}/admin/activities/select_activity_by_id.php`,
-        {
-          activity_id: product_id,
-        }
+        { activity_id: product_id }
       );
 
       if (response.data.status === "success") {
         const activity = response.data.message[0];
 
         if (activity) {
-          // ✅ Parse features to featuresArray format
           const featuresArray = parseFeaturesToArray(activity.features);
 
-          // Parse images
+          // ✅ Parse FAQs from API
+          const faqsArray = parseFAQsToArray(activity.faqs);
+
           const imagesArray = activity.image
             ? activity.image.split("//CAMP//").map((img) => ({
                 type: "url",
@@ -167,9 +198,10 @@ function UpdateActivityLayout() {
           setRowData({
             ...activity,
             for_children: activity.for_children ?? "1",
-
-            featuresArray: featuresArray, // ✅ Use featuresArray
+            featuresArray: featuresArray,
             featuresString: convertFeaturesToString(featuresArray),
+            faqsArray: faqsArray, // ✅ Added
+            faqsString: convertFAQsToString(faqsArray), // ✅ Added
             images: imagesArray,
           });
         }
@@ -198,9 +230,8 @@ function UpdateActivityLayout() {
     setLoading(true);
 
     try {
-      // ✅ Use featuresArray for formatting
+      // Features formatting
       let featuresFormatted = "";
-
       if (rowData.featuresArray && rowData.featuresArray.length > 0) {
         featuresFormatted = rowData.featuresArray
           .filter((f) => f.name || f.label)
@@ -211,15 +242,25 @@ function UpdateActivityLayout() {
             return `${label}**${value}**${icon}`;
           })
           .join("**CAMP**");
-      }
-      // Fallback to featuresString if available
-      else if (rowData.featuresString) {
+      } else if (rowData.featuresString) {
         featuresFormatted = rowData.featuresString;
       }
 
-      console.log("Features formatted:", featuresFormatted);
+      // ✅ FAQs formatting: faq1**ans1**CAMP**faq2**ans2
+      let faqsFormatted = "";
+      if (rowData.faqsArray && rowData.faqsArray.length > 0) {
+        faqsFormatted = rowData.faqsArray
+          .filter((f) => f.question || f.answer)
+          .map((f) => {
+            const question = (f.question || "").trim();
+            const answer = (f.answer || "").trim();
+            return `${question}**${answer}`;
+          })
+          .join("**CAMP**");
+      } else if (rowData.faqsString) {
+        faqsFormatted = rowData.faqsString;
+      }
 
-      // Prepare images string
       const imagesString = rowData.images
         .map((img) => img.value || img.preview)
         .filter((img) => img)
@@ -248,7 +289,8 @@ function UpdateActivityLayout() {
         max_people: rowData.max_people,
         video_link: rowData.video_link,
         activity_type: rowData.activity_type,
-        features: featuresFormatted, // ✅ Use formatted string
+        features: featuresFormatted,
+        faqs: faqsFormatted, // ✅ Added
       };
 
       console.log("Submitting payload:", payload);
@@ -302,7 +344,6 @@ function UpdateActivityLayout() {
                 ))}
               </Select>
             </div>
-
             <div>
               <label className="block mb-1 font-medium">Category</label>
               <Select
@@ -332,7 +373,6 @@ function UpdateActivityLayout() {
                 required
               />
             </div>
-
             <div>
               <label className="block mb-1 font-medium">Subtitle</label>
               <input
@@ -359,7 +399,6 @@ function UpdateActivityLayout() {
                 required
               />
             </div>
-
             <div>
               <label className="block mb-1 font-medium">Original Price</label>
               <input
@@ -431,7 +470,6 @@ function UpdateActivityLayout() {
                 required
               />
             </div>
-
             <div>
               <label className="block mb-1 font-medium">Activity Type *</label>
               <input
@@ -481,7 +519,6 @@ function UpdateActivityLayout() {
                 className="w-full border border-gray-300 p-2 rounded"
               />
             </div>
-
             <div>
               <label className="block mb-1 font-medium">Max People *</label>
               <input
@@ -513,6 +550,11 @@ function UpdateActivityLayout() {
       return <ActivityFeatures rowData={rowData} setRowData={setRowData} />;
     }
 
+    // ✅ New FAQs Tab
+    if (activeTab === "FAQs") {
+      return <ActivityFAQs rowData={rowData} setRowData={setRowData} />;
+    }
+
     if (activeTab === "Images") {
       return <ActivityImages rowData={rowData} setRowData={setRowData} />;
     }
@@ -532,7 +574,7 @@ function UpdateActivityLayout() {
       <div className="mb-4">
         <nav className="flex space-x-4 border-b">
           <Tabs
-            tabs={["General", "Features", "Images"]}
+            tabs={["General", "Features", "FAQs", "Images"]}
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             classNameDecoration=""

@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from "react";
+// src/pages/Activities/Create/CreateActivityLayout.jsx
+import React, { useState, useRef } from "react";
 import Tabs from "../../../components/Tabs";
 import JoditEditor from "jodit-react";
 import editorConfig from "../../../data/joditConfig";
@@ -10,45 +11,17 @@ import { uploadImageToServer } from "../../../hooks/uploadImage";
 import ActivityImages from "../../../components/Activities/activityImages";
 import useCountries from "../../../hooks/useCountries";
 import ActivityFeatures from "../../../components/Activities/activityFeatures";
+import ActivityFAQs from "../../../components/Activities/ActivityFAQs";
 
 const { Option } = Select;
 
 function CreateActivityLayout() {
   const navigate = useNavigate();
   const imageRefs = useRef([]);
-
   const { countries, loading: countriesLoading } = useCountries();
 
   const [loading, setLoading] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
-
-  // ✅ UPDATED: Initial state with featuresArray
-
-  // const [formData, setFormData] = useState({
-  //   country_id: "1",
-  //   title: "Scuba Diving Adventure",
-  //   subtitle: "Explore the Underwater World",
-  //   description:
-  //     "<p>Experience the thrill of scuba diving in the crystal-clear waters of the Red Sea. Our professional instructors will guide you through an unforgettable underwater adventure.</p><ul><li>Professional PADI certified instructors</li><li>All equipment provided</li><li>Underwater photography included</li><li>Suitable for beginners and experts</li></ul>",
-  //   background_image: "",
-  //   cta_button_text: "Book Now",
-  //   cta_button_url: "",
-  //   category: "activity",
-  //   duration: "4 HOURS",
-  //   route: "HURGHADA → RED SEA → HURGHADA",
-  //   price_current: "85",
-  //   price_original: "120",
-  //   price_currency: "$",
-  //   per_adult: "85",
-  //   per_child: "50",
-  //   max_people: "12",
-  //   video_link: "https://www.youtube.com/watch?v=example",
-  //   price_note: "PER PERSON",
-  //   activity_type: "Scuba Diving",
-  //   featuresArray: [],
-  //   featuresString: "",
-  //   images: [],
-  // });
 
   const [formData, setFormData] = useState({
     country_id: "",
@@ -71,22 +44,21 @@ function CreateActivityLayout() {
     price_note: "PER PERSON",
     activity_type: "",
     for_children: "1",
-    featuresArray: [], // ✅ Changed from features: []
-    featuresString: "", // ✅ Added
+    featuresArray: [],
+    featuresString: "",
+    faqsArray: [], // ✅ Added
+    faqsString: "", // ✅ Added
     images: [],
   });
 
   const [activeTab, setActiveTab] = useState("General");
   const imageInputRef = useRef(null);
 
-  // ✅ Helper function to clean icons
   const cleanIcon = (icon) => {
     if (!icon || typeof icon !== "string") return "";
-
     let result = icon.trim();
     let prevResult = "";
     let iterations = 0;
-
     while (prevResult !== result && iterations < 10) {
       prevResult = result;
       result = result
@@ -98,7 +70,6 @@ function CreateActivityLayout() {
         .replace(/\\/g, "");
       iterations++;
     }
-
     return result.trim();
   };
 
@@ -119,7 +90,6 @@ function CreateActivityLayout() {
     try {
       for (let i = 0; i < fileArray.length; i++) {
         const file = fileArray[i];
-
         try {
           const response = await uploadImageToServer(file);
           const imageUrl =
@@ -127,7 +97,6 @@ function CreateActivityLayout() {
             response.image_url ||
             response.data?.url ||
             response;
-
           uploadedImages.push({
             type: "uploaded",
             value: imageUrl,
@@ -144,10 +113,8 @@ function CreateActivityLayout() {
         message.success(
           `Successfully uploaded ${uploadedImages.length} image(s)`
         );
-
         setFormData((prev) => {
           const updated = [...prev.images, ...uploadedImages];
-
           setTimeout(() => {
             uploadedImages.forEach((_, idx) => {
               const refIndex = prev.images.length + idx;
@@ -158,7 +125,6 @@ function CreateActivityLayout() {
               }
             });
           }, 10);
-
           return { ...prev, images: updated };
         });
       }
@@ -170,21 +136,17 @@ function CreateActivityLayout() {
     }
   };
 
-  // ✅ UPDATED: handleSubmit with featuresArray
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validation
     if (!formData.country_id) {
       message.error("Please select a country");
       return;
     }
-
     if (!formData.title) {
       message.error("Please fill in all required fields");
       return;
     }
-
     if (uploadingImages) {
       message.warning("Please wait for images to finish uploading");
       return;
@@ -193,9 +155,8 @@ function CreateActivityLayout() {
     setLoading(true);
 
     try {
-      // ✅ Use featuresArray for formatting
+      // Features formatting
       let featuresFormatted = "";
-
       if (formData.featuresArray && formData.featuresArray.length > 0) {
         featuresFormatted = formData.featuresArray
           .filter((f) => f.name || f.label)
@@ -206,13 +167,24 @@ function CreateActivityLayout() {
             return `${label}**${value}**${icon}`;
           })
           .join("**CAMP**");
-      }
-      // Fallback to featuresString if available
-      else if (formData.featuresString) {
+      } else if (formData.featuresString) {
         featuresFormatted = formData.featuresString;
       }
 
-      console.log("Features formatted:", featuresFormatted);
+      // ✅ FAQs formatting: faq1**ans1**CAMP**faq2**ans2
+      let faqsFormatted = "";
+      if (formData.faqsArray && formData.faqsArray.length > 0) {
+        faqsFormatted = formData.faqsArray
+          .filter((f) => f.question || f.answer)
+          .map((f) => {
+            const question = (f.question || "").trim();
+            const answer = (f.answer || "").trim();
+            return `${question}**${answer}`;
+          })
+          .join("**CAMP**");
+      } else if (formData.faqsString) {
+        faqsFormatted = formData.faqsString;
+      }
 
       const imagesString = formData.images
         .map((img) => img.value)
@@ -241,7 +213,8 @@ function CreateActivityLayout() {
         max_people: formData.max_people,
         video_link: formData.video_link,
         activity_type: formData.activity_type,
-        features: featuresFormatted, // ✅ Use formatted string
+        features: featuresFormatted,
+        faqs: faqsFormatted, // ✅ Added
       };
 
       console.log("Submitting payload:", payload);
@@ -269,7 +242,6 @@ function CreateActivityLayout() {
     if (activeTab === "General") {
       return (
         <>
-          {/* Country & Category Row */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block !mb-1 font-medium">Country *</label>
@@ -300,7 +272,6 @@ function CreateActivityLayout() {
                 ))}
               </Select>
             </div>
-
             <div>
               <label className="block !mb-1 font-medium">Category</label>
               <Select
@@ -328,7 +299,6 @@ function CreateActivityLayout() {
                 required
               />
             </div>
-
             <div>
               <label className="block !mb-1 font-medium">Subtitle</label>
               <input
@@ -355,7 +325,6 @@ function CreateActivityLayout() {
                 onWheel={(e) => e.target.blur()}
               />
             </div>
-
             <div>
               <label className="block mb-1 font-medium">Original Price</label>
               <input
@@ -384,20 +353,17 @@ function CreateActivityLayout() {
                 type="button"
                 onClick={() =>
                   setFormData((prev) => ({
-                    // setRowData for UpdateActivityLayout
                     ...prev,
                     for_children: prev.for_children === "1" ? "0" : "1",
                   }))
                 }
                 className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  formData.for_children === "1" // rowData.for_children for UpdateActivityLayout
-                    ? "bg-[#295557]"
-                    : "bg-gray-300"
+                  formData.for_children === "1" ? "bg-[#295557]" : "bg-gray-300"
                 }`}
               >
                 <span
                   className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition duration-200 ease-in-out ${
-                    formData.for_children === "1" // rowData.for_children for UpdateActivityLayout
+                    formData.for_children === "1"
                       ? "translate-x-5"
                       : "translate-x-0"
                   }`}
@@ -430,7 +396,6 @@ function CreateActivityLayout() {
                 required
               />
             </div>
-
             <div>
               <label className="block mb-1 font-medium">Activity Type *</label>
               <input
@@ -480,7 +445,6 @@ function CreateActivityLayout() {
                 className="w-full border border-gray-300 p-2 rounded"
               />
             </div>
-
             <div>
               <label className="block mb-1 font-medium">Max People *</label>
               <input
@@ -512,6 +476,10 @@ function CreateActivityLayout() {
       return <ActivityFeatures rowData={formData} setRowData={setFormData} />;
     }
 
+    if (activeTab === "FAQs") {
+      return <ActivityFAQs rowData={formData} setRowData={setFormData} />;
+    }
+
     if (activeTab === "Images") {
       return <ActivityImages rowData={formData} setRowData={setFormData} />;
     }
@@ -523,7 +491,7 @@ function CreateActivityLayout() {
       <div className="mb-4">
         <nav className="flex justify-between items-center gap-0.5 w-[100%]">
           <Tabs
-            tabs={["General", "Features", "Images"]}
+            tabs={["General", "Features", "FAQs", "Images"]}
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             classNameDecoration=""

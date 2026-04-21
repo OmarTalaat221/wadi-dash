@@ -53,6 +53,7 @@ import BlogCategories from "../pages/BlogCategories/BlogCategories";
 import GalleryCategories from "../pages/GalleryCategories";
 import { AiOutlineProduct } from "react-icons/ai";
 import AdminUsers from "../pages/AdminUsers/AdminUsers";
+import CommunityCategories from "../pages/CommunityCategories/CommunityCategories";
 
 export const ROLES = {
   SUPER_ADMIN: "super_admin",
@@ -239,6 +240,14 @@ export const publicRoutes = [
     hidden: false,
     route: "/community",
     element: Community,
+    roles: [ROLES.SUPER_ADMIN, ROLES.OPERATION_MANAGER, ROLES.CONTENT_EDITOR],
+  },
+  {
+    title: "Community Categories",
+    icon: MdCategory,
+    hidden: false,
+    route: "/community-categories",
+    element: CommunityCategories,
     roles: [ROLES.SUPER_ADMIN, ROLES.OPERATION_MANAGER, ROLES.CONTENT_EDITOR],
   },
   {

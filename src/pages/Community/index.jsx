@@ -288,7 +288,7 @@ const Community = () => {
       )}
 
       {/* ── Modal ── */}
-      {selectedPost?.status === "accepted" && (
+      {selectedPost !== null && (
         <FramerModal
           open={selectedPost !== null}
           setOpen={() => setSelectedPost(null)}

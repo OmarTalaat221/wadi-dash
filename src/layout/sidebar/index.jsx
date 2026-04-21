@@ -5,11 +5,9 @@ import Logo from "../../components/sidebar/logo";
 import { publicRoutes, getRoutesByRole } from "../../data/routes";
 
 function SideBar() {
-  // جيب الـ role من localStorage أو من context
   const adminData = JSON.parse(localStorage.getItem("admin_data") || "{}");
-  const userRole = adminData?.role || "content_editor"; // default role
+  const userRole = adminData?.role || "content_editor";
 
-  // فلتر الـ routes حسب الـ role
   const allowedRoutes = getRoutesByRole(userRole);
 
   useEffect(() => {
