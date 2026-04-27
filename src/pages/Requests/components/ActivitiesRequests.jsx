@@ -213,6 +213,7 @@ const ActivitiesRequests = () => {
       completed: "default",
       pending: "warning",
       rejected: "error",
+      cancelled_by_user: "error",
     })[status?.toLowerCase()] || "default";
 
   const getFirstImage = (img) =>
@@ -326,7 +327,7 @@ const ActivitiesRequests = () => {
       render: (text, record) => (
         <div className="flex flex-col gap-1">
           <Tag color={getStatusTagColor(text)} className="w-fit font-medium">
-            {text?.toUpperCase()}
+            {text?.toUpperCase()?.replaceAll("_", " ")}
           </Tag>
           {record.manual === "1" && (
             <Tooltip title="Manually Updated">
@@ -436,6 +437,7 @@ const ActivitiesRequests = () => {
           <Option value="in_progress">In Progress</Option>
           <Option value="completed">Completed</Option>
           <Option value="rejected">Rejected</Option>
+          <Option value="cancelled_by_user">Cancelled By User</Option>
         </Select>
         <Divider type="vertical" />
         <span className="text-gray-500 text-sm font-medium">Type:</span>
@@ -556,7 +558,7 @@ const ActivitiesRequests = () => {
                   color={getStatusTagColor(rowData.status)}
                   className="px-4 py-1 text-base font-bold"
                 >
-                  {rowData.status?.toUpperCase()}
+                  {rowData.status?.toUpperCase()?.replaceAll("_", " ")}
                 </Tag>
                 {rowData.manual === "1" && (
                   <Tag color="orange" className="px-4 py-1 text-sm font-bold">

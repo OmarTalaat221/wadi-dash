@@ -210,6 +210,7 @@ const CarsRequests = () => {
       completed: "purple",
       pending: "orange",
       rejected: "red",
+      cancelled_by_user: "red",
     };
     return colors[status?.toLowerCase()] || "default";
   };
@@ -293,7 +294,7 @@ const CarsRequests = () => {
             color={getStatusColor(text)}
             className="px-3 py-1 text-sm font-medium w-fit"
           >
-            {text?.toUpperCase()}
+            {text?.toUpperCase()?.replaceAll("_", " ")}
           </Tag>
           {record.manual == "1" && (
             <Tooltip title="Manually Updated">
@@ -381,6 +382,7 @@ const CarsRequests = () => {
           <Option value="in_progress">In Progress</Option>
           <Option value="completed">Completed</Option>
           <Option value="rejected">Rejected</Option>
+          <Option value="cancelled_by_user">Cancelled By User</Option>
         </Select>
         <Divider type="vertical" />
         <span className="text-gray-500 text-sm">Type:</span>
@@ -430,7 +432,7 @@ const CarsRequests = () => {
                 color={getStatusColor(rowData.status)}
                 className="px-4 py-1 text-base font-bold"
               >
-                {rowData.status?.toUpperCase()}
+                {rowData.status?.toUpperCase()?.replaceAll("_", " ")}
               </Tag>
               {rowData.manual === "1" && (
                 <Tag color="gold" className="px-4 py-1 text-sm font-bold">

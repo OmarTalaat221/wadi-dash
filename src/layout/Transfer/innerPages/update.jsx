@@ -211,6 +211,7 @@ function UpdateCarLayout() {
         price_note: rowData.price_note,
         car_type: rowData.car_type,
         max_people: rowData.max_people,
+        driver_price: rowData.driver_price,
         features: featuresFormatted, // ✅ Use formatted string
       };
 
@@ -381,6 +382,19 @@ function UpdateCarLayout() {
                   </Option>
                 ))}
               </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <label className="block mb-1 font-medium">Driver Price *</label>
+              <input
+                type="number"
+                name="driver_price"
+                value={rowData.driver_price || ""}
+                onChange={handleChange}
+                className="w-full border border-gray-300 p-2 rounded"
+                onWheel={(e) => e.target.blur()}
+              />
             </div>
           </div>
 

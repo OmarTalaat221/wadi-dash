@@ -20,12 +20,16 @@ import {
   FolderOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
+  DeleteOutlined, // ✅ Added
+  ExclamationCircleOutlined, // ✅ Added
 } from "@ant-design/icons";
 import DataTable from "../../layout/DataTable";
 import axios from "axios";
 import dayjs from "dayjs";
 import { base_url } from "../../utils/base_url";
 import { TbListDetails } from "react-icons/tb";
+
+const { confirm } = Modal; // ✅ Added
 
 const CommunityCategories = () => {
   const [loading, setLoading] = useState(false);
@@ -42,6 +46,7 @@ const CommunityCategories = () => {
 
   const [actionLoading, setActionLoading] = useState(false);
   const [toggleLoading, setToggleLoading] = useState({});
+  const [deleteLoading, setDeleteLoading] = useState({}); // ✅ Added
 
   // ============================================
   // Fetch Categories
@@ -80,9 +85,7 @@ const CommunityCategories = () => {
     try {
       const response = await axios.post(
         `${base_url}/admin/blogs/add_blog_category.php`,
-        {
-          category_name: values.category_name,
-        }
+        { category_name: values.category_name }
       );
 
       if (response.data.status === "success") {
@@ -132,16 +135,62 @@ const CommunityCategories = () => {
   };
 
   // ============================================
+  // ✅ Delete Category
+  // ============================================
+  const handleDeleteCategory = (record) => {
+    confirm({
+      title: "Delete Category",
+      icon: <ExclamationCircleOutlined className="!text-red-500" />,
+      content: (
+        <div>
+          <p>
+            Are you sure you want to delete{" "}
+            <strong>"{record.category_name}"</strong>?
+          </p>
+          <p className="text-red-500 text-sm mt-2">
+            ⚠️ This will also delete all blogs under this category.
+          </p>
+        </div>
+      ),
+      okText: "Yes, Delete",
+      okType: "danger",
+      cancelText: "Cancel",
+      onOk: async () => {
+        setDeleteLoading((prev) => ({ ...prev, [record.category_id]: true }));
+        try {
+          const response = await axios.post(
+            `${base_url}/admin/blogs/delete_blog_category.php`,
+            { category_id: record.category_id }
+          );
+
+          if (response.data.status === "success") {
+            message.success("Category deleted successfully!");
+            fetchCategories();
+          } else {
+            message.error(response.data.message || "Failed to delete category");
+          }
+        } catch (error) {
+          console.error("Error deleting category:", error);
+          message.error("Error deleting category");
+        } finally {
+          setDeleteLoading((prev) => ({
+            ...prev,
+            [record.category_id]: false,
+          }));
+        }
+      },
+    });
+  };
+
+  // ============================================
   // Toggle Category Visibility
   // ============================================
   const handleToggleCategory = async (categoryId) => {
     setToggleLoading((prev) => ({ ...prev, [categoryId]: true }));
     try {
       const response = await axios.post(
-        `${base_url}/admin/blogs/toggle_blog_category.php`,
-        {
-          category_id: categoryId,
-        }
+        `${base_url}/admin/blogs/toggle_category.php`,
+        { category_id: categoryId }
       );
 
       if (response.data.status === "success") {
@@ -177,9 +226,8 @@ const CommunityCategories = () => {
   const formatDate = (dateString) => {
     try {
       if (!dateString) return "N/A";
-      const date = new Date(dateString);
-      return dayjs(date).format("YYYY/MM/DD HH:mm");
-    } catch (error) {
+      return dayjs(new Date(dateString)).format("YYYY/MM/DD HH:mm");
+    } catch {
       return dateString;
     }
   };
@@ -208,7 +256,7 @@ const CommunityCategories = () => {
       key: "category_id",
       width: 70,
       render: (text, record, index) => (
-        <div className="font-semibold text-gray-600">#{index + 1}</div>
+        <div className="font-semibold text-gray-600">#{text}</div>
       ),
     },
     {
@@ -262,7 +310,7 @@ const CommunityCategories = () => {
     {
       title: "Actions",
       key: "actions",
-      width: 280,
+      width: 320, // ✅ slightly wider to fit delete button
       render: (text, record) => {
         const isHidden =
           record.hidden === 1 ||
@@ -302,6 +350,17 @@ const CommunityCategories = () => {
                     : "border-red-400 text-red-500 hover:bg-red-50"
                 }
                 onClick={() => handleToggleCategory(record.category_id)}
+              />
+            </Tooltip>
+
+            {/* ✅ Delete Button */}
+            <Tooltip title="Delete Category">
+              <Button
+                type="default"
+                danger
+                icon={<DeleteOutlined />}
+                loading={deleteLoading[record.category_id]}
+                onClick={() => handleDeleteCategory(record)}
               />
             </Tooltip>
           </div>
@@ -419,9 +478,7 @@ const CommunityCategories = () => {
         </Row>
       </div>
 
-      {/* ============================================ */}
       {/* View Details Modal */}
-      {/* ============================================ */}
       <Modal
         title={
           <div className="flex items-center gap-2">
@@ -434,6 +491,19 @@ const CommunityCategories = () => {
         footer={[
           <Button key="close" onClick={() => setIsViewModalVisible(false)}>
             Close
+          </Button>,
+          // ✅ Delete button in view modal footer
+          <Button
+            key="delete"
+            danger
+            icon={<DeleteOutlined />}
+            loading={deleteLoading[rowData?.category_id]}
+            onClick={() => {
+              setIsViewModalVisible(false);
+              handleDeleteCategory(rowData);
+            }}
+          >
+            Delete
           </Button>,
           <Button
             key="edit"
@@ -451,7 +521,6 @@ const CommunityCategories = () => {
       >
         {rowData && (
           <div className="space-y-6">
-            {/* Header */}
             <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-4 rounded-lg">
               <div className="flex justify-between items-center">
                 <div>
@@ -477,7 +546,6 @@ const CommunityCategories = () => {
               </div>
             </div>
 
-            {/* Category Information */}
             <div>
               <h3 className="font-semibold text-lg mb-3 border-b pb-2 flex items-center">
                 <FolderOutlined className="mr-2 text-purple-500" />
@@ -507,7 +575,6 @@ const CommunityCategories = () => {
               </div>
             </div>
 
-            {/* Quick Actions */}
             <div className="border-t pt-4">
               <h3 className="font-semibold text-sm mb-3 text-gray-600">
                 Quick Actions
@@ -558,9 +625,7 @@ const CommunityCategories = () => {
         )}
       </Modal>
 
-      {/* ============================================ */}
       {/* Add Category Modal */}
-      {/* ============================================ */}
       <Modal
         title={
           <div className="flex items-center gap-2">
@@ -623,9 +688,7 @@ const CommunityCategories = () => {
         </Form>
       </Modal>
 
-      {/* ============================================ */}
       {/* Edit Category Modal */}
-      {/* ============================================ */}
       <Modal
         title={
           <div className="flex items-center gap-2">

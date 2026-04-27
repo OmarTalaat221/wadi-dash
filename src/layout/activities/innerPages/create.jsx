@@ -1,5 +1,4 @@
-// src/pages/Activities/Create/CreateActivityLayout.jsx
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import Tabs from "../../../components/Tabs";
 import JoditEditor from "jodit-react";
 import editorConfig from "../../../data/joditConfig";
@@ -7,21 +6,19 @@ import axios from "axios";
 import { message, Select, Spin } from "antd";
 import { useNavigate } from "react-router-dom";
 import { base_url } from "../../../utils/base_url";
-import { uploadImageToServer } from "../../../hooks/uploadImage";
 import ActivityImages from "../../../components/Activities/activityImages";
 import useCountries from "../../../hooks/useCountries";
 import ActivityFeatures from "../../../components/Activities/activityFeatures";
 import ActivityFAQs from "../../../components/Activities/ActivityFAQs";
+import MapPicker from "../../../components/MapPicker/MapPicker";
 
 const { Option } = Select;
 
 function CreateActivityLayout() {
   const navigate = useNavigate();
-  const imageRefs = useRef([]);
   const { countries, loading: countriesLoading } = useCountries();
 
   const [loading, setLoading] = useState(false);
-  const [uploadingImages, setUploadingImages] = useState(false);
 
   const [formData, setFormData] = useState({
     country_id: "",
@@ -44,21 +41,23 @@ function CreateActivityLayout() {
     price_note: "PER PERSON",
     activity_type: "",
     for_children: "1",
+    lat: "",
+    long: "",
     featuresArray: [],
     featuresString: "",
-    faqsArray: [], // ✅ Added
-    faqsString: "", // ✅ Added
+    faqsArray: [],
+    faqsString: "",
     images: [],
   });
 
   const [activeTab, setActiveTab] = useState("General");
-  const imageInputRef = useRef(null);
 
   const cleanIcon = (icon) => {
     if (!icon || typeof icon !== "string") return "";
     let result = icon.trim();
     let prevResult = "";
     let iterations = 0;
+
     while (prevResult !== result && iterations < 10) {
       prevResult = result;
       result = result
@@ -70,6 +69,7 @@ function CreateActivityLayout() {
         .replace(/\\/g, "");
       iterations++;
     }
+
     return result.trim();
   };
 
@@ -82,58 +82,8 @@ function CreateActivityLayout() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleImageFilesChange = async (files) => {
-    setUploadingImages(true);
-    const fileArray = Array.from(files);
-    const uploadedImages = [];
-
-    try {
-      for (let i = 0; i < fileArray.length; i++) {
-        const file = fileArray[i];
-        try {
-          const response = await uploadImageToServer(file);
-          const imageUrl =
-            response.url ||
-            response.image_url ||
-            response.data?.url ||
-            response;
-          uploadedImages.push({
-            type: "uploaded",
-            value: imageUrl,
-            preview: imageUrl,
-            file: file,
-          });
-        } catch (error) {
-          console.error(`Failed to upload ${file.name}:`, error);
-          message.error(`Failed to upload ${file.name}`);
-        }
-      }
-
-      if (uploadedImages.length > 0) {
-        message.success(
-          `Successfully uploaded ${uploadedImages.length} image(s)`
-        );
-        setFormData((prev) => {
-          const updated = [...prev.images, ...uploadedImages];
-          setTimeout(() => {
-            uploadedImages.forEach((_, idx) => {
-              const refIndex = prev.images.length + idx;
-              const imgRef = imageRefs.current[refIndex];
-              if (imgRef) {
-                imgRef.classList.add("zoomIn");
-                setTimeout(() => imgRef.classList.remove("zoomIn"), 300);
-              }
-            });
-          }, 10);
-          return { ...prev, images: updated };
-        });
-      }
-    } catch (error) {
-      console.error("Error uploading images:", error);
-      message.error("Error uploading images");
-    } finally {
-      setUploadingImages(false);
-    }
+  const handleMapChange = (lat, long) => {
+    setFormData((prev) => ({ ...prev, lat, long }));
   };
 
   const handleSubmit = async (e) => {
@@ -143,19 +93,15 @@ function CreateActivityLayout() {
       message.error("Please select a country");
       return;
     }
+
     if (!formData.title) {
       message.error("Please fill in all required fields");
-      return;
-    }
-    if (uploadingImages) {
-      message.warning("Please wait for images to finish uploading");
       return;
     }
 
     setLoading(true);
 
     try {
-      // Features formatting
       let featuresFormatted = "";
       if (formData.featuresArray && formData.featuresArray.length > 0) {
         featuresFormatted = formData.featuresArray
@@ -171,7 +117,6 @@ function CreateActivityLayout() {
         featuresFormatted = formData.featuresString;
       }
 
-      // ✅ FAQs formatting: faq1**ans1**CAMP**faq2**ans2
       let faqsFormatted = "";
       if (formData.faqsArray && formData.faqsArray.length > 0) {
         faqsFormatted = formData.faqsArray
@@ -214,10 +159,10 @@ function CreateActivityLayout() {
         video_link: formData.video_link,
         activity_type: formData.activity_type,
         features: featuresFormatted,
-        faqs: faqsFormatted, // ✅ Added
+        faqs: faqsFormatted,
+        latitude: formData.lat || "",
+        longitude: formData.long || "",
       };
-
-      console.log("Submitting payload:", payload);
 
       const response = await axios.post(
         `${base_url}/admin/activities/add_activity.php`,
@@ -272,6 +217,7 @@ function CreateActivityLayout() {
                 ))}
               </Select>
             </div>
+
             <div>
               <label className="block !mb-1 font-medium">Category</label>
               <Select
@@ -299,6 +245,7 @@ function CreateActivityLayout() {
                 required
               />
             </div>
+
             <div>
               <label className="block !mb-1 font-medium">Subtitle</label>
               <input
@@ -325,6 +272,7 @@ function CreateActivityLayout() {
                 onWheel={(e) => e.target.blur()}
               />
             </div>
+
             <div>
               <label className="block mb-1 font-medium">Original Price</label>
               <input
@@ -349,6 +297,7 @@ function CreateActivityLayout() {
                   If disabled, children cannot be booked for this activity
                 </p>
               </div>
+
               <button
                 type="button"
                 onClick={() =>
@@ -370,6 +319,7 @@ function CreateActivityLayout() {
                 />
               </button>
             </div>
+
             <div>
               <label className="block mb-1 font-medium">Price per Child</label>
               <input
@@ -396,6 +346,7 @@ function CreateActivityLayout() {
                 required
               />
             </div>
+
             <div>
               <label className="block mb-1 font-medium">Activity Type *</label>
               <input
@@ -445,6 +396,7 @@ function CreateActivityLayout() {
                 className="w-full border border-gray-300 p-2 rounded"
               />
             </div>
+
             <div>
               <label className="block mb-1 font-medium">Max People *</label>
               <input
@@ -456,6 +408,15 @@ function CreateActivityLayout() {
                 onWheel={(e) => e.target.blur()}
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block mb-2 font-medium">Location on Map</label>
+            <MapPicker
+              lat={formData.lat}
+              long={formData.long}
+              onChange={handleMapChange}
+            />
           </div>
 
           <div>
@@ -483,11 +444,14 @@ function CreateActivityLayout() {
     if (activeTab === "Images") {
       return <ActivityImages rowData={formData} setRowData={setFormData} />;
     }
+
+    return null;
   };
 
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Create Activity</h1>
+
       <div className="mb-4">
         <nav className="flex justify-between items-center gap-0.5 w-[100%]">
           <Tabs
@@ -497,16 +461,18 @@ function CreateActivityLayout() {
             classNameDecoration=""
             className=""
           />
+
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={loading || uploadingImages}
+            disabled={loading}
             className="bg-blue-500 text-white !py-2 !px-4 rounded hover:bg-blue-600 transition-colors duration-200 disabled:bg-gray-400"
           >
             {loading ? "Creating..." : "Create Activity"}
           </button>
         </nav>
       </div>
+
       <form className="space-y-6 bg-white !p-5 rounded-[10px]">
         {renderTabContent()}
       </form>

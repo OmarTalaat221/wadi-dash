@@ -522,7 +522,7 @@ const GallerySelector = ({
               <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
                 {uploadedImages.map((img) => (
                   <div key={img.id} className="relative group">
-                    <div className="relative aspect-square rounded-md overflow-hidden border border-gray-200 shadow-sm">
+                    <div className="relative aspect-square rounded-md border border-gray-200 shadow-sm">
                       <img
                         src={img.url}
                         alt={img.name || "Uploaded image"}

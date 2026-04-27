@@ -7,6 +7,7 @@ import {
   FaQuoteLeft,
   FaComment,
   FaTimes,
+  FaTrash, // ✅ Added
 } from "react-icons/fa";
 import CommentsModal from "./CommentsModal";
 
@@ -17,13 +18,12 @@ const FramerModal = ({
   selectedPost,
   onAccept,
   onReject,
+  onDelete, // ✅ Added
   fetchBlogs,
 }) => {
   const [commentsModalOpen, setCommentsModalOpen] = useState(false);
 
-  const closeModal = () => {
-    setOpen(false);
-  };
+  const closeModal = () => setOpen(false);
 
   const getStatusBadge = () => {
     switch (selectedPost?.status) {
@@ -38,16 +38,14 @@ const FramerModal = ({
     }
   };
 
-  // Count total comments including replies
   const getTotalCommentsCount = () => {
     if (!selectedPost?.comments || !Array.isArray(selectedPost.comments))
       return 0;
-
     let total = 0;
     selectedPost.comments.forEach((comment) => {
-      total += 1; // Count the main comment
+      total += 1;
       if (comment.replies && Array.isArray(comment.replies)) {
-        total += comment.replies.length; // Count replies
+        total += comment.replies.length;
       }
     });
     return total;
@@ -61,6 +59,70 @@ const FramerModal = ({
   const handleRejectAndClose = () => {
     onReject && onReject(selectedPost.id);
     closeModal();
+  };
+
+  // ✅ Delete from modal — closes modal first then triggers confirm
+  const handleDeleteAndClose = () => {
+    closeModal();
+    // Small timeout so modal closes before confirm dialog opens
+    setTimeout(() => {
+      onDelete && onDelete(selectedPost.id, selectedPost.title);
+    }, 200);
+  };
+
+  // ✅ Delete button shown in all statuses
+  const deleteButton = (
+    <Button
+      key="delete"
+      danger
+      icon={<FaTrash />}
+      onClick={handleDeleteAndClose}
+    >
+      Delete Blog
+    </Button>
+  );
+
+  const getFooter = () => {
+    if (selectedPost?.status === "pending") {
+      return [
+        deleteButton,
+        <Button
+          key="reject"
+          danger
+          onClick={handleRejectAndClose}
+          icon={<FaTimes />}
+        >
+          Hide Blog
+        </Button>,
+        <Button key="accept" type="primary" onClick={handleAcceptAndClose}>
+          Publish Blog
+        </Button>,
+      ];
+    }
+
+    if (selectedPost?.status === "accepted") {
+      return [
+        deleteButton,
+        <Button
+          key="manage-comments"
+          type="primary"
+          onClick={() => setCommentsModalOpen(true)}
+          icon={<FaComment />}
+        >
+          Manage Comments
+        </Button>,
+        <Button key="close" onClick={closeModal}>
+          Close
+        </Button>,
+      ];
+    }
+
+    return [
+      deleteButton,
+      <Button key="close" onClick={closeModal}>
+        Close
+      </Button>,
+    ];
   };
 
   return (
@@ -91,57 +153,14 @@ const FramerModal = ({
         }
         open={open}
         onCancel={closeModal}
-        footer={
-          selectedPost?.status === "pending"
-            ? [
-              <Button
-                key="reject"
-                danger
-                onClick={handleRejectAndClose}
-                icon={<FaTimes />}
-              >
-                Hide Blog
-              </Button>,
-              <Button
-                key="accept"
-                type="primary"
-                onClick={handleAcceptAndClose}
-              >
-                Publish Blog
-              </Button>,
-            ]
-            : selectedPost?.status === "accepted"
-              ? [
-                <Button
-                  key="manage-comments"
-                  type="primary"
-                  onClick={() => setCommentsModalOpen(true)}
-                  icon={<FaComment />}
-                >
-                  Manage Comments
-                </Button>,
-                <Button key="close" onClick={closeModal}>
-                  Close
-                </Button>,
-              ]
-              : [
-                <Button key="close" onClick={closeModal}>
-                  Close
-                </Button>,
-              ]
-        }
+        footer={getFooter()}
         width={900}
         style={{ top: 20 }}
-        bodyStyle={{
-          maxHeight: "75vh",
-          overflowY: "auto",
-          padding: 0,
-        }}
+        bodyStyle={{ maxHeight: "75vh", overflowY: "auto", padding: 0 }}
         destroyOnClose
       >
         {selectedPost && (
           <div>
-            {/* Header Image */}
             <div className="relative">
               <img
                 src={selectedPost.postImage}
@@ -150,38 +169,27 @@ const FramerModal = ({
               />
             </div>
 
-            {/* Content */}
             <div className="p-6">
-              {/* Author Info with Date */}
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-4">
-                  <div>
-                    {/* <h4 className="font-semibold text-gray-900 flex items-center">
-                      <FaUser className="w-4 h-4 mr-2" />
-                      {selectedPost.pageName}
-                    </h4> */}
-                    <div className="flex items-center space-x-4 text-sm text-gray-500">
-                      <span className="flex items-center">
-                        <FaCalendar className="w-3 h-3 mr-1" />
-                        {new Date(selectedPost.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
+                  <div className="flex items-center space-x-4 text-sm text-gray-500">
+                    <span className="flex items-center">
+                      <FaCalendar className="w-3 h-3 mr-1" />
+                      {new Date(selectedPost.createdAt).toLocaleDateString()}
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Title */}
               <h1 className="text-2xl font-bold text-gray-900 mb-4">
                 {selectedPost.title}
               </h1>
 
-              {/* Description */}
               <div
                 className="prose max-w-none text-gray-700 mb-6"
                 dangerouslySetInnerHTML={{ __html: selectedPost.description }}
               />
 
-              {/* Quote Section */}
               {selectedPost.quoteText && (
                 <>
                   <Divider />
@@ -199,7 +207,6 @@ const FramerModal = ({
                 </>
               )}
 
-              {/* Comments Section for Published blogs */}
               {selectedPost.status === "accepted" && (
                 <>
                   <Divider />
@@ -209,9 +216,8 @@ const FramerModal = ({
                       Comments ({getTotalCommentsCount()})
                     </h3>
 
-                    {/* Comments Preview */}
                     {selectedPost.comments &&
-                      selectedPost.comments.length > 0 ? (
+                    selectedPost.comments.length > 0 ? (
                       <div className="space-y-4 max-h-60 overflow-y-auto">
                         {selectedPost.comments.slice(0, 3).map((comment) => (
                           <div
@@ -229,21 +235,17 @@ const FramerModal = ({
                                   ).toLocaleString()}
                                 </p>
                               </div>
-                              <div className="flex items-center space-x-2">
-                                <span
-                                  className={`text-xs px-2 py-1 rounded ${comment.hidden === "0"
-                                      ? "bg-green-100 text-green-800"
-                                      : "bg-red-100 text-red-800"
-                                    }`}
-                                >
-                                  {comment.hidden === "0"
-                                    ? "Visible"
-                                    : "Hidden"}
-                                </span>
-                              </div>
+                              <span
+                                className={`text-xs px-2 py-1 rounded ${
+                                  comment.hidden === "0"
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-red-100 text-red-800"
+                                }`}
+                              >
+                                {comment.hidden === "0" ? "Visible" : "Hidden"}
+                              </span>
                             </div>
 
-                            {/* Replies Preview */}
                             {comment.replies && comment.replies.length > 0 && (
                               <div className="ml-4 mt-2 space-y-2">
                                 {comment.replies.slice(0, 2).map((reply) => (
@@ -253,10 +255,11 @@ const FramerModal = ({
                                   >
                                     <p>{reply.comment}</p>
                                     <span
-                                      className={`text-xs px-2 py-1 rounded mt-1 inline-block ${reply.hidden === "0"
+                                      className={`text-xs px-2 py-1 rounded mt-1 inline-block ${
+                                        reply.hidden === "0"
                                           ? "bg-green-100 text-green-800"
                                           : "bg-red-100 text-red-800"
-                                        }`}
+                                      }`}
                                     >
                                       {reply.hidden === "0"
                                         ? "Visible"
@@ -268,7 +271,6 @@ const FramerModal = ({
                             )}
                           </div>
                         ))}
-
                         {selectedPost.comments.length > 3 && (
                           <p className="text-center text-gray-500 text-sm">
                             ... and {selectedPost.comments.length - 3} more
@@ -289,7 +291,6 @@ const FramerModal = ({
         )}
       </Modal>
 
-      {/* Comments Management Modal */}
       <CommentsModal
         open={commentsModalOpen}
         setOpen={setCommentsModalOpen}

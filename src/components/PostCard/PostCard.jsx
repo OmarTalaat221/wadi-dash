@@ -9,6 +9,7 @@ import {
   FaCheck,
   FaTimes,
   FaTag,
+  FaTrash, // ✅ Added
 } from "react-icons/fa";
 
 export default function PostCard({
@@ -17,8 +18,8 @@ export default function PostCard({
   width = "w-full",
   onAccept,
   onReject,
+  onDelete, // ✅ Added
 }) {
-  // Status badge styling
   const getStatusBadge = () => {
     switch (post.status) {
       case "pending":
@@ -32,24 +33,21 @@ export default function PostCard({
     }
   };
 
-  // Truncate description for display
   const getTruncatedDescription = (description, maxLength = 100) => {
     if (!description) return "";
-    const textOnly = description.replace(/<[^>]*>/g, ""); // Remove HTML tags
+    const textOnly = description.replace(/<[^>]*>/g, "");
     return textOnly.length > maxLength
       ? textOnly.substring(0, maxLength) + "..."
       : textOnly;
   };
 
-  // Count total comments including replies
   const getTotalCommentsCount = () => {
     if (!post.comments || !Array.isArray(post.comments)) return 0;
-
     let total = 0;
     post.comments.forEach((comment) => {
-      total += 1; // Count the main comment
+      total += 1;
       if (comment.replies && Array.isArray(comment.replies)) {
-        total += comment.replies.length; // Count replies
+        total += comment.replies.length;
       }
     });
     return total;
@@ -95,17 +93,24 @@ export default function PostCard({
               </div>
             </div>
           </div>
+
+          {/* ✅ Updated dropdown menu with delete */}
           <Tooltip title="More actions">
             <Dropdown
-              className=""
               overlay={
                 <Menu>
                   <Menu.Item key="view" onClick={() => setSelectedPost(post)}>
-                    <span>View Details</span>
+                    View Details
                   </Menu.Item>
-                  {/* <Menu.Item key="edit">
-                    <span>Edit Blog</span>
-                  </Menu.Item> */}
+                  <Menu.Divider />
+                  <Menu.Item
+                    key="delete"
+                    danger
+                    icon={<FaTrash />}
+                    onClick={() => onDelete && onDelete(post.id, post.title)}
+                  >
+                    Delete Blog
+                  </Menu.Item>
                 </Menu>
               }
               trigger={["click"]}
@@ -140,12 +145,10 @@ export default function PostCard({
           />
         </div>
 
-        {/* Engagement Stats for Published blogs */}
+        {/* Engagement Stats */}
         {post.status === "accepted" && (
           <div className="px-4 py-2 flex items-center justify-end text-sm text-gray-500 border-b border-gray-200">
-            <div className="flex space-x-4">
-              <span>{getTotalCommentsCount()} Comments</span>
-            </div>
+            <span>{getTotalCommentsCount()} Comments</span>
           </div>
         )}
 

@@ -1,4 +1,3 @@
-// src/pages/Activities/Update/UpdateActivityLayout.jsx
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Tabs from "../../../components/Tabs";
@@ -10,12 +9,14 @@ import { base_url } from "../../../utils/base_url";
 import ActivityFeatures from "../../../components/Activities/activityFeatures";
 import ActivityFAQs from "../../../components/Activities/ActivityFAQs";
 import editorConfig from "../../../data/joditConfig";
+import MapPicker from "../../../components/MapPicker/MapPicker";
 
 const { Option } = Select;
 
 function UpdateActivityLayout() {
   const { product_id } = useParams();
   const navigate = useNavigate();
+
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [countries, setCountries] = useState([]);
@@ -43,10 +44,12 @@ function UpdateActivityLayout() {
     video_link: "",
     activity_type: "",
     for_children: "1",
+    lat: "",
+    long: "",
     featuresArray: [],
     featuresString: "",
-    faqsArray: [], // ✅ Added
-    faqsString: "", // ✅ Added
+    faqsArray: [],
+    faqsString: "",
     images: [],
   });
 
@@ -57,6 +60,7 @@ function UpdateActivityLayout() {
     let result = icon.trim();
     let prevResult = "";
     let iterations = 0;
+
     while (prevResult !== result && iterations < 10) {
       prevResult = result;
       result = result
@@ -68,11 +72,13 @@ function UpdateActivityLayout() {
         .replace(/\\/g, "");
       iterations++;
     }
+
     return result.trim();
   };
 
   const parseFeaturesToArray = (features) => {
     if (!features) return [];
+
     if (Array.isArray(features)) {
       return features.map((f, index) => ({
         id: f.feature_id || f.id || index + 1,
@@ -81,6 +87,7 @@ function UpdateActivityLayout() {
         icon: f.icon || "",
       }));
     }
+
     if (typeof features === "string" && features.trim()) {
       return features.split("**CAMP**").map((item, index) => {
         const parts = item.split("**");
@@ -92,14 +99,13 @@ function UpdateActivityLayout() {
         };
       });
     }
+
     return [];
   };
 
-  // ✅ Parse FAQs from API response
   const parseFAQsToArray = (faqs) => {
     if (!faqs) return [];
 
-    // If FAQs come as array of objects from API
     if (Array.isArray(faqs)) {
       return faqs
         .filter((f) => f.question || f.answer)
@@ -110,7 +116,6 @@ function UpdateActivityLayout() {
         }));
     }
 
-    // If FAQs come as string: faq1**ans1**CAMP**faq2**ans2
     if (typeof faqs === "string" && faqs.trim()) {
       return faqs.split("**CAMP**").map((item, index) => {
         const parts = item.split("**");
@@ -138,7 +143,6 @@ function UpdateActivityLayout() {
       .join("**CAMP**");
   };
 
-  // ✅ Convert FAQs array to string
   const convertFAQsToString = (faqsList) => {
     if (!faqsList || faqsList.length === 0) return "";
     return faqsList
@@ -184,8 +188,6 @@ function UpdateActivityLayout() {
 
         if (activity) {
           const featuresArray = parseFeaturesToArray(activity.features);
-
-          // ✅ Parse FAQs from API
           const faqsArray = parseFAQsToArray(activity.faqs);
 
           const imagesArray = activity.image
@@ -198,10 +200,12 @@ function UpdateActivityLayout() {
           setRowData({
             ...activity,
             for_children: activity.for_children ?? "1",
-            featuresArray: featuresArray,
+            lat: activity.lat || "",
+            long: activity.long || "",
+            featuresArray,
             featuresString: convertFeaturesToString(featuresArray),
-            faqsArray: faqsArray, // ✅ Added
-            faqsString: convertFAQsToString(faqsArray), // ✅ Added
+            faqsArray,
+            faqsString: convertFAQsToString(faqsArray),
             images: imagesArray,
           });
         }
@@ -219,6 +223,10 @@ function UpdateActivityLayout() {
     setRowData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleMapChange = (lat, long) => {
+    setRowData((prev) => ({ ...prev, lat, long }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -230,7 +238,6 @@ function UpdateActivityLayout() {
     setLoading(true);
 
     try {
-      // Features formatting
       let featuresFormatted = "";
       if (rowData.featuresArray && rowData.featuresArray.length > 0) {
         featuresFormatted = rowData.featuresArray
@@ -246,7 +253,6 @@ function UpdateActivityLayout() {
         featuresFormatted = rowData.featuresString;
       }
 
-      // ✅ FAQs formatting: faq1**ans1**CAMP**faq2**ans2
       let faqsFormatted = "";
       if (rowData.faqsArray && rowData.faqsArray.length > 0) {
         faqsFormatted = rowData.faqsArray
@@ -290,10 +296,10 @@ function UpdateActivityLayout() {
         video_link: rowData.video_link,
         activity_type: rowData.activity_type,
         features: featuresFormatted,
-        faqs: faqsFormatted, // ✅ Added
+        faqs: faqsFormatted,
+        latitude: rowData.lat || "",
+        longitude: rowData.long || "",
       };
-
-      console.log("Submitting payload:", payload);
 
       const response = await axios.post(
         `${base_url}/admin/activities/edit_activity.php`,
@@ -344,6 +350,7 @@ function UpdateActivityLayout() {
                 ))}
               </Select>
             </div>
+
             <div>
               <label className="block mb-1 font-medium">Category</label>
               <Select
@@ -373,6 +380,7 @@ function UpdateActivityLayout() {
                 required
               />
             </div>
+
             <div>
               <label className="block mb-1 font-medium">Subtitle</label>
               <input
@@ -399,6 +407,7 @@ function UpdateActivityLayout() {
                 required
               />
             </div>
+
             <div>
               <label className="block mb-1 font-medium">Original Price</label>
               <input
@@ -423,6 +432,7 @@ function UpdateActivityLayout() {
                   If disabled, children cannot be booked for this activity
                 </p>
               </div>
+
               <button
                 type="button"
                 onClick={() =>
@@ -444,6 +454,7 @@ function UpdateActivityLayout() {
                 />
               </button>
             </div>
+
             <div>
               <label className="block mb-1 font-medium">Price per Child</label>
               <input
@@ -470,6 +481,7 @@ function UpdateActivityLayout() {
                 required
               />
             </div>
+
             <div>
               <label className="block mb-1 font-medium">Activity Type *</label>
               <input
@@ -519,6 +531,7 @@ function UpdateActivityLayout() {
                 className="w-full border border-gray-300 p-2 rounded"
               />
             </div>
+
             <div>
               <label className="block mb-1 font-medium">Max People *</label>
               <input
@@ -530,6 +543,15 @@ function UpdateActivityLayout() {
                 onWheel={(e) => e.target.blur()}
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block mb-2 font-medium">Location on Map</label>
+            <MapPicker
+              lat={rowData.lat}
+              long={rowData.long}
+              onChange={handleMapChange}
+            />
           </div>
 
           <div>
@@ -550,7 +572,6 @@ function UpdateActivityLayout() {
       return <ActivityFeatures rowData={rowData} setRowData={setRowData} />;
     }
 
-    // ✅ New FAQs Tab
     if (activeTab === "FAQs") {
       return <ActivityFAQs rowData={rowData} setRowData={setRowData} />;
     }
@@ -558,6 +579,8 @@ function UpdateActivityLayout() {
     if (activeTab === "Images") {
       return <ActivityImages rowData={rowData} setRowData={setRowData} />;
     }
+
+    return null;
   };
 
   if (fetchLoading) {
@@ -571,6 +594,7 @@ function UpdateActivityLayout() {
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Edit Activity</h1>
+
       <div className="mb-4">
         <nav className="flex space-x-4 border-b">
           <Tabs
@@ -582,11 +606,13 @@ function UpdateActivityLayout() {
           />
         </nav>
       </div>
+
       <form
         onSubmit={handleSubmit}
         className="space-y-6 bg-white p-5 rounded-[10px]"
       >
         {renderTabContent()}
+
         <button
           type="submit"
           disabled={loading}

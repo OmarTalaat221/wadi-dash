@@ -1,4 +1,3 @@
-// src/pages/Accommodation/UpdateAccomLayout.jsx
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Tabs from "../../../components/Tabs";
@@ -9,7 +8,7 @@ import axios from "axios";
 import { message, Select } from "antd";
 import { base_url } from "../../../utils/base_url";
 import editorConfig from "../../../data/joditConfig";
-import AccomRooms from "../../../components/Accommodation/accomRooms";
+import MapPicker from "../../../components/MapPicker/MapPicker";
 
 const { Option } = Select;
 
@@ -31,6 +30,7 @@ function UpdateAccomLayout() {
 
   const fetchCountries = async () => {
     setCountriesLoading(true);
+
     try {
       const response = await axios.get(
         `${base_url}/user/countries/select_countries.php`
@@ -38,8 +38,6 @@ function UpdateAccomLayout() {
 
       if (response.data.status === "success") {
         setCountries(response.data.message || []);
-      } else {
-        console.error("Failed to fetch countries");
       }
     } catch (error) {
       console.error("Error fetching countries:", error);
@@ -63,7 +61,11 @@ function UpdateAccomLayout() {
         const hotel = response.data.message[0];
 
         if (hotel) {
-          setRowData(hotel);
+          setRowData({
+            ...hotel,
+            lat: hotel.lat || "",
+            long: hotel.long || "",
+          });
         } else {
           throw new Error("Accommodation not found");
         }
@@ -76,6 +78,7 @@ function UpdateAccomLayout() {
       message.error(
         error.response?.data?.message || error.message || "Network error"
       );
+
       setTimeout(() => {
         navigate("/accommodation");
       }, 2000);
@@ -91,6 +94,10 @@ function UpdateAccomLayout() {
 
   const handleSelectChange = (name, value) => {
     setRowData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleMapChange = (lat, long) => {
+    setRowData((prev) => ({ ...prev, lat, long }));
   };
 
   const handleSubmit = async (e) => {
@@ -116,24 +123,21 @@ function UpdateAccomLayout() {
     try {
       const backgroundImage = rowData.image.split("**CAMP**")[0] || "";
 
-      // ✅ Clean Icon Function
       const cleanIcon = (icon) => {
         if (!icon) return "";
 
         let result = icon;
-
         let prevResult = "";
+
         while (prevResult !== result) {
           prevResult = result;
           result = result.replaceAll(/\\t/g, "");
         }
 
         result = result.replace(/\\/g, "");
-
         return result.trim();
       };
 
-      // ✅ Format features
       let featuresFormatted = "";
 
       if (rowData.amenities && rowData.amenities.length > 0) {
@@ -159,13 +163,12 @@ function UpdateAccomLayout() {
         adult_price: rowData.price_current,
         background_image: backgroundImage,
         features: featuresFormatted,
-        // ✅ country_id included from rowData
         country_id: rowData.country_id || "",
+        latitude: rowData.lat || "",
+        longitude: rowData.long || "",
       };
 
       delete payload.amenities;
-
-      console.log("Submitting payload:", payload);
 
       const response = await axios.post(
         `${base_url}/admin/hotels/edit_hotel.php`,
@@ -174,6 +177,7 @@ function UpdateAccomLayout() {
 
       if (response.data.status === "success") {
         message.success("Accommodation updated successfully!");
+
         setTimeout(() => {
           navigate("/accommodation");
         }, 1500);
@@ -328,7 +332,6 @@ function UpdateAccomLayout() {
               />
             </div>
 
-            {/* ✅ Country Select - with preselected value from API */}
             <div>
               <label className="block mb-1 font-medium">Country *</label>
               <Select
@@ -352,18 +355,6 @@ function UpdateAccomLayout() {
                 ))}
               </Select>
             </div>
-
-            <div>
-              <label className="block mb-1 font-medium">Adults Number</label>
-              <input
-                type="number"
-                name="adults_num"
-                value={rowData.adults_num || ""}
-                onChange={handleChange}
-                className="w-full border border-gray-300 p-2 rounded"
-                onWheel={(e) => e.target.blur()}
-              />
-            </div>
           </div>
 
           <div className="col-span-2 mt-4">
@@ -373,6 +364,15 @@ function UpdateAccomLayout() {
               value={rowData.video_link || ""}
               onChange={handleChange}
               className="w-full border border-gray-300 p-2 rounded"
+            />
+          </div>
+
+          <div className="col-span-2 mt-4">
+            <label className="block mb-2 font-medium">Location on Map</label>
+            <MapPicker
+              lat={rowData.lat}
+              long={rowData.long}
+              onChange={handleMapChange}
             />
           </div>
 
@@ -399,6 +399,8 @@ function UpdateAccomLayout() {
     if (activeTab === "Images") {
       return <AccomImages rowData={rowData} setRowData={setRowData} />;
     }
+
+    return null;
   };
 
   if (loading) {
@@ -447,6 +449,7 @@ function UpdateAccomLayout() {
           >
             Cancel
           </button>
+
           <button
             type="submit"
             disabled={submitting}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Tabs from "../../../components/Tabs";
 import AccommodationFeatures from "../../../components/Accommodation/accomFeatures";
@@ -9,13 +9,13 @@ import { message, Select, Spin } from "antd";
 import { base_url } from "../../../utils/base_url";
 import editorConfig from "../../../data/joditConfig";
 import useCountries from "../../../hooks/useCountries";
+import MapPicker from "../../../components/MapPicker/MapPicker";
 
 const { Option } = Select;
 
 function CreateAccomLayout() {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
-
   const { countries, loading: countriesLoading } = useCountries();
 
   const [formData, setFormData] = useState({
@@ -31,7 +31,6 @@ function CreateAccomLayout() {
     duration: "",
     route: "",
     location: "",
-    adults_num: "1",
     adult_price: "0",
     child_price: "0",
     background_image: "",
@@ -42,13 +41,11 @@ function CreateAccomLayout() {
     features: "",
     amenities: [],
     per_room: "",
+    lat: "",
+    long: "",
   });
 
   const [activeTab, setActiveTab] = useState("General");
-
-  useEffect(() => {
-    console.log(formData);
-  }, [formData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -57,6 +54,10 @@ function CreateAccomLayout() {
 
   const handleSelectChange = (name, value) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleMapChange = (lat, long) => {
+    setFormData((prev) => ({ ...prev, lat, long }));
   };
 
   const handleSubmit = async (e) => {
@@ -91,6 +92,7 @@ function CreateAccomLayout() {
         if (!icon) return "";
         let result = icon;
         let prevResult = "";
+
         while (prevResult !== result) {
           prevResult = result;
           result = result
@@ -101,6 +103,7 @@ function CreateAccomLayout() {
             .replace(/\\r/g, "")
             .replace(/\\t/g, "");
         }
+
         result = result.replace(/\\/g, "");
         return result.trim();
       };
@@ -129,12 +132,11 @@ function CreateAccomLayout() {
         background_image: backgroundImage,
         adult_price: formData.price_current,
         features: featuresFormatted,
+        latitude: formData.lat || "",
+        longitude: formData.long || "",
       };
 
-      // ✅ Remove amenities - not needed in API
       delete payload.amenities;
-
-      console.log("Submitting payload:", payload);
 
       const response = await axios.post(
         `${base_url}/admin/hotels/add_hotel.php`,
@@ -142,7 +144,6 @@ function CreateAccomLayout() {
       );
 
       if (response.data.status === "success") {
-        // ✅ No add_hotel_rooms call anymore
         message.success("Accommodation created successfully!");
         setTimeout(() => {
           navigate("/accommodation");
@@ -359,6 +360,15 @@ function CreateAccomLayout() {
           </div>
 
           <div className="col-span-2 mt-4">
+            <label className="block mb-2 font-medium">Location on Map</label>
+            <MapPicker
+              lat={formData.lat}
+              long={formData.long}
+              onChange={handleMapChange}
+            />
+          </div>
+
+          <div className="col-span-2 mt-4">
             <label className="block mb-1 font-medium">Description</label>
             <JoditEditor
               value={formData.description || ""}
@@ -381,6 +391,8 @@ function CreateAccomLayout() {
     if (activeTab === "Images") {
       return <AccomImages rowData={formData} setRowData={setFormData} />;
     }
+
+    return null;
   };
 
   return (
@@ -413,6 +425,7 @@ function CreateAccomLayout() {
           >
             Cancel
           </button>
+
           <button
             type="submit"
             disabled={submitting}

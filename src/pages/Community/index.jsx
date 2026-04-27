@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useCallback } from "react";
 import PostCard from "../../components/PostCard/PostCard";
 import FramerModal from "../../components/FramerModal/FramerModal";
-import { Tabs, Badge, message, Pagination } from "antd";
+import { Tabs, Badge, message, Pagination, Modal } from "antd"; // ✅ Added Modal
+import { ExclamationCircleOutlined } from "@ant-design/icons"; // ✅ Added
 import axios from "axios";
 import { base_url } from "../../utils/base_url";
 import { useSearchParams } from "react-router-dom";
 
 const { TabPane } = Tabs;
+const { confirm } = Modal; // ✅ Added
 
 const Community = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // ✅ Read from URL
   const currentPage = parseInt(searchParams.get("page") || "1");
   const currentLimit = parseInt(searchParams.get("limit") || "10");
   const currentTab = searchParams.get("tab") || "all";
@@ -21,7 +22,6 @@ const Community = () => {
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
 
-  // ✅ Update URL params helper
   const updateParams = useCallback(
     (updates) => {
       const newParams = new URLSearchParams(searchParams);
@@ -44,14 +44,11 @@ const Community = () => {
     [searchParams, setSearchParams]
   );
 
-  // ✅ Fetch blogs
   const fetchBlogs = useCallback(
     async (page = currentPage, limit = currentLimit, tab = currentTab) => {
       setLoading(true);
       try {
         const params = { page, limit };
-
-        // ✅ Map tab to API status
         if (tab === "pending") params.status = "draft";
         else if (tab === "accepted") params.status = "published";
         else if (tab === "rejected") params.status = "hidden";
@@ -84,7 +81,6 @@ const Community = () => {
           }));
 
           setPosts(transformedBlogs || []);
-
           const pg = response.data.pagination;
           setTotal(pg?.total_items || transformedBlogs?.length || 0);
         } else {
@@ -113,23 +109,17 @@ const Community = () => {
     }
   };
 
-  // ✅ Fetch when URL changes
   useEffect(() => {
     fetchBlogs(currentPage, currentLimit, currentTab);
   }, [currentPage, currentLimit, currentTab]);
 
-  // ✅ Tab change → reset page to 1
-  const handleTabChange = (tab) => {
-    updateParams({ tab, page: 1 });
-  };
+  const handleTabChange = (tab) => updateParams({ tab, page: 1 });
 
-  // ✅ Pagination change
   const handlePageChange = (page, pageSize) => {
     updateParams({ page, limit: pageSize });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // ✅ Accept
   const handleAccept = async (postId) => {
     try {
       const response = await axios.post(
@@ -154,7 +144,6 @@ const Community = () => {
     }
   };
 
-  // ✅ Reject
   const handleReject = async (postId) => {
     try {
       const response = await axios.post(
@@ -179,9 +168,57 @@ const Community = () => {
     }
   };
 
+  // ✅ Delete Blog
+  const handleDelete = useCallback(
+    (postId, postTitle) => {
+      confirm({
+        title: "Delete Blog",
+        icon: <ExclamationCircleOutlined className="!text-red-500" />,
+        content: (
+          <div>
+            <p>
+              Are you sure you want to delete <strong>"{postTitle}"</strong>?
+            </p>
+            <p className="text-red-500 text-sm mt-2">
+              ⚠️ This action cannot be undone. All comments will also be
+              deleted.
+            </p>
+          </div>
+        ),
+        okText: "Yes, Delete",
+        okType: "danger",
+        cancelText: "Cancel",
+        onOk: async () => {
+          try {
+            const response = await axios.post(
+              `${base_url}/admin/blogs/delete_blog.php`,
+              { blog_id: postId }
+            );
+
+            if (response.data.status === "success") {
+              // ✅ Remove from UI without refetching
+              setPosts((prev) => prev.filter((post) => post.id !== postId));
+              setTotal((prev) => prev - 1);
+              message.success("Blog deleted successfully");
+
+              // Close modal if this post is currently open
+              setSelectedPost((prev) => (prev?.id === postId ? null : prev));
+            } else {
+              message.error(response.data.message || "Failed to delete blog");
+            }
+          } catch (error) {
+            console.error("Error deleting blog:", error);
+            message.error("Failed to delete blog");
+          }
+        },
+      });
+    },
+    [setSelectedPost]
+  );
+
   return (
     <div className="p-4">
-      {/* ── Filter Tabs ── */}
+      {/* Filter Tabs */}
       <div className="mb-6 bg-white p-4 rounded-lg shadow">
         <Tabs
           activeKey={currentTab}
@@ -229,10 +266,9 @@ const Community = () => {
         </Tabs>
       </div>
 
-      {/* ── Posts Grid ── */}
+      {/* Posts Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
-          // ✅ Skeleton-like loading placeholders
           [...Array(currentLimit)].map((_, i) => (
             <div
               key={i}
@@ -258,6 +294,7 @@ const Community = () => {
               setSelectedPost={setSelectedPost}
               onAccept={handleAccept}
               onReject={handleReject}
+              onDelete={handleDelete} // ✅ Pass delete handler
             />
           ))
         ) : (
@@ -270,7 +307,7 @@ const Community = () => {
         )}
       </div>
 
-      {/* ── Pagination ── */}
+      {/* Pagination */}
       {!loading && total > currentLimit && (
         <div className="flex justify-center mt-8">
           <Pagination
@@ -282,12 +319,11 @@ const Community = () => {
             showSizeChanger
             pageSizeOptions={["6", "9", "12", "24"]}
             showTotal={(t, range) => `${range[0]}-${range[1]} of ${t} blogs`}
-            // showQuickJumper
           />
         </div>
       )}
 
-      {/* ── Modal ── */}
+      {/* Modal */}
       {selectedPost !== null && (
         <FramerModal
           open={selectedPost !== null}
@@ -296,6 +332,7 @@ const Community = () => {
           selectedPost={selectedPost}
           onAccept={handleAccept}
           onReject={handleReject}
+          onDelete={handleDelete} // ✅ Pass delete handler
           fetchBlogs={() => fetchBlogs(currentPage, currentLimit, currentTab)}
         />
       )}

@@ -346,6 +346,7 @@ const TourRequests = () => {
       completed: "default",
       pending: "warning",
       rejected: "error",
+      cancelled_by_user: "error",
     })[status?.toLowerCase()] || "default";
 
   const formatDate = (d) =>
@@ -472,7 +473,7 @@ const TourRequests = () => {
       render: (text, r) => (
         <div className="flex flex-col gap-1">
           <Tag color={getStatusTagColor(text)} className="w-fit font-medium">
-            {text?.toUpperCase()}
+            {text?.toUpperCase()?.replaceAll("_", " ")}
           </Tag>
           {r.reservation?.manual === "1" && (
             <Tooltip title="Manually Updated">
@@ -592,6 +593,7 @@ const TourRequests = () => {
           <Option value="in_progress">In Progress</Option>
           <Option value="completed">Completed</Option>
           <Option value="rejected">Rejected</Option>
+          <Option value="cancelled_by_user">Cancelled By User</Option>
         </Select>
         <Divider type="vertical" />
         <span className="text-gray-500 text-sm font-medium">Type:</span>
@@ -686,7 +688,9 @@ const TourRequests = () => {
                   color={getStatusTagColor(rowData.reservation?.status)}
                   className="px-4 py-1 text-base font-bold"
                 >
-                  {rowData.reservation?.status?.toUpperCase()}
+                  {rowData.reservation?.status
+                    ?.toUpperCase()
+                    ?.replaceAll("_", " ")}
                 </Tag>
                 {rowData.reservation?.manual === "1" && (
                   <Tag color="orange" className="px-4 py-1 text-sm font-bold">
