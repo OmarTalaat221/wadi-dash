@@ -81,10 +81,13 @@ a {
       top: 0;
       left: 0;
       height: 100%;
-      transition: width 0.2s linear, transform 0.2s ease-out;
+      transition:
+        width 0.2s linear,
+        transform 0.2s ease-out;
       background-color: $theme-accent-color;
       border-radius: 3px;
       z-index: 1;
+      will-change: width, transform;
     }
 
     &-list {
@@ -93,17 +96,41 @@ a {
       gap: 20px;
       list-style-type: none;
       z-index: 5;
+      margin: 0;
+      padding: 0;
     }
 
     &-item {
       @include transition-mix;
       padding: 15px;
       cursor: pointer;
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      white-space: nowrap;
 
       &.js-active {
         @include transition-mix($delay: 0.05s);
         color: #fff;
       }
+    }
+
+    &-label {
+      display: inline-block;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
+    &-new-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #ff4d4f;
+      display: inline-block;
+      flex-shrink: 0;
+      box-shadow: 0 0 0 2px #fff;
     }
   }
 }
@@ -144,4 +171,21 @@ a {
   textarea {
     box-shadow: none;
   }
+}
+
+.tabs__nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tabs__nav-new-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #ff4d4f;
+  display: inline-block;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px #fff;
 }

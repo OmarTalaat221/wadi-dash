@@ -42,49 +42,8 @@ const { Option } = Select;
 const { Panel } = Collapse;
 
 // ═══════════════════════════════════════════
-// PARSERS - handle duplicate days by MERGING
+// PARSER - used only for guide
 // ═══════════════════════════════════════════
-
-// "1**5**day**1**4**day**1**2**day**2**5**day**2**4"
-// → { "1": ["5","4","2"], "2": ["5","4"] }
-const parseDayActivities = (str) => {
-  if (!str) return {};
-  const result = {};
-  str.split("**day**").forEach((part) => {
-    const segs = part.split("**").filter(Boolean);
-    if (segs.length < 2) return;
-    const day = segs[0];
-    const ids = segs
-      .slice(1)
-      .flatMap((s) => s.split(","))
-      .map((id) => id.trim())
-      .filter((id) => id && id !== "0");
-    if (!result[day]) result[day] = [];
-    result[day].push(...ids);
-    result[day] = [...new Set(result[day])];
-  });
-  return result;
-};
-
-// "1**3**1**day**1**4**1**day**2**2**0**day**2**3**1"
-// → { "1": [{carId:"3",withDriver:true},{carId:"4",withDriver:true}], "2": [{carId:"2",withDriver:false},{carId:"3",withDriver:true}] }
-const parseDayCar = (str) => {
-  if (!str) return {};
-  const result = {};
-  str.split("**day**").forEach((part) => {
-    const segs = part.split("**").filter(Boolean);
-    if (segs.length < 3) return;
-    const day = segs[0];
-    const carId = segs[1];
-    const withDriver = segs[2] === "1";
-    if (!result[day]) result[day] = [];
-    result[day].push({ carId, withDriver });
-  });
-  return result;
-};
-
-// "1**1**20**day**2**1**30"
-// → { "1": {isSelected:true, price:"20"}, "2": {isSelected:true, price:"30"} }
 const parseDayTourGuide = (str) => {
   if (!str) return {};
   const result = {};
@@ -96,22 +55,9 @@ const parseDayTourGuide = (str) => {
   return result;
 };
 
-// "1**2**day**2**2"
-// → { "1": "2", "2": "2" }
-const parseDayHotel = (str) => {
-  if (!str) return {};
-  const result = {};
-  str.split("**day**").forEach((part) => {
-    const segs = part.split("**").filter(Boolean);
-    if (segs.length < 2) return;
-    result[segs[0]] = segs[1];
-  });
-  return result;
-};
-
 // ═══════════════════════════════════════════
 
-const TourRequests = () => {
+const TourRequests = ({ onReadUpdated }) => {
   const {
     currentPage,
     currentPageSize,
@@ -136,43 +82,54 @@ const TourRequests = () => {
   const [manualUpdateRecord, setManualUpdateRecord] = useState(null);
   const [searchDebounce, setSearchDebounce] = useState(currentSearch);
 
-  // ✅ Lookup maps for cars, activities, hotels
-  const [carsLookup, setCarsLookup] = useState({});
-  const [activitiesLookup, setActivitiesLookup] = useState({});
-  const [hotelsLookup, setHotelsLookup] = useState({});
+  // ══════════════════════════════════════════
+  // ✅ READ HELPER
+  // ══════════════════════════════════════════
+  const isUnread = (read) => String(read) === "0";
 
-  // ── Fetch lookups once ──
-  const fetchLookups = useCallback(async () => {
+  // ══════════════════════════════════════════
+  // ✅ MARK AS READ
+  // ══════════════════════════════════════════
+  const markAsRead = useCallback(async (reservationId) => {
     try {
-      const [carsRes, activitiesRes, hotelsRes] = await Promise.all([
-        axios.get(`${base_url}/admin/cars/select_cars.php`),
-        axios.get(`${base_url}/admin/activities/select_activities.php`),
-        axios.get(`${base_url}/admin/hotels/select_hotels.php`),
-      ]);
+      await axios.post(`${base_url}/admin/read/update_read.php`, {
+        reservation_id: reservationId,
+        type: "tour",
+      });
 
-      setCarsLookup(
-        Object.fromEntries(
-          (carsRes.data.message || []).map((c) => [String(c.id), c])
+      // ✅ Update table row locally without refetch
+      setData((prev) =>
+        prev.map((item) =>
+          String(item.reservation?.reservation_id) === String(reservationId)
+            ? {
+                ...item,
+                reservation: {
+                  ...item.reservation,
+                  read: "1",
+                },
+              }
+            : item
         )
       );
-      setActivitiesLookup(
-        Object.fromEntries(
-          (activitiesRes.data.message || []).map((a) => [String(a.id), a])
-        )
+
+      // ✅ Update modal data if it's the open one
+      setRowData((prev) =>
+        prev &&
+        String(prev.reservation?.reservation_id) === String(reservationId)
+          ? {
+              ...prev,
+              reservation: {
+                ...prev.reservation,
+                read: "1",
+              },
+            }
+          : prev
       );
-      setHotelsLookup(
-        Object.fromEntries(
-          (hotelsRes.data.message || []).map((h) => [String(h.id), h])
-        )
-      );
+      onReadUpdated?.();
     } catch (err) {
-      console.error("Error fetching lookups:", err);
+      console.error("Error updating read status:", err);
     }
   }, []);
-
-  useEffect(() => {
-    fetchLookups();
-  }, [fetchLookups]);
 
   // ── Search debounce ──
   useEffect(() => {
@@ -243,6 +200,11 @@ const TourRequests = () => {
       if (res.data.status === "success") {
         setRowData(res.data.message);
         setIsModalVisible(true);
+
+        // ✅ Mark as read if unread
+        if (isUnread(res.data.message?.reservation?.read)) {
+          markAsRead(reservationId);
+        }
       } else {
         message.error("Failed to fetch details");
       }
@@ -333,11 +295,8 @@ const TourRequests = () => {
   };
 
   // ── Helpers ──
-  const calculateDuration = (s, e) => {
-    return (
-      Math.ceil(Math.abs(new Date(e) - new Date(s)) / (1000 * 60 * 60 * 24)) + 1
-    );
-  };
+  const calculateDuration = (s, e) =>
+    Math.ceil(Math.abs(new Date(e) - new Date(s)) / (1000 * 60 * 60 * 24)) + 1;
 
   const getStatusTagColor = (status) =>
     ({
@@ -361,7 +320,7 @@ const TourRequests = () => {
 
   const getFirstImage = (img) =>
     img
-      ? img.split("//CAMP//")[0]
+      ? img.split("//CAMP//")[0].trim()
       : "https://via.placeholder.com/400x300?text=No+Image";
 
   // ═══════════════════════════════════════════
@@ -374,17 +333,37 @@ const TourRequests = () => {
       key: "tour_title",
       render: (text, record) => (
         <div className="flex items-center gap-3">
-          <img
-            src={getFirstImage(record.tour_details?.image)}
-            alt={text}
-            className="w-16 h-12 object-cover rounded-lg shadow-sm"
-            onError={(e) => {
-              e.target.src = "https://via.placeholder.com/64x48?text=Tour";
-            }}
-          />
+          <div className="relative shrink-0">
+            <img
+              src={getFirstImage(record.tour_details?.image)}
+              alt={text}
+              className="w-16 h-12 object-cover rounded-lg shadow-sm"
+              onError={(e) => {
+                e.target.src = "https://via.placeholder.com/64x48?text=Tour";
+              }}
+            />
+            {/* ✅ Unread dot on image */}
+            {isUnread(record.reservation?.read) && (
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
+            )}
+          </div>
           <div>
-            <p className="font-semibold text-gray-800 mb-0 text-sm">{text}</p>
-            <p className="text-xs text-gray-400 mb-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="font-semibold text-gray-800 mb-0 text-sm leading-tight">
+                {text}
+              </p>
+              {/* ✅ NEW tag */}
+              {isUnread(record.reservation?.read) && (
+                <Tag
+                  color="green"
+                  className="!m-0 !text-[10px] !font-bold !leading-none !px-1.5 !py-0.5"
+                  style={{ borderRadius: 999 }}
+                >
+                  NEW
+                </Tag>
+              )}
+            </div>
+            <p className="text-xs text-gray-400 mb-0 mt-0.5">
               <EnvironmentOutlined className="mr-1" />
               {record.tour_details?.route?.substring(0, 30)}...
             </p>
@@ -550,16 +529,11 @@ const TourRequests = () => {
   ];
 
   // ═══════════════════════════════════════════
-  // PARSED DATA for modal
+  // PARSED GUIDE DATA for modal
   // ═══════════════════════════════════════════
-  const parsed = rowData
-    ? {
-        cars: parseDayCar(rowData.reservation?.day_car),
-        activities: parseDayActivities(rowData.reservation?.day_activities),
-        guide: parseDayTourGuide(rowData.reservation?.day_tour_guide),
-        hotel: parseDayHotel(rowData.reservation?.day_hotel),
-      }
-    : null;
+  const parsedGuide = rowData
+    ? parseDayTourGuide(rowData.reservation?.day_tour_guide)
+    : {};
 
   // ═══════════════════════════════════════════
   // RENDER
@@ -614,6 +588,10 @@ const TourRequests = () => {
         dataSource={data}
         loading={loading}
         rowKey={(r) => r.reservation?.reservation_id}
+        // ✅ Unread row highlight
+        rowClassName={(record) =>
+          isUnread(record.reservation?.read) ? "unread-tour-row" : ""
+        }
         pagination={{
           current: currentPage,
           pageSize: currentPageSize,
@@ -654,7 +632,7 @@ const TourRequests = () => {
         width={1200}
         className="tour-request-modal"
       >
-        {rowData && parsed && (
+        {rowData && (
           <div className="space-y-6">
             {/* ── Hero ── */}
             <div className="relative rounded-xl overflow-hidden">
@@ -816,34 +794,27 @@ const TourRequests = () => {
                 >
                   {rowData.tour_details.itinerary.map((day, index) => {
                     const dk = String(day.day);
+                    const dayGuide = parsedGuide[dk];
 
-                    // ── Build full objects from parsed IDs + lookups ──
-                    const parsedCarEntries = parsed.cars[dk] || [];
-                    const parsedActivityIds = parsed.activities[dk] || [];
-                    const parsedHotelId = parsed.hotel[dk];
-                    const dayGuide = parsed.guide[dk];
-                    const rooms = day.hotel_reserved?.rooms || [];
+                    // ── Use pre-populated data directly from API ──
+                    // car_reserved & activity_reserved can be object | array | null
+                    const rawCar = day.car_reserved;
+                    const rawActivity = day.activity_reserved;
 
-                    // Cars: from lookup
-                    const carsForDay = parsedCarEntries.map((entry, idx) => ({
-                      ...(carsLookup[String(entry.carId)] || {}),
-                      carId: entry.carId,
-                      withDriver: entry.withDriver,
-                      _idx: idx,
-                    }));
+                    const carsForDay = rawCar
+                      ? Array.isArray(rawCar)
+                        ? rawCar
+                        : [rawCar]
+                      : [];
 
-                    // Activities: from lookup
-                    const activitiesForDay = parsedActivityIds.map(
-                      (id, idx) => ({
-                        ...(activitiesLookup[String(id)] || {}),
-                        activityId: id,
-                        _idx: idx,
-                      })
-                    );
+                    const activitiesForDay = rawActivity
+                      ? Array.isArray(rawActivity)
+                        ? rawActivity
+                        : [rawActivity]
+                      : [];
 
-                    // Hotel: from lookup
-                    const hotelForDay =
-                      hotelsLookup[String(parsedHotelId)] || null;
+                    const hotelForDay = day.hotel_reserved || null;
+                    const rooms = hotelForDay?.rooms || [];
 
                     return (
                       <Panel
@@ -932,7 +903,6 @@ const TourRequests = () => {
                                 )}
                               </div>
                               <div className="p-3">
-                                {/* Hotel info from lookup */}
                                 {hotelForDay ? (
                                   <>
                                     {hotelForDay.image && (
@@ -957,64 +927,61 @@ const TourRequests = () => {
                                         ${hotelForDay.adult_price} / adult
                                       </p>
                                     )}
-                                  </>
-                                ) : parsedHotelId ? (
-                                  <p className="text-xs text-gray-500 mb-2">
-                                    Hotel ID: {parsedHotelId}
-                                  </p>
-                                ) : null}
-
-                                {/* Rooms */}
-                                {rooms.length > 0 ? (
-                                  <div className="space-y-1.5 mt-1">
-                                    {rooms.map((room, rIdx) => (
-                                      <div
-                                        key={rIdx}
-                                        className="flex items-center justify-between rounded-lg px-2.5 py-1.5 border border-gray-200 bg-gray-50"
-                                      >
-                                        <div className="flex items-center gap-1.5">
-                                          <BankOutlined
-                                            className="text-xs"
-                                            style={{ color: "#295557" }}
-                                          />
-                                          <span
-                                            className="text-xs font-medium"
-                                            style={{ color: "#295557" }}
+                                    {/* Rooms */}
+                                    {rooms.length > 0 ? (
+                                      <div className="space-y-1.5 mt-2">
+                                        {rooms.map((room, rIdx) => (
+                                          <div
+                                            key={rIdx}
+                                            className="flex items-center justify-between rounded-lg px-2.5 py-1.5 border border-gray-200 bg-gray-50"
                                           >
-                                            Room {rIdx + 1}
-                                          </span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                                          <span className="font-medium">
-                                            {room.adults}A
-                                          </span>
-                                          {parseInt(room.kids) > 0 && (
-                                            <span>{room.kids}C</span>
-                                          )}
-                                          {parseInt(room.babies) > 0 && (
-                                            <span
-                                              className="font-medium"
-                                              style={{ color: "#295557" }}
-                                            >
-                                              {room.babies}I
-                                            </span>
-                                          )}
-                                        </div>
+                                            <div className="flex items-center gap-1.5">
+                                              <BankOutlined
+                                                className="text-xs"
+                                                style={{ color: "#295557" }}
+                                              />
+                                              <span
+                                                className="text-xs font-medium"
+                                                style={{ color: "#295557" }}
+                                              >
+                                                Room {rIdx + 1}
+                                              </span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                              <span className="font-medium">
+                                                {room.adults}A
+                                              </span>
+                                              {parseInt(room.kids) > 0 && (
+                                                <span>{room.kids}C</span>
+                                              )}
+                                              {parseInt(room.babies) > 0 && (
+                                                <span
+                                                  className="font-medium"
+                                                  style={{ color: "#295557" }}
+                                                >
+                                                  {room.babies}I
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        ))}
                                       </div>
-                                    ))}
-                                  </div>
+                                    ) : (
+                                      <p className="text-xs text-gray-400 mt-2 text-center">
+                                        No rooms assigned
+                                      </p>
+                                    )}
+                                  </>
                                 ) : (
-                                  !hotelForDay && (
-                                    <div className="text-center py-4 text-gray-400">
-                                      <HomeOutlined className="text-xl" />
-                                      <p className="text-xs mt-1">No hotel</p>
-                                    </div>
-                                  )
+                                  <div className="text-center py-6 text-gray-400">
+                                    <HomeOutlined className="text-2xl" />
+                                    <p className="text-xs mt-1">No hotel</p>
+                                  </div>
                                 )}
                               </div>
                             </div>
 
-                            {/* ══ CARS (MULTIPLE) ══ */}
+                            {/* ══ CARS ══ */}
                             <div className="border rounded-xl overflow-hidden">
                               <div
                                 className="px-3 py-2 border-b flex items-center justify-between"
@@ -1044,7 +1011,7 @@ const TourRequests = () => {
                                   <div className="space-y-3">
                                     {carsForDay.map((car, idx) => (
                                       <div
-                                        key={`${car.carId}-${idx}`}
+                                        key={`${car.id}-${idx}`}
                                         className="border border-gray-200 rounded-lg overflow-hidden"
                                       >
                                         {car.image && (
@@ -1060,22 +1027,21 @@ const TourRequests = () => {
                                         )}
                                         <div className="px-2.5 py-2">
                                           <p className="font-medium text-xs text-gray-700 truncate mb-1">
-                                            {car.title ||
-                                              `Car ID: ${car.carId}`}
+                                            {car.title || `Car ID: ${car.id}`}
                                           </p>
-                                          <div className="flex items-center justify-between">
+                                          <div className="flex items-center justify-between flex-wrap gap-1">
                                             <span
                                               className="text-xs font-bold"
                                               style={{ color: "#295557" }}
                                             >
                                               {car.price_current
                                                 ? `$${car.price_current}/day`
-                                                : `ID: ${car.carId}`}
+                                                : `ID: ${car.id}`}
                                             </span>
                                             <Tag
                                               className="text-[10px]"
                                               style={
-                                                car.withDriver
+                                                String(car.driver) === "1"
                                                   ? {
                                                       backgroundColor:
                                                         "#f0f7f7",
@@ -1085,10 +1051,12 @@ const TourRequests = () => {
                                                   : {}
                                               }
                                               color={
-                                                car.withDriver ? "" : "default"
+                                                String(car.driver) === "1"
+                                                  ? ""
+                                                  : "default"
                                               }
                                             >
-                                              {car.withDriver
+                                              {String(car.driver) === "1"
                                                 ? "With Driver"
                                                 : "Self Drive"}
                                             </Tag>
@@ -1098,15 +1066,15 @@ const TourRequests = () => {
                                     ))}
                                   </div>
                                 ) : (
-                                  <div className="text-center py-4 text-gray-400">
-                                    <CarOutlined className="text-xl" />
+                                  <div className="text-center py-6 text-gray-400">
+                                    <CarOutlined className="text-2xl" />
                                     <p className="text-xs mt-1">No car</p>
                                   </div>
                                 )}
                               </div>
                             </div>
 
-                            {/* ══ ACTIVITIES (MULTIPLE) ══ */}
+                            {/* ══ ACTIVITIES ══ */}
                             <div className="border rounded-xl overflow-hidden">
                               <div
                                 className="px-3 py-2 border-b flex items-center justify-between"
@@ -1136,7 +1104,7 @@ const TourRequests = () => {
                                   <div className="space-y-3">
                                     {activitiesForDay.map((activity, idx) => (
                                       <div
-                                        key={`${activity.activityId}-${idx}`}
+                                        key={`${activity.id}-${idx}`}
                                         className="border border-gray-200 rounded-lg overflow-hidden"
                                       >
                                         {activity.image && (
@@ -1153,7 +1121,7 @@ const TourRequests = () => {
                                         <div className="px-2.5 py-2">
                                           <p className="font-medium text-xs text-gray-700 truncate mb-1">
                                             {activity.title ||
-                                              `Activity ID: ${activity.activityId}`}
+                                              `Activity ID: ${activity.id}`}
                                           </p>
                                           <div className="flex items-center justify-between flex-wrap gap-1">
                                             <span
@@ -1162,7 +1130,7 @@ const TourRequests = () => {
                                             >
                                               {activity.price_current
                                                 ? `$${activity.price_current}`
-                                                : `ID: ${activity.activityId}`}
+                                                : `ID: ${activity.id}`}
                                             </span>
                                             {activity.for_children === "1" && (
                                               <Tag
@@ -1182,8 +1150,8 @@ const TourRequests = () => {
                                     ))}
                                   </div>
                                 ) : (
-                                  <div className="text-center py-4 text-gray-400">
-                                    <FlagOutlined className="text-xl" />
+                                  <div className="text-center py-6 text-gray-400">
+                                    <FlagOutlined className="text-2xl" />
                                     <p className="text-xs mt-1">No activity</p>
                                   </div>
                                 )}
@@ -1452,13 +1420,34 @@ const TourRequests = () => {
         </div>
       </Modal>
 
+      {/* ══════════════════════════════════════════
+          GLOBAL STYLES
+      ══════════════════════════════════════════ */}
       <style jsx global>{`
+        /* Modal scroll */
         .tour-request-modal .ant-modal-body {
           max-height: 80vh;
           overflow-y: auto;
         }
+
+        /* Collapse header alignment */
         .ant-collapse-header {
           align-items: center !important;
+        }
+
+        /* ✅ Unread row - green tinted background */
+        .ant-table-tbody > tr.unread-tour-row > td {
+          background-color: #f6ffed !important;
+        }
+
+        /* ✅ Unread row hover */
+        .ant-table-tbody > tr.unread-tour-row:hover > td {
+          background-color: #eaffd6 !important;
+        }
+
+        /* ✅ Unread row left border accent */
+        .ant-table-tbody > tr.unread-tour-row > td:first-child {
+          border-left: 4px solid #295557 !important;
         }
       `}</style>
     </>

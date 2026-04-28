@@ -2,13 +2,16 @@
 import React, { useEffect } from "react";
 import SidebarLink from "../../components/sidebar/link";
 import Logo from "../../components/sidebar/logo";
-import { publicRoutes, getRoutesByRole } from "../../data/routes";
+import { getRoutesByRole } from "../../data/routes";
+import { useReadStatus } from "../../context/ReadStatusContext";
 
 function SideBar() {
   const adminData = JSON.parse(localStorage.getItem("admin_data") || "{}");
   const userRole = adminData?.role || "content_editor";
-
   const allowedRoutes = getRoutesByRole(userRole);
+
+  // ✅ Global read status
+  const { hasAnyNew } = useReadStatus();
 
   useEffect(() => {
     const dropMenuItems = document.querySelectorAll(".drop-menu-link-item");
@@ -49,14 +52,26 @@ function SideBar() {
       <Logo />
       <ul className="drop-menu">
         {allowedRoutes?.map((item, index) => {
-          return item?.hidden ? null : (
+          if (item?.hidden) return null;
+
+          const isRequests = item?.route === "/requests";
+
+          return (
             <li className="drop-menu-link-item" key={index}>
-              <SidebarLink
-                path={item?.route}
-                title={item?.title}
-                icon={item?.icon}
-                key={index}
-              />
+              {/* ✅ Wrap link in relative container for dot positioning */}
+              <div className="relative">
+                <SidebarLink
+                  path={item?.route}
+                  title={item?.title}
+                  icon={item?.icon}
+                />
+
+                {/* ✅ Red dot for Requests when there's unread */}
+                {isRequests && hasAnyNew && (
+                  <span className="absolute top-1/2 -translate-y-1/2 right-3 w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_0_2px_rgba(255,255,255,0.8)] animate-pulse" />
+                )}
+              </div>
+
               {item?.subLinks && item?.subLinks?.length ? (
                 <ul className="drop-menu-drop !px-4">
                   {item?.subLinks?.map((sub_item, sub_index) => {

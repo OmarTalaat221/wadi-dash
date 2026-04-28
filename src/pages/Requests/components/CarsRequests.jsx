@@ -26,7 +26,7 @@ import useTabPagination from "../../../hooks/useTabPagination";
 
 const { Option } = Select;
 
-const CarsRequests = () => {
+const CarsRequests = ({ onReadUpdated }) => {
   const {
     currentPage,
     currentPageSize,
@@ -50,19 +50,46 @@ const CarsRequests = () => {
   const [manualUpdateRecord, setManualUpdateRecord] = useState(null);
   const [searchDebounce, setSearchDebounce] = useState(currentSearch);
 
-  // Sync searchDebounce with URL on mount
+  // ✅ Read helpers
+  const isUnread = (read) => String(read) === "0";
+
+  const markAsRead = useCallback(async (reservingId) => {
+    try {
+      await axios.post(`${base_url}/admin/read/update_read.php`, {
+        reservation_id: reservingId,
+        type: "car",
+      });
+
+      setData((prev) =>
+        prev.map((item) =>
+          String(item.reserving_id) === String(reservingId)
+            ? { ...item, read: "1" }
+            : item
+        )
+      );
+
+      setRowData((prev) =>
+        prev && String(prev.reserving_id) === String(reservingId)
+          ? { ...prev, read: "1" }
+          : prev
+      );
+
+      onReadUpdated?.();
+    } catch (err) {
+      console.error("Error updating read status:", err);
+    }
+  }, []);
+
   useEffect(() => {
     setSearchDebounce(currentSearch);
   }, []);
 
-  // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchDebounce !== currentSearch) {
         setSearch(searchDebounce);
       }
     }, 500);
-
     return () => clearTimeout(timer);
   }, [searchDebounce, currentSearch, setSearch]);
 
@@ -115,6 +142,16 @@ const CarsRequests = () => {
 
   const handleTableChange = (newPagination) => {
     setPage(newPagination.current, newPagination.pageSize);
+  };
+
+  // ✅ Open details + mark as read
+  const openDetails = (record) => {
+    setRowData(record);
+    setIsModalVisible(true);
+
+    if (isUnread(record.read)) {
+      markAsRead(record.reserving_id);
+    }
   };
 
   const handleStatusUpdate = async (reserving_id, status) => {
@@ -221,18 +258,42 @@ const CarsRequests = () => {
       dataIndex: "title",
       key: "title",
       render: (text, record) => (
-        <div>
-          {text ? (
-            <>
-              <p className="font-semibold">{text}</p>
-              <p className="text-xs text-gray-500">{record.subtitle}</p>
-              <Tag color="blue" className="mt-1">
-                {record.car_type}
-              </Tag>
-            </>
-          ) : (
-            <Tag color="orange">Custom Booking</Tag>
-          )}
+        <div className="flex items-center gap-2">
+          <div>
+            {text ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold mb-0">{text}</p>
+                  {isUnread(record.read) && (
+                    <Tag
+                      color="green"
+                      className="!m-0 !text-[10px] !font-bold !leading-none !px-1.5 !py-0.5"
+                      style={{ borderRadius: 999 }}
+                    >
+                      NEW
+                    </Tag>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mb-0">{record.subtitle}</p>
+                <Tag color="blue" className="mt-1">
+                  {record.car_type}
+                </Tag>
+              </>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Tag color="orange">Custom Booking</Tag>
+                {isUnread(record.read) && (
+                  <Tag
+                    color="green"
+                    className="!m-0 !text-[10px] !font-bold !leading-none !px-1.5 !py-0.5"
+                    style={{ borderRadius: 999 }}
+                  >
+                    NEW
+                  </Tag>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       ),
     },
@@ -242,9 +303,9 @@ const CarsRequests = () => {
       key: "full_name",
       render: (text, record) => (
         <div>
-          <p className="font-medium">{text || "N/A"}</p>
-          <p className="text-xs text-gray-500">{record.email || "N/A"}</p>
-          <p className="text-xs text-gray-500">{record.phone || "N/A"}</p>
+          <p className="font-medium mb-0">{text || "N/A"}</p>
+          <p className="text-xs text-gray-500 mb-0">{record.email || "N/A"}</p>
+          <p className="text-xs text-gray-500 mb-0">{record.phone || "N/A"}</p>
         </div>
       ),
     },
@@ -255,10 +316,10 @@ const CarsRequests = () => {
         const duration = calculateDuration(record.start_date, record.end_date);
         return (
           <div>
-            <p className="text-xs">
+            <p className="text-xs mb-0">
               <span className="font-medium">From:</span> {record.start_date}
             </p>
-            <p className="text-xs">
+            <p className="text-xs mb-0">
               <span className="font-medium">To:</span> {record.end_date}
             </p>
             <Tag color="purple" className="mt-1">
@@ -282,7 +343,9 @@ const CarsRequests = () => {
       title: "Total Amount",
       dataIndex: "total_amount",
       key: "total_amount",
-      render: (text) => <p className="font-bold text-green-600">{text}</p>,
+      render: (text) => (
+        <p className="font-bold text-green-600 mb-0">${text}</p>
+      ),
     },
     {
       title: "Status",
@@ -313,7 +376,7 @@ const CarsRequests = () => {
       render: (text, record) => (
         <div className="flex flex-col gap-1">
           <p className="text-xs mb-1">{record.admins?.admin_name || "N/A"}</p>
-          <p className="font-bold text-green-600">
+          <p className="font-bold text-green-600 mb-0">
             {record?.admins?.public_commission
               ? record.admins?.public_commission + "%"
               : ""}
@@ -331,10 +394,7 @@ const CarsRequests = () => {
             type="primary"
             icon={<EyeOutlined />}
             size="small"
-            onClick={() => {
-              setRowData(record);
-              setIsModalVisible(true);
-            }}
+            onClick={() => openDetails(record)}
           >
             View
           </Button>
@@ -403,6 +463,7 @@ const CarsRequests = () => {
         dataSource={data}
         loading={loading}
         rowKey="reserving_id"
+        rowClassName={(record) => (isUnread(record.read) ? "unread-row" : "")}
         pagination={{
           current: currentPage,
           pageSize: currentPageSize,
@@ -710,6 +771,18 @@ const CarsRequests = () => {
           </div>
         </div>
       </Modal>
+
+      <style jsx global>{`
+        .ant-table-tbody > tr.unread-row > td {
+          background-color: #f6ffed !important;
+        }
+        .ant-table-tbody > tr.unread-row:hover > td {
+          background-color: #eaffd6 !important;
+        }
+        .ant-table-tbody > tr.unread-row > td:first-child {
+          border-left: 4px solid #295557 !important;
+        }
+      `}</style>
     </>
   );
 };

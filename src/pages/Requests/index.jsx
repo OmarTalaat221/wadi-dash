@@ -6,11 +6,13 @@ import ActivitiesRequests from "./components/ActivitiesRequests";
 import CarsRequests from "./components/CarsRequests";
 import AccommodationRequests from "./components/AccommodationRequests";
 import TourRequests from "./components/TourRequests";
+import { useReadStatus } from "../../context/ReadStatusContext";
 
 const TAB_OPTIONS = ["Tours", "Activities", "Cars", "Accommodation"];
 
 const Requests = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { hasNewByType, fetchReadFlags } = useReadStatus();
 
   const tabFromUrl = searchParams.get("tab");
   const activeTab = TAB_OPTIONS.includes(tabFromUrl) ? tabFromUrl : "Tours";
@@ -19,6 +21,14 @@ const Requests = () => {
     const newParams = new URLSearchParams(searchParams);
     newParams.set("tab", tab);
     setSearchParams(newParams, { replace: true });
+  };
+
+  // ✅ 0 = new
+  const newTabs = {
+    Tours: hasNewByType("tour"),
+    Activities: hasNewByType("activity"),
+    Cars: hasNewByType("car"),
+    Accommodation: hasNewByType("hotel"),
   };
 
   return (
@@ -33,12 +43,21 @@ const Requests = () => {
                 setActiveTab={handleTabChange}
                 className="tabs-class"
                 classNameDecoration="decoration-class"
+                newTabs={newTabs} // ✅ نفس التابس بس مع dot
               />
 
-              {activeTab === "Tours" && <TourRequests />}
-              {activeTab === "Activities" && <ActivitiesRequests />}
-              {activeTab === "Cars" && <CarsRequests />}
-              {activeTab === "Accommodation" && <AccommodationRequests />}
+              {activeTab === "Tours" && (
+                <TourRequests onReadUpdated={fetchReadFlags} />
+              )}
+              {activeTab === "Activities" && (
+                <ActivitiesRequests onReadUpdated={fetchReadFlags} />
+              )}
+              {activeTab === "Cars" && (
+                <CarsRequests onReadUpdated={fetchReadFlags} />
+              )}
+              {activeTab === "Accommodation" && (
+                <AccommodationRequests onReadUpdated={fetchReadFlags} />
+              )}
             </div>
           </Card>
         </Col>

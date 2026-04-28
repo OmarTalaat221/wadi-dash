@@ -36,7 +36,7 @@ import useTabPagination from "../../../hooks/useTabPagination";
 
 const { Option } = Select;
 
-const AccommodationRequests = () => {
+const AccommodationRequests = ({ onReadUpdated }) => {
   const {
     currentPage,
     currentPageSize,
@@ -59,6 +59,35 @@ const AccommodationRequests = () => {
   const [selectedStatus, setSelectedStatus] = useState("");
   const [manualUpdateRecord, setManualUpdateRecord] = useState(null);
   const [searchDebounce, setSearchDebounce] = useState(currentSearch);
+
+  // ✅ Read helpers
+  const isUnread = (read) => String(read) === "0";
+
+  const markAsRead = useCallback(async (reservingId) => {
+    try {
+      await axios.post(`${base_url}/admin/read/update_read.php`, {
+        reservation_id: reservingId,
+        type: "hotel",
+      });
+
+      setData((prev) =>
+        prev.map((item) =>
+          String(item.reserving_id) === String(reservingId)
+            ? { ...item, read: "1" }
+            : item
+        )
+      );
+
+      setRowData((prev) =>
+        prev && String(prev.reserving_id) === String(reservingId)
+          ? { ...prev, read: "1" }
+          : prev
+      );
+      onReadUpdated?.();
+    } catch (err) {
+      console.error("Error updating read status:", err);
+    }
+  }, []);
 
   useEffect(() => {
     setSearchDebounce(currentSearch);
@@ -122,6 +151,16 @@ const AccommodationRequests = () => {
 
   const handleTableChange = (newPagination) => {
     setPage(newPagination.current, newPagination.pageSize);
+  };
+
+  // ✅ Open details + mark as read
+  const openDetails = (record) => {
+    setRowData(record);
+    setIsModalVisible(true);
+
+    if (isUnread(record.read)) {
+      markAsRead(record.reserving_id);
+    }
   };
 
   const handleStatusUpdate = async (reserving_id, status) => {
@@ -204,7 +243,6 @@ const AccommodationRequests = () => {
     setIsManualModalVisible(true);
   };
 
-  // ── Helpers ──
   const calculateDuration = (startDate, endDate) => {
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -233,10 +271,9 @@ const AccommodationRequests = () => {
 
   const getFirstImage = (img) =>
     img
-      ? img.split("//CAMP//")[0]
+      ? img.split("//CAMP//")[0].trim()
       : "https://via.placeholder.com/400x300?text=No+Image";
 
-  // ── Get total guests from rooms ──
   const getRoomsSummary = (rooms) => {
     if (!rooms || rooms.length === 0) return null;
     const totalAdults = rooms.reduce((s, r) => s + parseInt(r.adults || 0), 0);
@@ -245,9 +282,6 @@ const AccommodationRequests = () => {
     return { totalAdults, totalKids, totalBabies, totalRooms: rooms.length };
   };
 
-  // ═══════════════════════════════════
-  // TABLE COLUMNS
-  // ═══════════════════════════════════
   const columns = [
     {
       title: "Hotel",
@@ -255,41 +289,68 @@ const AccommodationRequests = () => {
       key: "title",
       render: (text, record) => (
         <div className="flex items-center gap-3">
-          {record.background_image ? (
-            <img
-              src={getFirstImage(record.background_image)}
-              alt={text}
-              className="w-14 h-10 object-cover rounded-lg shadow-sm"
-              onError={(e) => {
-                e.target.src = "https://via.placeholder.com/56x40?text=Hotel";
-              }}
-            />
-          ) : (
-            <div className="w-14 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-              <HomeOutlined className="text-gray-400" />
-            </div>
-          )}
+          <div className="relative shrink-0">
+            {record.background_image ? (
+              <img
+                src={getFirstImage(record.background_image)}
+                alt={text}
+                className="w-14 h-10 object-cover rounded-lg shadow-sm"
+                onError={(e) => {
+                  e.target.src = "https://via.placeholder.com/56x40?text=Hotel";
+                }}
+              />
+            ) : (
+              <div className="w-14 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                <HomeOutlined className="text-gray-400" />
+              </div>
+            )}
+            {isUnread(record.read) && (
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
+            )}
+          </div>
           <div>
             {text ? (
               <>
-                <p className="font-semibold text-gray-800 mb-0 text-sm">
-                  {text}
-                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-semibold text-gray-800 mb-0 text-sm">
+                    {text}
+                  </p>
+                  {isUnread(record.read) && (
+                    <Tag
+                      color="green"
+                      className="!m-0 !text-[10px] !font-bold !leading-none !px-1.5 !py-0.5"
+                      style={{ borderRadius: 999 }}
+                    >
+                      NEW
+                    </Tag>
+                  )}
+                </div>
                 <p className="text-xs text-gray-400 mb-0">
                   <EnvironmentOutlined className="mr-1" />
                   {record.location?.substring(0, 30) || "N/A"}...
                 </p>
               </>
             ) : (
-              <Tag
-                style={{
-                  background: "#f0f7f7",
-                  borderColor: "#295557",
-                  color: "#295557",
-                }}
-              >
-                Custom Booking
-              </Tag>
+              <div className="flex items-center gap-2">
+                <Tag
+                  style={{
+                    background: "#f0f7f7",
+                    borderColor: "#295557",
+                    color: "#295557",
+                  }}
+                >
+                  Custom Booking
+                </Tag>
+                {isUnread(record.read) && (
+                  <Tag
+                    color="green"
+                    className="!m-0 !text-[10px] !font-bold !leading-none !px-1.5 !py-0.5"
+                    style={{ borderRadius: 999 }}
+                  >
+                    NEW
+                  </Tag>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -434,10 +495,7 @@ const AccommodationRequests = () => {
             type="primary"
             icon={<EyeOutlined />}
             size="small"
-            onClick={() => {
-              setRowData(record);
-              setIsModalVisible(true);
-            }}
+            onClick={() => openDetails(record)}
             style={{ backgroundColor: "#295557", borderColor: "#295557" }}
           >
             View
@@ -457,12 +515,9 @@ const AccommodationRequests = () => {
     },
   ];
 
-  // ═══════════════════════════════════
-  // RENDER
-  // ═══════════════════════════════════
   return (
     <>
-      {/* ── Filters ── */}
+      {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
         <Input
           placeholder="Search accommodations..."
@@ -504,12 +559,13 @@ const AccommodationRequests = () => {
         </Select>
       </div>
 
-      {/* ── Table ── */}
+      {/* Table */}
       <Table
         columns={columns}
         dataSource={data}
         loading={loading}
         rowKey="reserving_id"
+        rowClassName={(record) => (isUnread(record.read) ? "unread-row" : "")}
         pagination={{
           current: currentPage,
           pageSize: currentPageSize,
@@ -524,9 +580,7 @@ const AccommodationRequests = () => {
         bordered
       />
 
-      {/* ══════════════════════════════════════
-          DETAILS MODAL
-      ══════════════════════════════════════ */}
+      {/* Details Modal */}
       <Modal
         title={
           <div className="flex items-center gap-3">
@@ -554,7 +608,7 @@ const AccommodationRequests = () => {
       >
         {rowData && (
           <div className="space-y-6">
-            {/* ── Hero ── */}
+            {/* Hero */}
             <div className="relative rounded-xl overflow-hidden">
               {rowData.background_image ? (
                 <img
@@ -601,7 +655,7 @@ const AccommodationRequests = () => {
               </div>
             </div>
 
-            {/* ── Summary Cards ── */}
+            {/* Summary Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div
                 className="p-4 rounded-xl text-white shadow-lg"
@@ -663,7 +717,7 @@ const AccommodationRequests = () => {
               </div>
             </div>
 
-            {/* ── Invite Code ── */}
+            {/* Invite Code */}
             {rowData.invite_code && (
               <div
                 className="flex items-center gap-3 px-4 py-3 rounded-lg border"
@@ -693,9 +747,8 @@ const AccommodationRequests = () => {
               </div>
             )}
 
-            {/* ── Hotel Info + Customer Info ── */}
+            {/* Hotel Info + Customer Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Hotel Info */}
               <div className="border border-gray-200 rounded-xl overflow-hidden">
                 <div
                   className="px-4 py-3 border-b"
@@ -802,7 +855,6 @@ const AccommodationRequests = () => {
                 </div>
               </div>
 
-              {/* Customer Info */}
               <div className="border border-gray-200 rounded-xl overflow-hidden">
                 <div
                   className="px-4 py-3 border-b"
@@ -862,7 +914,7 @@ const AccommodationRequests = () => {
               </div>
             </div>
 
-            {/* ══ ROOMS SECTION ══ */}
+            {/* Rooms */}
             {rowData.rooms && rowData.rooms.length > 0 && (
               <div className="border border-gray-200 rounded-xl overflow-hidden">
                 <div
@@ -888,7 +940,6 @@ const AccommodationRequests = () => {
                   </Tag>
                 </div>
                 <div className="p-4">
-                  {/* Rooms summary bar */}
                   {(() => {
                     const summary = getRoomsSummary(rowData.rooms);
                     return (
@@ -948,14 +999,12 @@ const AccommodationRequests = () => {
                     );
                   })()}
 
-                  {/* Room cards */}
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                     {rowData.rooms.map((room, idx) => (
                       <div
                         key={room.room_id || idx}
                         className="border border-gray-200 rounded-xl p-3 hover:shadow-md transition-shadow bg-white"
                       >
-                        {/* Room header */}
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
                             <div
@@ -984,8 +1033,6 @@ const AccommodationRequests = () => {
                             </Tag>
                           )}
                         </div>
-
-                        {/* Room guests */}
                         <div className="space-y-2">
                           <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-1.5">
                             <span className="text-xs text-gray-500">
@@ -1020,8 +1067,6 @@ const AccommodationRequests = () => {
                             </span>
                           </div>
                         </div>
-
-                        {/* Room total */}
                         <div className="mt-2 pt-2 border-t border-gray-100 text-center">
                           <span className="text-xs text-gray-400">
                             {parseInt(room.adults) + parseInt(room.kids)}{" "}
@@ -1038,7 +1083,7 @@ const AccommodationRequests = () => {
               </div>
             )}
 
-            {/* ── Additional Services ── */}
+            {/* Additional Services */}
             {rowData.aditional_services &&
               rowData.aditional_services !== "null" &&
               rowData.aditional_services !== "" && (
@@ -1076,7 +1121,7 @@ const AccommodationRequests = () => {
                 </div>
               )}
 
-            {/* ── Commission Info ── */}
+            {/* Commission */}
             {rowData.admins?.admin_name && (
               <div
                 className="flex items-center gap-4 px-4 py-3 rounded-lg border"
@@ -1110,7 +1155,7 @@ const AccommodationRequests = () => {
               </div>
             )}
 
-            {/* ── Action Buttons ── */}
+            {/* Action Buttons */}
             {rowData.status === "pending" && (
               <div className="border-t pt-6">
                 <h3 className="font-semibold text-base mb-4 text-gray-800">
@@ -1160,9 +1205,7 @@ const AccommodationRequests = () => {
         )}
       </Modal>
 
-      {/* ══════════════════════════════════════
-          MANUAL STATUS MODAL
-      ══════════════════════════════════════ */}
+      {/* Manual Status Modal */}
       <Modal
         title={
           <div className="flex items-center gap-2">
@@ -1189,7 +1232,6 @@ const AccommodationRequests = () => {
               This will mark the status change as <strong>Manual Update</strong>
             </p>
           </div>
-
           {manualUpdateRecord && (
             <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
               <p className="text-sm text-gray-600 mb-1">
@@ -1204,7 +1246,6 @@ const AccommodationRequests = () => {
               </p>
             </div>
           )}
-
           <Radio.Group
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
@@ -1273,7 +1314,6 @@ const AccommodationRequests = () => {
               ))}
             </div>
           </Radio.Group>
-
           <div className="flex gap-3 pt-4 border-t">
             <Button
               type="primary"
@@ -1304,6 +1344,15 @@ const AccommodationRequests = () => {
         .accommodation-request-modal .ant-modal-body {
           max-height: 80vh;
           overflow-y: auto;
+        }
+        .ant-table-tbody > tr.unread-row > td {
+          background-color: #f6ffed !important;
+        }
+        .ant-table-tbody > tr.unread-row:hover > td {
+          background-color: #eaffd6 !important;
+        }
+        .ant-table-tbody > tr.unread-row > td:first-child {
+          border-left: 4px solid #295557 !important;
         }
       `}</style>
     </>
