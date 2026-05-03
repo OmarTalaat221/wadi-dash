@@ -23,10 +23,45 @@ const { TabPane } = Tabs;
 const { TextArea } = Input;
 const { Option } = Select;
 
+// ✅ نقلها لبرة الـ component الرئيسي
+const CategorySelectInput = ({
+  categories,
+  categoriesLoading,
+  value, // ✅ من الـ Form
+  onChange, // ✅ من الـ Form
+}) => (
+  <Select
+    value={value} // ✅ مهم
+    onChange={onChange} // ✅ مهم
+    placeholder="Select a category"
+    loading={categoriesLoading}
+    showSearch
+    optionFilterProp="children"
+    filterOption={(input, option) =>
+      option?.children?.toLowerCase().includes(input.toLowerCase())
+    }
+    notFoundContent={
+      categoriesLoading ? <Spin size="small" /> : "No categories found"
+    }
+  >
+    {categories.map((category) => (
+      <Option key={category.category_id} value={category.category_id}>
+        {category.category_name}
+      </Option>
+    ))}
+  </Select>
+);
+
+const UploadButton = ({ loading: btnLoading }) => (
+  <div>
+    {btnLoading ? <LoadingOutlined /> : <PlusOutlined />}
+    <div style={{ marginTop: 8 }}>{btnLoading ? "Uploading..." : "Upload"}</div>
+  </div>
+);
+
 const Blogs = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // ✅ Read from URL
   const currentPage = parseInt(searchParams.get("page") || "1");
   const currentLimit = parseInt(searchParams.get("limit") || "10");
   const currentTab = searchParams.get("tab") || "all";
@@ -36,17 +71,14 @@ const Blogs = () => {
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
 
-  // Categories State
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
 
-  // Add / Edit modal state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingPost, setEditingPost] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  // Image previews & upload loading states
   const [addImagePreview, setAddImagePreview] = useState(null);
   const [editImagePreview, setEditImagePreview] = useState(null);
   const [uploadingAdd, setUploadingAdd] = useState(false);
@@ -55,7 +87,6 @@ const Blogs = () => {
   const [addForm] = Form.useForm();
   const [editForm] = Form.useForm();
 
-  // ✅ Update URL params helper
   const updateParams = useCallback(
     (updates) => {
       const newParams = new URLSearchParams(searchParams);
@@ -78,13 +109,11 @@ const Blogs = () => {
     [searchParams, setSearchParams]
   );
 
-  // ── Helpers ──
   const transformBlogStatus = (hidden) => {
     if (hidden === "0" || hidden === 0) return "accepted";
     return "rejected";
   };
 
-  // ── Fetch Categories ──
   const fetchCategories = async () => {
     setCategoriesLoading(true);
     try {
@@ -106,7 +135,6 @@ const Blogs = () => {
     }
   };
 
-  // ✅ Fetch blogs with pagination + tab filter
   const fetchBlogs = useCallback(
     async (
       page = currentPage,
@@ -118,7 +146,6 @@ const Blogs = () => {
       try {
         const params = { page, limit };
 
-        // ✅ Map tab to API hidden param
         if (tab === "accepted") params.hidden = "0";
         else if (tab === "rejected") params.hidden = "1";
 
@@ -166,7 +193,6 @@ const Blogs = () => {
     [currentPage, currentLimit, currentTab]
   );
 
-  // ✅ Fetch when URL changes
   useEffect(() => {
     fetchBlogs(currentPage, currentLimit, currentTab);
   }, [currentPage, currentLimit, currentTab]);
@@ -175,22 +201,20 @@ const Blogs = () => {
     fetchCategories();
   }, []);
 
-  // ✅ Tab change → reset page to 1
   const handleTabChange = (tab) => {
     updateParams({ tab, page: 1 });
   };
 
-  // ✅ Pagination change
   const handlePageChange = (page, pageSize) => {
     updateParams({ page, limit: pageSize });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // ✅ visibleCategories هنا وبنمررها كـ prop
   const visibleCategories = categories.filter(
     (cat) => cat.hidden === "0" || cat.hidden === 0
   );
 
-  // ── Toggle Status ──
   const handleToggleStatus = async (post) => {
     try {
       const response = await axios.post(
@@ -226,7 +250,6 @@ const Blogs = () => {
     }
   };
 
-  // ── Delete ──
   const handleDeletePost = async (post) => {
     try {
       const response = await axios.post(
@@ -238,7 +261,6 @@ const Blogs = () => {
       if (response.data?.status === "success") {
         if (selectedPost?.id === post.id) setSelectedPost(null);
 
-        // ✅ If last item on page > go back
         if (posts.length === 1 && currentPage > 1) {
           updateParams({ page: currentPage - 1 });
         } else {
@@ -269,7 +291,6 @@ const Blogs = () => {
     }
   };
 
-  // ── File Validation ──
   const validateFile = (file) => {
     const isImage = file.type.startsWith("image/");
     if (!isImage) {
@@ -284,7 +305,6 @@ const Blogs = () => {
     return true;
   };
 
-  // ── Image Upload ──
   const uploadImage = async (file) => {
     const formData = new FormData();
     formData.append("image", file);
@@ -296,7 +316,6 @@ const Blogs = () => {
     return response.data;
   };
 
-  // ── Add Modal ──
   const openAddModal = () => {
     addForm.resetFields();
     setAddImagePreview(null);
@@ -340,7 +359,6 @@ const Blogs = () => {
       if (response.data?.status === "success") {
         message.success("Blog added successfully");
         setIsAddModalOpen(false);
-        // ✅ Go to page 1 after adding
         updateParams({ page: 1 });
         fetchBlogs(1, currentLimit, currentTab, false);
       } else if (response.data?.status === "found") {
@@ -356,7 +374,6 @@ const Blogs = () => {
     }
   };
 
-  // ── Edit Modal ──
   const openEditModal = (post) => {
     setEditingPost(post);
     setEditImagePreview(post.postImage || null);
@@ -426,16 +443,6 @@ const Blogs = () => {
     }
   };
 
-  // ── Upload Button ──
-  const UploadButton = ({ loading: btnLoading }) => (
-    <div>
-      {btnLoading ? <LoadingOutlined /> : <PlusOutlined />}
-      <div style={{ marginTop: 8 }}>
-        {btnLoading ? "Uploading..." : "Upload"}
-      </div>
-    </div>
-  );
-
   const handleRemoveAddImage = () => {
     setAddImagePreview(null);
     addForm.setFieldsValue({ cover_image: "" });
@@ -446,31 +453,8 @@ const Blogs = () => {
     editForm.setFieldsValue({ cover_image: "" });
   };
 
-  // ── Category Select ──
-  const CategorySelectInput = () => (
-    <Select
-      placeholder="Select a category"
-      loading={categoriesLoading}
-      showSearch
-      optionFilterProp="children"
-      filterOption={(input, option) =>
-        option?.children?.toLowerCase().includes(input.toLowerCase())
-      }
-      notFoundContent={
-        categoriesLoading ? <Spin size="small" /> : "No categories found"
-      }
-    >
-      {visibleCategories.map((category) => (
-        <Option key={category.category_id} value={category.category_id}>
-          {category.category_name}
-        </Option>
-      ))}
-    </Select>
-  );
-
   return (
     <div className="p-4">
-      {/* ── Header ── */}
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Blogs Management</h2>
         <Button type="primary" onClick={openAddModal}>
@@ -478,7 +462,6 @@ const Blogs = () => {
         </Button>
       </div>
 
-      {/* ── Filter Tabs ── */}
       <div className="mb-6 bg-white p-4 rounded-lg shadow">
         <Tabs
           activeKey={currentTab}
@@ -517,10 +500,8 @@ const Blogs = () => {
         </Tabs>
       </div>
 
-      {/* ── Posts Grid ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
-          // ✅ Skeleton loading
           [...Array(currentLimit > 6 ? 6 : currentLimit)].map((_, i) => (
             <div
               key={i}
@@ -559,7 +540,6 @@ const Blogs = () => {
         )}
       </div>
 
-      {/* ✅ Pagination */}
       {!loading && total > currentLimit && (
         <div className="flex justify-center mt-8">
           <Pagination
@@ -576,7 +556,6 @@ const Blogs = () => {
         </div>
       )}
 
-      {/* ── Framer Modal ── */}
       {selectedPost?.status !== null && (
         <FramerModal
           open={selectedPost !== null}
@@ -591,9 +570,7 @@ const Blogs = () => {
         />
       )}
 
-      {/* ══════════════════════════════
-          ADD BLOG MODAL
-      ══════════════════════════════ */}
+      {/* ADD MODAL */}
       <Modal
         title="Add Blog"
         open={isAddModalOpen}
@@ -626,14 +603,15 @@ const Blogs = () => {
             name="category"
             rules={[{ required: true, message: "Please select a category" }]}
           >
-            <CategorySelectInput />
+            <CategorySelectInput
+              categories={visibleCategories}
+              categoriesLoading={categoriesLoading}
+              value={addForm.getFieldValue("category")}
+              onChange={(value) => addForm.setFieldsValue({ category: value })}
+            />
           </Form.Item>
 
-          <Form.Item
-            label="Cover Image"
-            required
-            rules={[{ required: true, message: "Please upload a cover image" }]}
-          >
+          <Form.Item label="Cover Image" required>
             <div className="relative">
               <Upload
                 listType="picture-card"
@@ -697,9 +675,7 @@ const Blogs = () => {
         </Form>
       </Modal>
 
-      {/* ══════════════════════════════
-          EDIT BLOG MODAL
-      ══════════════════════════════ */}
+      {/* EDIT MODAL */}
       <Modal
         title="Edit Blog"
         open={isEditModalOpen}
@@ -732,7 +708,11 @@ const Blogs = () => {
             name="category"
             rules={[{ required: true, message: "Please select a category" }]}
           >
-            <CategorySelectInput />
+            {/* ✅ نفس الحل هنا */}
+            <CategorySelectInput
+              categories={visibleCategories}
+              categoriesLoading={categoriesLoading}
+            />
           </Form.Item>
 
           <Form.Item label="Cover Image">
