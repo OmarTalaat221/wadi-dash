@@ -9,7 +9,8 @@ import {
   FaCheck,
   FaTimes,
   FaTag,
-  FaTrash, // ✅ Added
+  FaTrash,
+  FaEdit, // ✅ Added
 } from "react-icons/fa";
 
 export default function PostCard({
@@ -18,7 +19,8 @@ export default function PostCard({
   width = "w-full",
   onAccept,
   onReject,
-  onDelete, // ✅ Added
+  onDelete,
+  onEdit, // ✅ Added
 }) {
   const getStatusBadge = () => {
     switch (post.status) {
@@ -94,13 +96,20 @@ export default function PostCard({
             </div>
           </div>
 
-          {/* ✅ Updated dropdown menu with delete */}
+          {/* ✅ Dropdown with Edit + Delete */}
           <Tooltip title="More actions">
             <Dropdown
               overlay={
                 <Menu>
                   <Menu.Item key="view" onClick={() => setSelectedPost(post)}>
                     View Details
+                  </Menu.Item>
+                  <Menu.Item
+                    key="edit"
+                    icon={<FaEdit />}
+                    onClick={() => onEdit && onEdit(post)}
+                  >
+                    Edit Blog
                   </Menu.Item>
                   <Menu.Divider />
                   <Menu.Item

@@ -140,13 +140,13 @@ function ToursTableData({ setOpenDelete, refreshTrigger }) {
       render: (_, record) => (
         <div className="text-center">
           <div className="font-bold text-green-600">
-            {record.price_currency || "$"}
+            {"$"}
             {record.price_current}
           </div>
           {record.price_original &&
             record.price_original !== record.price_current && (
               <div className="text-sm text-gray-500 line-through">
-                {record.price_currency || "$"}
+                {"$"}
                 {record.price_original}
               </div>
             )}

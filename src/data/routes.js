@@ -54,6 +54,7 @@ import GalleryCategories from "../pages/GalleryCategories";
 import { AiOutlineProduct } from "react-icons/ai";
 import AdminUsers from "../pages/AdminUsers/AdminUsers";
 import CommunityCategories from "../pages/CommunityCategories/CommunityCategories";
+import ActivityCategories from "../pages/ActivityCategories/ActivityCategories";
 
 export const ROLES = {
   SUPER_ADMIN: "super_admin",
@@ -193,6 +194,13 @@ export const publicRoutes = [
         hidden: true,
         route: "update/:product_id",
         element: UpdateActivity,
+      },
+      {
+        title: "Activity Categories",
+        icon: "/edit.png",
+        hidden: true,
+        route: "categories",
+        element: ActivityCategories,
       },
     ],
   },

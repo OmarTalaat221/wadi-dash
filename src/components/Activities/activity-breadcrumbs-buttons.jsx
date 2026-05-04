@@ -8,6 +8,12 @@ function ActivityBreadcrumbsButtons({ setOpenImport, activities }) {
   return (
     <div className="flex gap-1 ActivityBreadcrumbsButtons">
       <button
+        className="inline-flex items-center bg-[#295557] hover:bg-[#64401ad8] text-white font-bold py-2 px-4 rounded focus:outline-none transition-all duration-300 focus:ring-2 focus:ring-[#64401ad4]"
+        onClick={() => navigate("/activities/categories")}
+      >
+        Manage Categories
+      </button>
+      <button
         onClick={() => navigate("create")}
         className="inline-flex items-center bg-[#295557] hover:bg-[#64401ad8] text-white font-bold py-2 px-4 rounded focus:outline-none transition-all duration-300 focus:ring-2 focus:ring-[#64401ad4]"
       >

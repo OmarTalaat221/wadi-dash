@@ -1,15 +1,18 @@
+// pages/activities/innerPages/update.jsx
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Tabs from "../../../components/Tabs";
 import ActivityImages from "../../../components/Activities/activityImages";
 import JoditEditor from "jodit-react";
 import axios from "axios";
-import { message, Select } from "antd";
+import { message, Select, Spin } from "antd";
 import { base_url } from "../../../utils/base_url";
 import ActivityFeatures from "../../../components/Activities/activityFeatures";
 import ActivityFAQs from "../../../components/Activities/ActivityFAQs";
 import editorConfig from "../../../data/joditConfig";
 import MapPicker from "../../../components/MapPicker/MapPicker";
+import useCountries from "../../../hooks/useCountries";
+import useActivityCategories from "../../../hooks/useActivityCategories";
 
 const { Option } = Select;
 
@@ -17,10 +20,13 @@ function UpdateActivityLayout() {
   const { product_id } = useParams();
   const navigate = useNavigate();
 
+  const { countries, loading: countriesLoading } = useCountries();
+  const { visibleCategories, loading: categoriesLoading } =
+    useActivityCategories();
+
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
-  const [countries, setCountries] = useState([]);
-  const [countriesLoading, setCountriesLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("General");
 
   const [rowData, setRowData] = useState({
     id: "",
@@ -29,9 +35,9 @@ function UpdateActivityLayout() {
     subtitle: "",
     description: "",
     background_image: "",
-    cta_button_text: "",
+    cta_button_text: "Book Now",
     cta_button_url: "",
-    category: "",
+    category_id: "",
     duration: "",
     route: "",
     price_current: "",
@@ -39,10 +45,9 @@ function UpdateActivityLayout() {
     price_currency: "$",
     per_adult: "",
     per_child: "",
-    price_note: "",
     max_people: "",
     video_link: "",
-    activity_type: "",
+    price_note: "PER PERSON",
     for_children: "1",
     lat: "",
     long: "",
@@ -53,10 +58,9 @@ function UpdateActivityLayout() {
     images: [],
   });
 
-  const [activeTab, setActiveTab] = useState("General");
-
   const cleanIcon = (icon) => {
     if (!icon || typeof icon !== "string") return "";
+
     let result = icon.trim();
     let prevResult = "";
     let iterations = 0;
@@ -91,6 +95,7 @@ function UpdateActivityLayout() {
     if (typeof features === "string" && features.trim()) {
       return features.split("**CAMP**").map((item, index) => {
         const parts = item.split("**");
+
         return {
           id: index + 1,
           label: parts[0] || "",
@@ -119,6 +124,7 @@ function UpdateActivityLayout() {
     if (typeof faqs === "string" && faqs.trim()) {
       return faqs.split("**CAMP**").map((item, index) => {
         const parts = item.split("**");
+
         return {
           id: Date.now() + index,
           question: parts[0] || "",
@@ -132,12 +138,14 @@ function UpdateActivityLayout() {
 
   const convertFeaturesToString = (features) => {
     if (!features || features.length === 0) return "";
+
     return features
       .filter((f) => f.name || f.label)
       .map((f) => {
         const label = (f.label || f.name || "").trim();
         const value = (f.name || f.label || "").trim();
         const icon = cleanIcon(f.icon);
+
         return `${label}**${value}**${icon}`;
       })
       .join("**CAMP**");
@@ -145,38 +153,21 @@ function UpdateActivityLayout() {
 
   const convertFAQsToString = (faqsList) => {
     if (!faqsList || faqsList.length === 0) return "";
+
     return faqsList
       .filter((f) => f.question || f.answer)
       .map((f) => {
         const question = (f.question || "").trim();
         const answer = (f.answer || "").trim();
+
         return `${question}**${answer}`;
       })
       .join("**CAMP**");
   };
 
-  useEffect(() => {
-    fetchActivity();
-    fetchCountries();
-  }, [product_id]);
-
-  const fetchCountries = async () => {
-    setCountriesLoading(true);
-    try {
-      const response = await axios.get(
-        `${base_url}/user/countries/select_countries.php`
-      );
-      if (response.data.status === "success") {
-        setCountries(response.data.message || []);
-      }
-    } catch (error) {
-      console.error("Error fetching countries:", error);
-    } finally {
-      setCountriesLoading(false);
-    }
-  };
-
   const fetchActivity = async () => {
+    setFetchLoading(true);
+
     try {
       const response = await axios.post(
         `${base_url}/admin/activities/select_activity_by_id.php`,
@@ -184,31 +175,77 @@ function UpdateActivityLayout() {
       );
 
       if (response.data.status === "success") {
-        const activity = response.data.message[0];
+        const activity = response.data.message?.[0];
 
-        if (activity) {
-          const featuresArray = parseFeaturesToArray(activity.features);
-          const faqsArray = parseFAQsToArray(activity.faqs);
+        if (!activity) {
+          message.error("Activity not found");
+          return;
+        }
 
-          const imagesArray = activity.image
-            ? activity.image.split("//CAMP//").map((img) => ({
+        const featuresArray = parseFeaturesToArray(activity.features);
+        const faqsArray = parseFAQsToArray(activity.faqs);
+
+        const imagesArray = activity.image
+          ? activity.image
+              .split("//CAMP//")
+              .filter((img) => img)
+              .map((img) => ({
                 type: "url",
                 value: img,
               }))
-            : [];
+          : [];
 
-          setRowData({
-            ...activity,
-            for_children: activity.for_children ?? "1",
-            lat: activity.lat || "",
-            long: activity.long || "",
-            featuresArray,
-            featuresString: convertFeaturesToString(featuresArray),
-            faqsArray,
-            faqsString: convertFAQsToString(faqsArray),
-            images: imagesArray,
-          });
-        }
+        setRowData({
+          ...activity,
+
+          id: activity.id || activity.activity_id || product_id,
+
+          country_id: activity.country_id || "",
+
+          title: activity.title || "",
+          subtitle: activity.subtitle || "",
+          description: activity.description || "",
+
+          background_image: activity.background_image || "",
+
+          cta_button_text: activity.cta_button_text || "Book Now",
+          cta_button_url: activity.cta_button_url || "",
+
+          category_id: activity.category_id || "",
+
+          duration: activity.duration || "",
+          route: activity.route || "",
+
+          price_current: activity.price_current || "",
+          price_original: activity.price_original || "",
+          price_currency: activity.price_currency || "$",
+          per_adult: activity.per_adult || activity.price_current || "",
+          per_child: activity.per_child || "",
+
+          price_note: activity.price_note || "PER PERSON",
+
+          max_people: activity.max_people || "",
+          video_link: activity.video_link || "",
+
+          for_children:
+            activity.for_children !== undefined &&
+            activity.for_children !== null
+              ? String(activity.for_children)
+              : "1",
+
+          lat: activity.lat || activity.latitude || "",
+          long: activity.long || activity.longitude || "",
+
+          featuresArray,
+          featuresString: convertFeaturesToString(featuresArray),
+
+          faqsArray,
+          faqsString: convertFAQsToString(faqsArray),
+
+          images: imagesArray,
+        });
+      } else {
+        message.error(response.data.message || "Failed to load activity");
       }
     } catch (error) {
       console.error("Error fetching activity:", error);
@@ -218,19 +255,48 @@ function UpdateActivityLayout() {
     }
   };
 
+  useEffect(() => {
+    fetchActivity();
+  }, [product_id]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setRowData((prev) => ({ ...prev, [name]: value }));
+
+    setRowData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSelectChange = (name, value) => {
+    setRowData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const handleMapChange = (lat, long) => {
-    setRowData((prev) => ({ ...prev, lat, long }));
+    setRowData((prev) => ({
+      ...prev,
+      lat,
+      long,
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!rowData.title || !rowData.country_id) {
+    if (!rowData.country_id) {
+      message.error("Please select a country");
+      return;
+    }
+
+    if (!rowData.category_id) {
+      message.error("Please select a category");
+      return;
+    }
+
+    if (!rowData.title) {
       message.error("Please fill in all required fields");
       return;
     }
@@ -239,6 +305,7 @@ function UpdateActivityLayout() {
 
     try {
       let featuresFormatted = "";
+
       if (rowData.featuresArray && rowData.featuresArray.length > 0) {
         featuresFormatted = rowData.featuresArray
           .filter((f) => f.name || f.label)
@@ -246,6 +313,7 @@ function UpdateActivityLayout() {
             const label = (f.label || f.name || "").trim();
             const value = (f.name || f.label || "").trim();
             const icon = cleanIcon(f.icon);
+
             return `${label}**${value}**${icon}`;
           })
           .join("**CAMP**");
@@ -254,12 +322,14 @@ function UpdateActivityLayout() {
       }
 
       let faqsFormatted = "";
+
       if (rowData.faqsArray && rowData.faqsArray.length > 0) {
         faqsFormatted = rowData.faqsArray
           .filter((f) => f.question || f.answer)
           .map((f) => {
             const question = (f.question || "").trim();
             const answer = (f.answer || "").trim();
+
             return `${question}**${answer}`;
           })
           .join("**CAMP**");
@@ -272,31 +342,51 @@ function UpdateActivityLayout() {
         .filter((img) => img)
         .join("//CAMP//");
 
+      const firstImage =
+        rowData.images?.[0]?.value ||
+        rowData.images?.[0]?.preview ||
+        rowData.background_image ||
+        "";
+
       const payload = {
-        id: rowData.id,
+        id: rowData.id || product_id,
+
         country_id: rowData.country_id,
+
         title: rowData.title,
         subtitle: rowData.subtitle,
         description: rowData.description,
-        background_image: rowData.images[0]?.value || rowData.background_image,
+
+        background_image: firstImage,
+
         cta_button_text: rowData.cta_button_text,
         cta_button_url: rowData.cta_button_url,
+
         duration: rowData.duration,
-        category: rowData.category,
+
+        category_id: rowData.category_id,
+
         image: imagesString,
+
         route: rowData.route,
+
+        for_children: rowData.for_children,
+
         price_current: rowData.price_current,
         price_original: rowData.price_original,
-        price_currency: rowData.price_currency,
+        price_currency: rowData.price_currency || "$",
+
         per_adult: rowData.price_current,
         per_child: rowData.per_child,
+
         price_note: rowData.price_note,
-        for_children: rowData.for_children,
+
         max_people: rowData.max_people,
         video_link: rowData.video_link,
-        activity_type: rowData.activity_type,
+
         features: featuresFormatted,
         faqs: faqsFormatted,
+
         latitude: rowData.lat || "",
         longitude: rowData.long || "",
       };
@@ -326,21 +416,25 @@ function UpdateActivityLayout() {
         <>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block mb-1 font-medium">Country *</label>
+              <label className="block !mb-1 font-medium">Country *</label>
               <Select
                 value={rowData.country_id || undefined}
-                onChange={(value) =>
-                  setRowData((prev) => ({ ...prev, country_id: value }))
-                }
+                onChange={(value) => handleSelectChange("country_id", value)}
                 className="w-full"
                 size="large"
-                showSearch
                 placeholder="Select Country"
-                optionFilterProp="children"
                 loading={countriesLoading}
+                showSearch
+                optionFilterProp="children"
                 filterOption={(input, option) =>
-                  option.children.toLowerCase().indexOf(input.toLowerCase()) >=
-                  0
+                  option.children.toLowerCase().includes(input.toLowerCase())
+                }
+                notFoundContent={
+                  countriesLoading ? (
+                    <Spin size="small" />
+                  ) : (
+                    "No countries found"
+                  )
                 }
               >
                 {countries.map((country) => (
@@ -352,43 +446,57 @@ function UpdateActivityLayout() {
             </div>
 
             <div>
-              <label className="block mb-1 font-medium">Category</label>
+              <label className="block !mb-1 font-medium">Category *</label>
               <Select
-                value={rowData.category}
-                onChange={(value) =>
-                  setRowData((prev) => ({ ...prev, category: value }))
-                }
+                value={rowData.category_id || undefined}
+                onChange={(value) => handleSelectChange("category_id", value)}
                 className="w-full"
                 size="large"
+                placeholder="Select Category"
+                loading={categoriesLoading}
+                showSearch
+                optionFilterProp="children"
+                filterOption={(input, option) =>
+                  option.children.toLowerCase().includes(input.toLowerCase())
+                }
+                notFoundContent={
+                  categoriesLoading ? (
+                    <Spin size="small" />
+                  ) : (
+                    "No categories found"
+                  )
+                }
               >
-                <Option value="activity">Activity</Option>
-                <Option value="adventure">Adventure</Option>
-                <Option value="outdoor">Outdoor</Option>
+                {visibleCategories.map((cat) => (
+                  <Option key={cat.category_id} value={cat.category_id}>
+                    {cat.category_name}
+                  </Option>
+                ))}
               </Select>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block mb-1 font-medium">Title *</label>
+              <label className="block !mb-1 font-medium">Title *</label>
               <input
                 type="text"
                 name="title"
                 value={rowData.title || ""}
                 onChange={handleChange}
-                className="w-full border border-gray-300 p-2 rounded"
+                className="w-full !border border-gray-300 !p-2 rounded"
                 required
               />
             </div>
 
             <div>
-              <label className="block mb-1 font-medium">Subtitle</label>
+              <label className="block !mb-1 font-medium">Subtitle</label>
               <input
                 type="text"
                 name="subtitle"
                 value={rowData.subtitle || ""}
                 onChange={handleChange}
-                className="w-full border border-gray-300 p-2 rounded"
+                className="w-full !border border-gray-300 !p-2 rounded"
               />
             </div>
           </div>
@@ -403,8 +511,8 @@ function UpdateActivityLayout() {
                 value={rowData.price_current || ""}
                 onChange={handleChange}
                 className="w-full border border-gray-300 p-2 rounded"
-                onWheel={(e) => e.target.blur()}
                 required
+                onWheel={(e) => e.target.blur()}
               />
             </div>
 
@@ -483,15 +591,14 @@ function UpdateActivityLayout() {
             </div>
 
             <div>
-              <label className="block mb-1 font-medium">Activity Type *</label>
+              <label className="block mb-1 font-medium">Max People *</label>
               <input
-                type="text"
-                name="activity_type"
-                value={rowData.activity_type || ""}
+                type="number"
+                name="max_people"
+                value={rowData.max_people || ""}
                 onChange={handleChange}
-                placeholder="e.g., Scuba Diving, Hiking"
                 className="w-full border border-gray-300 p-2 rounded"
-                required
+                onWheel={(e) => e.target.blur()}
               />
             </div>
           </div>
@@ -515,34 +622,20 @@ function UpdateActivityLayout() {
               name="video_link"
               value={rowData.video_link || ""}
               onChange={handleChange}
-              placeholder="e.g., https://youtube.com/..."
+              placeholder="Enter Video Link"
               className="w-full border border-gray-300 p-2 rounded"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block mb-1 font-medium">Price Note</label>
-              <input
-                type="text"
-                name="price_note"
-                value={rowData.price_note || ""}
-                onChange={handleChange}
-                className="w-full border border-gray-300 p-2 rounded"
-              />
-            </div>
-
-            <div>
-              <label className="block mb-1 font-medium">Max People *</label>
-              <input
-                type="number"
-                name="max_people"
-                value={rowData.max_people || ""}
-                onChange={handleChange}
-                className="w-full border border-gray-300 p-2 rounded"
-                onWheel={(e) => e.target.blur()}
-              />
-            </div>
+          <div>
+            <label className="block mb-1 font-medium">Price Note</label>
+            <input
+              type="text"
+              name="price_note"
+              value={rowData.price_note || ""}
+              onChange={handleChange}
+              className="w-full border border-gray-300 p-2 rounded"
+            />
           </div>
 
           <div>
@@ -596,7 +689,7 @@ function UpdateActivityLayout() {
       <h1 className="text-2xl font-bold mb-4">Edit Activity</h1>
 
       <div className="mb-4">
-        <nav className="flex space-x-4 border-b">
+        <nav className="flex justify-between items-center gap-0.5 w-[100%]">
           <Tabs
             tabs={["General", "Features", "FAQs", "Images"]}
             activeTab={activeTab}
@@ -604,22 +697,23 @@ function UpdateActivityLayout() {
             classNameDecoration=""
             className=""
           />
+
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={loading}
+            className="bg-blue-500 text-white !py-2 !px-4 rounded hover:bg-blue-600 transition-colors duration-200 disabled:bg-gray-400"
+          >
+            {loading ? "Saving..." : "Save Changes"}
+          </button>
         </nav>
       </div>
 
       <form
         onSubmit={handleSubmit}
-        className="space-y-6 bg-white p-5 rounded-[10px]"
+        className="space-y-6 bg-white !p-5 rounded-[10px]"
       >
         {renderTabContent()}
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition-colors duration-200 disabled:bg-gray-400"
-        >
-          {loading ? "Saving..." : "Save Changes"}
-        </button>
       </form>
     </div>
   );

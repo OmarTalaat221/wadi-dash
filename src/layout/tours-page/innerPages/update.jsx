@@ -232,7 +232,7 @@ function UpdateTourLayout() {
           price_original: tourData.price_original,
           per_adult: tourData.per_adult,
           per_child: tourData.per_child,
-          price_currency: tourData.price_currency,
+          price_currency: tourData.price_currency || "$",
           driver_price: tourData.driver_price,
           price_note: tourData.price_note,
           max_persons: tourData.max_persons || "",

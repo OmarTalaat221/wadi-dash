@@ -95,14 +95,14 @@ function AccommodationTableData({
       render: (_, record) => (
         <div className="flex flex-col">
           <span className="font-bold text-green-600">
-            {record.price_currency || "$"}
+            {"$"}
             {record.price_current}
           </span>
           {record.price_original &&
             parseFloat(record.price_original) >
               parseFloat(record.price_current) && (
               <span className="text-sm text-gray-500 line-through">
-                {record.price_currency || "$"}
+                {"$"}
                 {record.price_original}
               </span>
             )}

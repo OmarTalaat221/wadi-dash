@@ -533,11 +533,10 @@ const CarsRequests = ({ onReadUpdated }) => {
                       <Tag color="blue">{rowData.car_type}</Tag>
                     </p>
                     <p>
-                      <span className="font-medium">Price/Day:</span>{" "}
-                      {rowData.price_currency}
+                      <span className="font-medium">Price/Day:</span> {"$"}
                       {rowData.price_current}{" "}
                       <span className="line-through text-gray-400">
-                        {rowData.price_currency}
+                        {"$"}
                         {rowData.price_original}
                       </span>
                     </p>

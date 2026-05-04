@@ -42,7 +42,7 @@ function TourBreadcrumbsButtons({ setOpenImport, refreshTable }) {
           Price_Original: tour.price_original,
           Per_Adult: tour.per_adult,
           Per_Child: tour.per_child,
-          Price_Currency: tour.price_currency,
+          Price_Currency: "$",
           Price_Note: tour.price_note,
           Highlights: Array.isArray(tour.highlights)
             ? tour.highlights.join("**")

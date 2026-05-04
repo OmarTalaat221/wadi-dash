@@ -365,7 +365,7 @@ const ActivitiesRequests = ({ onReadUpdated }) => {
       key: "total_amount",
       render: (text, record) => (
         <p className="font-bold text-lg mb-0 text-[#295557]">
-          {record.price_currency || "$"}
+          {"$"}
           {parseFloat(text).toLocaleString()}
         </p>
       ),
@@ -667,7 +667,7 @@ const ActivitiesRequests = ({ onReadUpdated }) => {
                   <div>
                     <p className="text-xs opacity-80 mb-1">Total Amount</p>
                     <p className="text-xl font-bold">
-                      {rowData.price_currency || "$"}
+                      {"$"}
                       {parseFloat(rowData.total_amount).toLocaleString()}
                     </p>
                   </div>
@@ -744,9 +744,9 @@ const ActivitiesRequests = ({ onReadUpdated }) => {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-gray-50 rounded-lg px-3 py-2">
-                      <p className="text-xs text-gray-400 mb-0">Type</p>
-                      <p className="font-medium text-gray-800 mb-0 text-sm">
-                        {rowData.activity_type}
+                      <p className="text-xs text-gray-400 mb-0">Category</p>
+                      <p className="font-medium text-gray-800 mb-0 text-sm capitalize">
+                        {rowData.category_name}
                       </p>
                     </div>
                     <div className="bg-gray-50 rounded-lg px-3 py-2">
@@ -773,7 +773,7 @@ const ActivitiesRequests = ({ onReadUpdated }) => {
                         className="font-bold mb-0"
                         style={{ color: "#295557" }}
                       >
-                        {rowData.price_currency || "$"}
+                        {"$"}
                         {rowData.price_current}
                       </p>
                     </div>
@@ -781,7 +781,7 @@ const ActivitiesRequests = ({ onReadUpdated }) => {
                       <div>
                         <p className="text-xs text-gray-400 mb-0">Original</p>
                         <p className="line-through text-gray-400 mb-0">
-                          {rowData.price_currency || "$"}
+                          {"$"}
                           {rowData.price_original}
                         </p>
                       </div>

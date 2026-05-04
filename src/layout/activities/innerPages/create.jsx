@@ -1,3 +1,4 @@
+// pages/activities/innerPages/create.jsx
 import React, { useState } from "react";
 import Tabs from "../../../components/Tabs";
 import JoditEditor from "jodit-react";
@@ -8,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { base_url } from "../../../utils/base_url";
 import ActivityImages from "../../../components/Activities/activityImages";
 import useCountries from "../../../hooks/useCountries";
+import useActivityCategories from "../../../hooks/useActivityCategories";
 import ActivityFeatures from "../../../components/Activities/activityFeatures";
 import ActivityFAQs from "../../../components/Activities/ActivityFAQs";
 import MapPicker from "../../../components/MapPicker/MapPicker";
@@ -17,6 +19,8 @@ const { Option } = Select;
 function CreateActivityLayout() {
   const navigate = useNavigate();
   const { countries, loading: countriesLoading } = useCountries();
+  const { visibleCategories, loading: categoriesLoading } =
+    useActivityCategories();
 
   const [loading, setLoading] = useState(false);
 
@@ -28,18 +32,18 @@ function CreateActivityLayout() {
     background_image: "",
     cta_button_text: "Book Now",
     cta_button_url: "",
-    category: "activity",
+    category_id: "", // ✅ كان "activity" بقى فاضي
     duration: "",
     route: "",
     price_current: "",
     price_original: "",
-    price_currency: "",
+    price_currency: "$",
     per_adult: "",
     per_child: "",
     max_people: "",
     video_link: "",
     price_note: "PER PERSON",
-    activity_type: "",
+    // ✅ شيلنا activity_type
     for_children: "1",
     lat: "",
     long: "",
@@ -94,6 +98,11 @@ function CreateActivityLayout() {
       return;
     }
 
+    if (!formData.category_id) {
+      message.error("Please select a category");
+      return;
+    }
+
     if (!formData.title) {
       message.error("Please fill in all required fields");
       return;
@@ -145,19 +154,18 @@ function CreateActivityLayout() {
         cta_button_text: formData.cta_button_text,
         cta_button_url: formData.cta_button_url,
         duration: formData.duration,
-        category: formData.category,
+        category_id: formData.category_id, // ✅ category_id من الـ Select
         image: imagesString,
         route: formData.route,
         for_children: formData.for_children,
         price_current: formData.price_current,
         price_original: formData.price_original,
-        price_currency: formData.price_currency,
+        price_currency: "$",
         per_adult: formData.price_current,
         per_child: formData.per_child,
         price_note: formData.price_note,
         max_people: formData.max_people,
         video_link: formData.video_link,
-        activity_type: formData.activity_type,
         features: featuresFormatted,
         faqs: faqsFormatted,
         latitude: formData.lat || "",
@@ -218,17 +226,34 @@ function CreateActivityLayout() {
               </Select>
             </div>
 
+            {/* ✅ Category ديناميكي بدل الـ static */}
             <div>
-              <label className="block !mb-1 font-medium">Category</label>
+              <label className="block !mb-1 font-medium">Category *</label>
               <Select
-                value={formData.category}
-                onChange={(value) => handleSelectChange("category", value)}
+                value={formData.category_id || undefined}
+                onChange={(value) => handleSelectChange("category_id", value)}
                 className="w-full"
                 size="large"
+                placeholder="Select Category"
+                loading={categoriesLoading}
+                showSearch
+                optionFilterProp="children"
+                filterOption={(input, option) =>
+                  option.children.toLowerCase().includes(input.toLowerCase())
+                }
+                notFoundContent={
+                  categoriesLoading ? (
+                    <Spin size="small" />
+                  ) : (
+                    "No categories found"
+                  )
+                }
               >
-                <Option value="activity">Activity</Option>
-                <Option value="adventure">Adventure</Option>
-                <Option value="outdoor">Outdoor</Option>
+                {visibleCategories.map((cat) => (
+                  <Option key={cat.category_id} value={cat.category_id}>
+                    {cat.category_name}
+                  </Option>
+                ))}
               </Select>
             </div>
           </div>
@@ -347,16 +372,16 @@ function CreateActivityLayout() {
               />
             </div>
 
+            {/* ✅ شيلنا Activity Type وحطينا Max People هنا */}
             <div>
-              <label className="block mb-1 font-medium">Activity Type *</label>
+              <label className="block mb-1 font-medium">Max People *</label>
               <input
-                type="text"
-                name="activity_type"
-                value={formData.activity_type || ""}
+                type="number"
+                name="max_people"
+                value={formData.max_people || ""}
                 onChange={handleChange}
-                placeholder="e.g., Scuba Diving, Hiking"
                 className="w-full border border-gray-300 p-2 rounded"
-                required
+                onWheel={(e) => e.target.blur()}
               />
             </div>
           </div>
@@ -385,29 +410,15 @@ function CreateActivityLayout() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block mb-1 font-medium">Price Note</label>
-              <input
-                type="text"
-                name="price_note"
-                value={formData.price_note || ""}
-                onChange={handleChange}
-                className="w-full border border-gray-300 p-2 rounded"
-              />
-            </div>
-
-            <div>
-              <label className="block mb-1 font-medium">Max People *</label>
-              <input
-                type="number"
-                name="max_people"
-                value={formData.max_people || ""}
-                onChange={handleChange}
-                className="w-full border border-gray-300 p-2 rounded"
-                onWheel={(e) => e.target.blur()}
-              />
-            </div>
+          <div>
+            <label className="block mb-1 font-medium">Price Note</label>
+            <input
+              type="text"
+              name="price_note"
+              value={formData.price_note || ""}
+              onChange={handleChange}
+              className="w-full border border-gray-300 p-2 rounded"
+            />
           </div>
 
           <div>

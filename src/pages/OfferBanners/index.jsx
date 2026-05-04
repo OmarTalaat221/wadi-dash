@@ -373,7 +373,7 @@ const OfferBanners = () => {
           {tour.title}
         </div>
         <div className="text-xs text-gray-500">
-          {tour.price_currency}
+          {"$"}
           {tour.price_current} • {tour.duration_days} days
         </div>
       </div>
@@ -962,7 +962,7 @@ const OfferBanners = () => {
                       </p>
                       <div className="flex items-center gap-3 text-sm text-gray-600">
                         <span>
-                          {getTourById(currentBanner.tour_id)?.price_currency}
+                          {"$"}
                           {getTourById(currentBanner.tour_id)?.price_current}
                         </span>
                         <span>•</span>

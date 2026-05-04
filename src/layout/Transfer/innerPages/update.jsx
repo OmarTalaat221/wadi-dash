@@ -207,7 +207,7 @@ function UpdateCarLayout() {
         location: rowData.location,
         price_current: rowData.price_current,
         price_original: rowData.price_original,
-        price_currency: rowData.price_currency,
+        price_currency: rowData.price_currency || "$",
         price_note: rowData.price_note,
         car_type: rowData.car_type,
         max_people: rowData.max_people,

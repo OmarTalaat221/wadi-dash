@@ -440,7 +440,7 @@ const TourRequests = ({ onReadUpdated }) => {
       key: "total_amount",
       render: (text, r) => (
         <p className="font-bold text-xl mb-0 text-center text-[#295557]">
-          {r.tour_details?.price_currency || "$"}
+          {"$"}
           {parseFloat(text).toLocaleString()}
         </p>
       ),
@@ -736,7 +736,7 @@ const TourRequests = ({ onReadUpdated }) => {
                   <div>
                     <p className="text-xs opacity-80 mb-1">Total Amount</p>
                     <p className="text-xl font-bold">
-                      {rowData.tour_details?.price_currency || "$"}
+                      {"$"}
                       {parseFloat(
                         rowData.reservation?.total_amount
                       ).toLocaleString()}

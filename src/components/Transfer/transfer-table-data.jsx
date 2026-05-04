@@ -86,12 +86,12 @@ function CarTableData({
       render: (_, record) => (
         <div className="flex flex-col">
           <span className="font-bold text-green-600">
-            {record.price_currency || "$"}
+            {"$"}
             {record.price_current}
           </span>
           {record.price_original && (
             <span className="text-sm line-through text-gray-500">
-              {record.price_currency || "$"}
+              {"$"}
               {record.price_original}
             </span>
           )}

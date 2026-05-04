@@ -163,7 +163,7 @@ function CreateCarLayout() {
         location: formData.location,
         price_current: formData.price_current,
         price_original: formData.price_original,
-        price_currency: formData.price_currency,
+        price_currency: formData.price_currency || "$",
         price_note: formData.price_note,
         car_type: formData.car_type,
         max_people: formData.max_people,

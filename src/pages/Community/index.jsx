@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useCallback } from "react";
 import PostCard from "../../components/PostCard/PostCard";
 import FramerModal from "../../components/FramerModal/FramerModal";
-import { Tabs, Badge, message, Pagination, Modal } from "antd"; // ✅ Added Modal
-import { ExclamationCircleOutlined } from "@ant-design/icons"; // ✅ Added
+import EditBlogModal from "../../components/EditBlogModal/EditBlogModal"; // ✅ Added
+import { Tabs, Badge, message, Pagination, Modal } from "antd";
+import { ExclamationCircleOutlined } from "@ant-design/icons";
 import axios from "axios";
 import { base_url } from "../../utils/base_url";
 import { useSearchParams } from "react-router-dom";
 
 const { TabPane } = Tabs;
-const { confirm } = Modal; // ✅ Added
+const { confirm } = Modal;
 
 const Community = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -18,6 +19,7 @@ const Community = () => {
   const currentTab = searchParams.get("tab") || "all";
 
   const [selectedPost, setSelectedPost] = useState(null);
+  const [editingPost, setEditingPost] = useState(null); // ✅ Added
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
@@ -168,7 +170,6 @@ const Community = () => {
     }
   };
 
-  // ✅ Delete Blog
   const handleDelete = useCallback(
     (postId, postTitle) => {
       confirm({
@@ -196,12 +197,9 @@ const Community = () => {
             );
 
             if (response.data.status === "success") {
-              // ✅ Remove from UI without refetching
               setPosts((prev) => prev.filter((post) => post.id !== postId));
               setTotal((prev) => prev - 1);
               message.success("Blog deleted successfully");
-
-              // Close modal if this post is currently open
               setSelectedPost((prev) => (prev?.id === postId ? null : prev));
             } else {
               message.error(response.data.message || "Failed to delete blog");
@@ -215,6 +213,23 @@ const Community = () => {
     },
     [setSelectedPost]
   );
+
+  // ✅ Open edit modal with post data
+  const handleEdit = useCallback((post) => {
+    setEditingPost(post);
+  }, []);
+
+  // ✅ Update post in UI after successful edit
+  const handleEditSuccess = useCallback((updatedPost) => {
+    setPosts((prev) =>
+      prev.map((p) => (p.id === updatedPost.id ? { ...p, ...updatedPost } : p))
+    );
+    // ✅ Sync FramerModal if it's open on the same post
+    setSelectedPost((prev) =>
+      prev?.id === updatedPost.id ? { ...prev, ...updatedPost } : prev
+    );
+    setEditingPost(null);
+  }, []);
 
   return (
     <div className="p-4">
@@ -294,7 +309,8 @@ const Community = () => {
               setSelectedPost={setSelectedPost}
               onAccept={handleAccept}
               onReject={handleReject}
-              onDelete={handleDelete} // ✅ Pass delete handler
+              onDelete={handleDelete}
+              onEdit={handleEdit} // ✅ Added
             />
           ))
         ) : (
@@ -323,7 +339,7 @@ const Community = () => {
         </div>
       )}
 
-      {/* Modal */}
+      {/* View Modal */}
       {selectedPost !== null && (
         <FramerModal
           open={selectedPost !== null}
@@ -332,10 +348,19 @@ const Community = () => {
           selectedPost={selectedPost}
           onAccept={handleAccept}
           onReject={handleReject}
-          onDelete={handleDelete} // ✅ Pass delete handler
+          onDelete={handleDelete}
+          onEdit={handleEdit} // ✅ Added
           fetchBlogs={() => fetchBlogs(currentPage, currentLimit, currentTab)}
         />
       )}
+
+      {/* ✅ Edit Modal */}
+      <EditBlogModal
+        open={editingPost !== null}
+        post={editingPost}
+        onClose={() => setEditingPost(null)}
+        onSuccess={handleEditSuccess}
+      />
     </div>
   );
 };

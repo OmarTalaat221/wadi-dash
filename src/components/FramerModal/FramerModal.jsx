@@ -1,13 +1,13 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Modal, Badge, Divider, Button } from "antd";
 import {
   FaTag,
-  FaUser,
   FaCalendar,
   FaQuoteLeft,
   FaComment,
   FaTimes,
-  FaTrash, // ✅ Added
+  FaTrash,
+  FaEdit, // ✅ Added
 } from "react-icons/fa";
 import CommentsModal from "./CommentsModal";
 
@@ -18,7 +18,8 @@ const FramerModal = ({
   selectedPost,
   onAccept,
   onReject,
-  onDelete, // ✅ Added
+  onDelete,
+  onEdit, // ✅ Added
   fetchBlogs,
 }) => {
   const [commentsModalOpen, setCommentsModalOpen] = useState(false);
@@ -61,16 +62,34 @@ const FramerModal = ({
     closeModal();
   };
 
-  // ✅ Delete from modal — closes modal first then triggers confirm
   const handleDeleteAndClose = () => {
     closeModal();
-    // Small timeout so modal closes before confirm dialog opens
     setTimeout(() => {
       onDelete && onDelete(selectedPost.id, selectedPost.title);
     }, 200);
   };
 
-  // ✅ Delete button shown in all statuses
+  // ✅ Edit — close FramerModal first, then open EditModal
+  const handleEditAndClose = () => {
+    const postToEdit = selectedPost;
+    closeModal();
+    setTimeout(() => {
+      onEdit && onEdit(postToEdit);
+    }, 200);
+  };
+
+  // ✅ Reusable buttons
+  const editButton = (
+    <Button
+      key="edit"
+      icon={<FaEdit />}
+      onClick={handleEditAndClose}
+      className="!border-blue-500 !text-blue-500 hover:!bg-blue-50"
+    >
+      Edit Blog
+    </Button>
+  );
+
   const deleteButton = (
     <Button
       key="delete"
@@ -78,7 +97,7 @@ const FramerModal = ({
       icon={<FaTrash />}
       onClick={handleDeleteAndClose}
     >
-      Delete Blog
+      Delete
     </Button>
   );
 
@@ -86,6 +105,7 @@ const FramerModal = ({
     if (selectedPost?.status === "pending") {
       return [
         deleteButton,
+        editButton,
         <Button
           key="reject"
           danger
@@ -103,6 +123,7 @@ const FramerModal = ({
     if (selectedPost?.status === "accepted") {
       return [
         deleteButton,
+        editButton,
         <Button
           key="manage-comments"
           type="primary"
@@ -117,8 +138,10 @@ const FramerModal = ({
       ];
     }
 
+    // rejected / hidden
     return [
       deleteButton,
+      editButton,
       <Button key="close" onClick={closeModal}>
         Close
       </Button>,

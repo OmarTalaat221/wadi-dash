@@ -426,7 +426,7 @@ const AccommodationRequests = ({ onReadUpdated }) => {
       key: "total_amount",
       render: (text, record) => (
         <p className="font-bold text-lg mb-0 text-[#295557]">
-          {record.price_currency || "$"}
+          {"$"}
           {parseFloat(text).toLocaleString()}
         </p>
       ),
@@ -708,7 +708,7 @@ const AccommodationRequests = ({ onReadUpdated }) => {
                   <div>
                     <p className="text-xs opacity-80 mb-1">Total Amount</p>
                     <p className="text-xl font-bold">
-                      {rowData.price_currency || "$"}
+                      {"$"}
                       {parseFloat(rowData.total_amount).toLocaleString()}
                     </p>
                   </div>
@@ -791,7 +791,7 @@ const AccommodationRequests = ({ onReadUpdated }) => {
                             className="font-bold mb-0"
                             style={{ color: "#295557" }}
                           >
-                            {rowData.price_currency}
+                            {"$"}
                             {rowData.price_current}
                           </p>
                         </div>
@@ -801,7 +801,7 @@ const AccommodationRequests = ({ onReadUpdated }) => {
                               Original
                             </p>
                             <p className="line-through text-gray-400 mb-0">
-                              {rowData.price_currency}
+                              {"$"}
                               {rowData.price_original}
                             </p>
                           </div>

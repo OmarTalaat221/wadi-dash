@@ -1,4 +1,4 @@
-// components/Activity/activity-table-data.jsx
+// components/Activities/activity-table-data.jsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Table, Switch, Button, message, Tooltip } from "antd";
@@ -15,7 +15,6 @@ function ActivityTableData({
   const navigate = useNavigate();
   const goToUpdate = (id) => navigate(`update/${id}`);
 
-  // Get admin data from localStorage
   const adminData = JSON.parse(localStorage.getItem("admin_data") || "{}");
   const invitationCode = adminData?.invitation_code || "";
 
@@ -25,9 +24,7 @@ function ActivityTableData({
     message.success("Link copied to clipboard!");
   };
 
-  // Handle table change (pagination, filters, sorter)
   const handleTableChange = (newPagination, filters, sorter) => {
-    // Call parent's pagination change handler with page and pageSize
     if (onPaginationChange) {
       onPaginationChange(newPagination.current, newPagination.pageSize);
     }
@@ -67,11 +64,14 @@ function ActivityTableData({
       sorter: (a, b) => a.title?.localeCompare(b.title),
       ellipsis: true,
     },
+    // ✅ استبدلنا Activity Type بـ Category Name
     {
-      title: "Activity Type",
-      dataIndex: "activity_type",
-      key: "activity_type",
-      sorter: (a, b) => a.activity_type?.localeCompare(b.activity_type),
+      title: "Category",
+      dataIndex: "category_name",
+      key: "category_name",
+      sorter: (a, b) =>
+        (a.category_name || "").localeCompare(b.category_name || ""),
+      render: (text) => text || "—",
     },
     {
       title: "Duration",
@@ -84,14 +84,14 @@ function ActivityTableData({
       render: (_, record) => (
         <div className="flex flex-col">
           <span className="font-bold text-green-600">
-            {record.price_currency || "$"}
+            {"$"}
             {record.price_current}
           </span>
           {record.price_original &&
             parseFloat(record.price_original) >
               parseFloat(record.price_current) && (
               <span className="text-sm text-gray-400 line-through">
-                {record.price_currency || "$"}
+                {"$"}
                 {record.price_original}
               </span>
             )}

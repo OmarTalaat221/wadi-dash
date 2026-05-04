@@ -24,7 +24,7 @@ function CreateAccomLayout() {
     description: "",
     price_current: "",
     price_original: "",
-    price_currency: "USD",
+    price_currency: "$",
     price_note: "",
     country_id: "",
     category: "hotel",
